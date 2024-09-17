@@ -1,0 +1,189 @@
+Example Codes Document
+
+Example 1 :
+
+Selected Information
+
+Base: 50 Shore (pair)
+Shoe Size: 6 Narrow W104
+Cradle Details: Cupping thin and vertical
+Rearfoot-left: c2
+Rearfoot-right: c2
+Height: 4mm (both left and right)
+
+Modifications:
+Blank
+
+Postings:
+Blank
+
+Additions:
+Poron Forefoot (both left and right)
+Metatarsal Pad (left)
+Top Cover Material: Eva (Black) (pair)
+Lining Thickness: 1.5mm (pair)
+
+Relevant Codes Based on Logic Document
+Base:
+
+50 Shore: B54c x2[1] 
+Postings:
+
+Rearfoot (both left and right): B56 x2[2]
+Additions:
+
+Poron Forefoot: B56 x2[3]
+Metatarsal Pad: B41[4]
+Top Cover and Lining:
+
+Eva (Black) Top Cover: B55a 
+Lining (1.5mm): B55a
+Since linings and coverings are considered the same, and there is one extra covering (Eva top cover) and one lining (1.5mm), this counts as 2 extra coverings: B55b x2[5] 
+
+Final Codes
+Base: B54c x2
+Postings: B56 x2
+Additions: B56 x2, B41
+Top Cover and Lining: B55b x2
+
+So, the final codes are:
+
+B54c x2
+B56 x4
+B41
+B55b x2
+
+Coding Finished
+
+End of Example 1
+
+Example 2
+
+Selected Information
+
+Base: 65 Shore (pair)
+Shoe Size: 9
+Rearfoot-left: c1
+Rearfoot-right: c2
+Height: 3mm (both left and right)
+
+Modifications:
+Blank
+
+Postings:
+Blank
+
+
+Additions:
+Rigid 1st Extension (left and right)
+Metatarsal Bar (left and right)
+Top Cover Material: Eva (Black) (pair)
+Lining Length: Full (pair)
+Relevant Codes Based on Logic Document
+Base:
+65 Shore: B54c x2
+Postings:
+Rearfoot (left): B56
+Rearfoot (right): B56
+Additions:
+Rigid 1st Extension: B20
+Metatarsal Bar: B41
+Top Cover and Lining:
+Eva (Black) Top Cover: B55a
+Full Lining: B55a
+Since linings and coverings are considered the same, and there is one extra covering (Eva top cover) and one lining (Full), this counts as 2 extra coverings: B55b x2
+
+Final Codes
+Base: B54c x2
+Postings: B56 x2
+Additions: B20, B41
+Top Cover and Lining: B55b x2 
+
+Coding Finished
+
+End of Example 2
+
+Example 3
+
+Selected Information
+Base: 50 Shore (pair)
+Shoe Size: 8 Narrow W104
+Rearfoot-left: c1
+Rearfoot-right: c1
+Height: 4mm (both left and right)
+Modifications:
+Cut out and additions: 1st Met Ray (left and right)
+Top Cover Material: Eva (Black) (pair)
+Lining Length: Full (pair)
+Additional Information: cover first ray cut out with poron
+Relevant Codes Based on Logic Document
+
+Base:
+50 Shore: B54c x2
+
+Modifications:
+1st Met Ray (left and right): BNS45 x2
+
+Postings:
+Rearfoot (left): B56
+Rearfoot (right): B56
+
+Top Cover and Lining:
+Eva (Black) Top Cover: B55a
+Full Lining: B55a
+Since linings and coverings are considered the same, and there is one extra covering (Eva top cover) and one lining (Full), this counts as 2 extra coverings: B55b x2
+
+Final Codes
+Base: B54c x2
+Postings: B56 x2
+Modifications: BNS45 x2
+Top Cover and Lining: B55b x2
+Coding Finished
+
+End of Example 3
+
+Example 4 
+
+Selected Information from Document:
+Base: 50 Shore (pair)
+
+Shoe Size: 5 Narrow W104
+
+Rearfoot-left: c1
+
+Rearfoot-right: c1
+
+Height: 3mm (both left and right)
+
+Additions:
+
+Metatarsal Pad (left and right)
+Top Cover Material: Eva (Blue) (pair)
+Lining Thickness: 1.5mm (pair)
+Modifications:
+
+1st Met Head (left and right)
+Relevant Codes Based on Logic Document
+Base:
+50 Shore: B54c x2[1]
+Postings:
+Rearfoot (left): B56
+Rearfoot (right): B56
+Additions:
+Metatarsal Pad: B41 x2
+Modifications:
+1st Met Head: BNS45 x2
+Top Cover and Lining:
+Eva (Blue) Top Cover: B55a
+Lining (1.5mm): B55a
+Since linings and coverings are considered the same, and there is one extra covering (Eva top cover) and one lining (1.5mm), this counts as 2 extra coverings: B55b x2[2].
+
+Final Codes:
+Base: B54c x2
+Postings: B56 x2
+Additions: B41 x2
+Modifications: BNS45 x2
+Top Cover and Lining: B55b x2
+Coding Finished
+
+End of Example 4
