@@ -1,0 +1,96 @@
+Auto Doc Reference: N/A
+Tariff Codes:
+Based on the provided XML information, using the provided logic:
+
+For Modelling:
+The base is 50 Shore and since it is a pair, the tariff code would be B54c x2.
+
+For Modification:
+No modifications are listed in the XML data. So, no associated tariff code is provided.
+
+For Postings:
+The rearfoot-left and rearfoot-right contains 4mm posting, hence for each of these, the tariff code would be B56. Since it is for both feet, the final code would be B56 x2.
+
+For Additions:
+No additions are present in the XML data. So, no associated tariff code is provided.
+
+For Top Cover and Linings:
+There is a full-length top cover mentioned in the XML data. However, the material is not listed in the logic document, hence the exact tariff code cannot be determined. 
+
+Based on the information available, the tariff codes generated are:
+B54c x2
+B56 x2
+--------------------------------------------------
+Auto Doc Reference: N/A
+Tariff Codes:
+Based on the provided XML data and logic document, the calculated tariff codes would be:
+
+Modelling:
+Since there is a pair of insoles, the code for the base (50 Shore) would be B54c x2. 
+
+Modification:
+There are no modifications added as per the given XML data.
+
+Postings:
+Rearfoot posting is noted for both left and right feet, so we should add B56 x2.
+
+Additions:
+There are no additions stated in the given XML data. 
+
+Top Cover and Linings (Coverings):
+In the given XML data, Top Cover Material is listed as Alcantra (Brown) and it is a full covering, so the code should be B55a x2.
+
+So the final tariff codes are:
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Auto Doc Reference: N/A
+Tariff Codes:
+Based on the logic document and XML content, the following tariff codes are generated:
+
+Modelling: 
+Since base is 50 Shore and it's a pair, add code B54c x2.
+
+Modification: 
+No modification is done in this case.
+
+Postings:
+Medial Rearfoot Posting has been done on both feet so, add code B56 x2.
+
+Additions:
+No additions in this case.
+
+Top Cover and Linings:
+The top cover is Alcantra (Brown) which counts as one extra covering. So, add code B55a. As it's a pair, add it twice. So, the final code will be B55a x2.
+
+Final Codes:
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Auto Doc Reference: N/A
+Tariff Codes:
+Based on the provided XML content, logic document and the examples, the following codes would be generated:
+
+Modelling:
+Pair and base is 50 Shore: B54c x2
+
+Modification:
+None
+
+Postings:
+Rearfoot-left: B56
+Rearfoot-right: B56
+
+Additions:
+None
+
+Top Cover (coverings) and Linings:
+Top cover included, so one extra covering: B55a
+
+Final Codes:
+B54c x2
+B56 x2
+B55a
+--------------------------------------------------
