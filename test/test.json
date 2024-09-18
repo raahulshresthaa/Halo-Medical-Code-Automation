@@ -1,0 +1,122 @@
+{
+    "Details": {
+      "AutoDocRef": "SR548454",
+      "Clinic": "QEII"
+    },
+    "Modelling": {
+      "Type": {
+        "TCI": "Yes",
+        "Simple": "Blank",
+        "Crade": "Blank"
+      },
+      "InsoleSide": {
+        "Pair": "Yes",
+        "Left": "Blank",
+        "Right": "Blank"
+      },
+      "Length": {
+        "34": "Blank",
+        "Sculus": "Blank",
+        "Full": "Yes"
+      },
+      "Template": {
+        "MensHalo": "Blank",
+        "MensRetail": "Blank",
+        "LadiesHalo": "Blank",
+        "LadiesRetail": "Yes",
+        "Child": "Blank"
+      },
+      "EvaBase": {
+        "302080SH": "Blank",
+        "453080SH": "Blank",
+        "40Shore": "Blank",
+        "50Shore": "Yes",
+        "65Shore": "Blank"
+      },
+      "ScoopProfile": {
+        "Low": "Blank",
+        "Medium": "Yes",
+        "High": "Blank"
+      },
+      "InsoleThickness": {
+        "1.5mm": "Blank",
+        "3mm": "Yes",
+        "6mm": "Blank"
+      },
+      "HeelCupHeight": {
+        "Flat": "Blank",
+        "Low": "Blank",
+        "Medium": "Yes",
+        "High": "Blank"
+      },
+      "ShoeSize": "7",
+      "CradeDetails": "Increase arch support x5mm"
+    },
+    "Left": {
+      "Modification": {
+        "CutOutAndAdditions": "Blank",
+        "MetHead1": "Blank",
+        "MetRay1": "Blank",
+        "MetRay5": "Blank",
+        "NavicularSweetSpot": "Blank",
+        "FascialAccommodation": "Blank",
+        "HeelFlangeMedial": "Blank",
+        "HeelFlangeLateral": "Blank",
+        "MedialRearfootPosting": "4mm",
+        "LateralRearfootPosting": "Blank",
+        "MedialForefootPosting": "Blank",
+        "LateralForefootPosting": "Blank",
+        "MedialKirbySkivePosting": "Blank",
+        "LateralKirbySkivePosting": "Blank"
+      },
+      "Additions": {
+        "Addition1": "Blank",
+        "Addition1Thickness": "Blank",
+        "Addition2": "Blank",
+        "Addition2Thickness": "Blank",
+        "Addition3": "Blank",
+        "Addition3Thickness": "Blank",
+        "Addition4": "Blank",
+        "Addition4Thickness": "Blank"
+      }
+    },
+    "Right": {
+      "Modification": {
+        "CutOutAndAdditions": "Blank",
+        "MetHead1": "Blank",
+        "MetRay1": "Blank",
+        "MetRay5": "Blank",
+        "NavicularSweetSpot": "Blank",
+        "FascialAccommodation": "Blank",
+        "HeelFlangeMedial": "Blank",
+        "HeelFlangeLateral": "Blank",
+        "MedialRearfootPosting": "4mm",
+        "LateralRearfootPosting": "Blank",
+        "MedialForefootPosting": "Blank",
+        "LateralForefootPosting": "Blank",
+        "MedialKirbySkivePosting": "Blank",
+        "LateralKirbySkivePosting": "Blank"
+      },
+      "Additions": {
+        "Addition1": "Blank",
+        "Addition1Thickness": "Blank",
+        "Addition2": "Blank",
+        "Addition2Thickness": "Blank",
+        "Addition3": "Blank",
+        "Addition3Thickness": "Blank",
+        "Addition4": "Blank",
+        "Addition4Thickness": "Blank"
+      }
+    },
+    "Lining": {
+      "Length": "Blank",
+      "Density": "Blank",
+      "Thickness": "Blank"
+    },
+    "TopCover": {
+      "TopCoverMaterial": "Alcantra (Brown)",
+      "TopCoverLength": "Full"
+    },
+    "AdditionalInformation": "Increase arch support x5mm"
+  }
+  
