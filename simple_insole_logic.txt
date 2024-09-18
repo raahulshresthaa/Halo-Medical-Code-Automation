@@ -1,0 +1,52 @@
+This is the Logic document for Simple insoles price coding.
+
+Modelling 
+
+If there is a pair then do x2 of the codes for the modelling section. (i.e. B54c x2)
+If base is Poron add code : B40b
+If base is Bontex add code : B40a
+If base is Leather add code : B40a
+
+Modification 
+
+Add BNS45 for all of the following (not for postings) for both the left and right foot modifications : Cut out and additions, 1st Met Head, 1st Met Ray, 5th Met Ray, Navicular Sweet Spot, Fascial Accommodation, Heel Flange.
+
+Postings 
+
+Make sure that if nothing is ticked then you do not charge for rear foot and fore foot
+Add B56 for Rearfoot
+Add B56 for Forefoot.
+
+Additions
+
+The following is a list of all the additions that can be made, if the specified addition is present add the following codes.
+Valgus Pad - B41
+Metatarsal Pad - B41
+Metatarsal Bar - B41
+Morton's Extension - B56
+Reverse Morton's Extension - B56
+Neurological Footplate - D8a
+Balance Pad - B41
+Heel Pad - B41
+Cuboid Pad - B41 
+Kinetic Wedge - B43
+Cobra Pad - B41
+Neuroma Pad - B41 
+Sulcus Crest - B41
+Poron Forefoot - B56
+Arch Fill - B41
+Heel Raise - B43
+Rigid 1st Extension - B20
+Recess - BNS45
+Hole & Plug - BNS45
+Partial Toe Block - B50
+Full Toe Block - B51
+
+Top Cover (coverings) and Linings (charged with the same code)
+
+All simple insoles include one covering as standard, any additional coverings charged as the following note that spenco counts as two coverings and Linings work the same way as coverings, And that any linings (to shell, to sulcus, full) count as 1 extra covering
+if you consider linings x and covers x how many x do you have, then consider x the number of covers and use that to work out the codes
+1 extra covering - B55a 
+2 extra covering - B55b
+3 extra covering or more - B55c
+If there is a pair of insoles then make sure there's two codes (ie b55c x2)( so that 2 extra covering B55b, then add x2 if it is a pair so : B55b x2)
