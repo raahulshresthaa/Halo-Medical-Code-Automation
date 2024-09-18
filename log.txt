@@ -94,3 +94,27 @@ B54c x2
 B56 x2
 B55a
 --------------------------------------------------
+Auto Doc Reference: N/A
+Tariff Codes:
+Based on the given XML and the provided logic the relevant codes are:
+
+Modelling:
+- A pair of insoles with 'Shore50' base: B54c x2
+
+Modification:
+- None 
+
+Posting:
+- MedialRearfootPosting in both the left and right foot: B56 x2
+
+Addition:
+- None 
+
+Top Cover and Lining:
+- Alcantra TopCover is given but no extra lining, marking as one covering: B55a x2 (since a pair is present)
+
+Hence, the calculated tariff codes are: 
+- B54c x2
+- B56 x2
+- B55a x2
+--------------------------------------------------
