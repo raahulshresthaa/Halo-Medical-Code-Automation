@@ -165,6 +165,9 @@ def upload_file():
     else:
         messagebox.showinfo("No JSON File Selected", "Please select a JSON file to process.")
 
+
+
+
 # Set up the GUI window
 root = tk.Tk()
 root.title("Halo Medical Code Automation")
