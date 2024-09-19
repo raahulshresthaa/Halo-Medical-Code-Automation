@@ -101,22 +101,6 @@ def extract_form_type_from_xml_string(xml_content):
     except Exception as e:
         messagebox.showerror("Error", f"Error parsing XML content: {str(e)}")
         return None
-"""
-# Function to extract auto doc reference from XML content
-def extract_auto_doc_reference_from_xml_string(xml_content):
-    try:
-        root = ET.fromstring(xml_content)
-        auto_doc_ref_element = root.find('AutoDocRef')
-        if auto_doc_ref_element is not None and auto_doc_ref_element.text:
-            return auto_doc_ref_element.text.strip()
-        else:
-            return None
-    except Exception as e:
-        messagebox.showerror("Error", f"Error extracting auto doc reference: {str(e)}")
-        return None
-"""
-#import xml.etree.ElementTree as ET
-#from tkinter import messagebox
 
 def extract_auto_doc_reference_from_xml_string(xml_content):
     try:
@@ -141,7 +125,9 @@ def get_tariff_codes_from_xml(xml_string, file_context, logic_content):
                 {"role": "system", "content": f"Use the following logic to generate tariff codes:\n\n{logic_content}\n\nOnly output the calculated tariff codes."},
                 {"role": "user", "content": f"Here is the XML content to process:\n{xml_string}\n\nRelevant file information:\n{file_context}"}
             ],
-            max_tokens=1000  # Adjust as necessary
+            max_tokens=1000,  # Adjust as necessary
+            temperature=0.1  # Add the temperature value here (adjust as needed)
+
         )
 
         # Extract the assistant's response (tariff codes)
@@ -204,7 +190,9 @@ def upload_file():
                 messagebox.showerror("Error", f"No logic file mapping found for form type '{form_type}'.")
                 return
 
-            logic_file_path = os.path.join(current_dir, logic_file_name)
+            #logic_file_path = os.path.join(current_dir, logic_file_name)
+            logic_folder_path = os.path.join(current_dir, 'logic_folder')
+            logic_file_path = os.path.join(logic_folder_path, logic_file_name)
             print(f"Logic file path: {logic_file_path}")
 
             # Read the logic file
@@ -225,7 +213,6 @@ def upload_file():
             # Display the result
             result_text.config(state=tk.NORMAL)  # Enable editing temporarily
             result_text.delete(1.0, tk.END)  # Clear previous content
-            result_text.insert(tk.END, f"Auto Doc Ref:\n {AutoDocRef}")
             result_text.insert(tk.END, f"Tariff Codes:\n{tariff_codes}")  # Insert new content
             result_text.config(state=tk.DISABLED)  # Disable editing again
 
@@ -240,7 +227,7 @@ def upload_file():
 # Set up the GUI window
 root = tk.Tk()
 root.title("Halo Medical Code Automation")
-root.geometry("800x800")
+root.geometry("1200x800")
 
 # Load the logo image
 try:
