@@ -190,7 +190,9 @@ def upload_file():
                 messagebox.showerror("Error", f"No logic file mapping found for form type '{form_type}'.")
                 return
 
-            logic_file_path = os.path.join(current_dir, logic_file_name)
+            #logic_file_path = os.path.join(current_dir, logic_file_name)
+            logic_folder_path = os.path.join(current_dir, 'logic_folder')
+            logic_file_path = os.path.join(logic_folder_path, logic_file_name)
             print(f"Logic file path: {logic_file_path}")
 
             # Read the logic file
