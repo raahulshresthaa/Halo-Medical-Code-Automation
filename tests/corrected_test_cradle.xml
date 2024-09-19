@@ -7,8 +7,8 @@
     <Modelling>
         <Type>
             <TCI>Blank</TCI>
-            <Simple>Yes</Simple>
-            <Cradle>Blank</Cradle>
+            <Simple>Blank</Simple>
+            <Cradle>Yes</Cradle>
         </Type>
         <InsoleSide>
             <Pair>Yes</Pair>
