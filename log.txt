@@ -408,3 +408,45 @@ B55a x2
 ```
 >>>>>>> 9c4fd565779e759707dced145edd9fae738f39b8
 --------------------------------------------------
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, let's process the information to generate the appropriate tariff codes.
+
+### Step-by-Step Processing:
+
+1. **Modelling Section:**
+   - **Base Material:** 50 Shore (from `<Shore50>Yes</Shore50>`)
+     - Code: `B54c`
+   - **Pair:** Yes
+     - Code: `B54c x2`
+
+2. **Modification Section:**
+   - **Rearfoot Posting (both left and right):** 4mm
+     - Code: `B56 x2`
+
+3. **Additions Section:**
+   - No additions specified in the XML content.
+
+4. **Top Cover and Linings:**
+   - **Top Cover Material:** Alcantra (Brown) (pair)
+     - Code: `B55a`
+   - **No linings specified.**
+   - Since there is one extra covering (Alcantra top cover), this counts as 1 extra covering.
+     - Code: `B55a x2`
+
+### Final Codes:
+
+- **Base:** `B54c x2`
+- **Postings:** `B56 x2`
+- **Top Cover and Linings:** `B55a x2`
+
+### Output:
+
+```plaintext
+B54c x2
+B56 x2
+B55a x2
+```
+
+These are the calculated tariff codes based on the provided XML content and the logic document.
+--------------------------------------------------
