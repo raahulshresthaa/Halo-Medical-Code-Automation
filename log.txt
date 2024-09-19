@@ -141,3 +141,51 @@ B54c x2
 B56 x2
 B55b x2
 --------------------------------------------------
+Auto Doc Reference: SR548454
+Tariff Codes:
+B54c x2
+B56 x2
+B55b x2
+--------------------------------------------------
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic for TCI insoles price coding, here are the calculated tariff codes:
+
+1. **Modelling:**
+   - Base: 50 Shore (B54c)
+   - Since it's a pair, we multiply by 2: **B54c x2**
+
+2. **Modification:**
+   - Both the Left and Right insoles have rearfoot postings.
+   - Rearfoot (Left): B56
+   - Rearfoot (Right): B56
+   - Since they are present on both feet: **B56 x2**
+
+3. **Additions:**
+   - No additions listed.
+
+4. **Top Cover and Linings:**
+   - Top Cover Material: Alcantra (1 covering)
+   - No linings specified.
+   - Total extra coverings: 1 (Alcantra)
+   - Extra covering code: B55a
+   - Since it's a pair, we multiply by 2: **B55a x2**
+
+### Final Codes:
+
+- **B54c x2** (Base: 50 Shore)
+- **B56 x2** (Rearfoot postings)
+- **B55a x2** (Top Cover: Alcantra)
+
+So, the final tariff codes are:
+
+**B54c x2**
+**B56 x2**
+**B55a x2**
+--------------------------------------------------
+Auto Doc Reference: SR548454
+Tariff Codes:
+B54c x2
+B56 x2
+B55b
+--------------------------------------------------

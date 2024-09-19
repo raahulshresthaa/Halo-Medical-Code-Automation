@@ -225,6 +225,7 @@ def upload_file():
             # Display the result
             result_text.config(state=tk.NORMAL)  # Enable editing temporarily
             result_text.delete(1.0, tk.END)  # Clear previous content
+            result_text.insert(tk.END, f"Auto Doc Ref:\n {AutoDocRef}")
             result_text.insert(tk.END, f"Tariff Codes:\n{tariff_codes}")  # Insert new content
             result_text.config(state=tk.DISABLED)  # Disable editing again
 
