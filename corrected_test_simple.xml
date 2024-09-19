@@ -6,9 +6,9 @@
     </Details>
     <Modelling>
         <Type>
-            <TCI>Yes</TCI>
-            <Simple>Blank</Simple>
-            <Crade>Blank</Crade>
+            <TCI>Blank</TCI>
+            <Simple>Yes</Simple>
+            <Cradle>Blank</Cradle>
         </Type>
         <InsoleSide>
             <Pair>Yes</Pair>

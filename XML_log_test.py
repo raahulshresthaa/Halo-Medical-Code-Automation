@@ -68,7 +68,7 @@ def read_xml_file(xml_file_path):
         messagebox.showerror("Error", f"Error reading XML file: {str(e)}")
         return None
 
-# Function to extract form type from XML content
+"""# Function to extract form type from XML content
 def extract_form_type_from_xml_string(xml_content):
     try:
         root = ET.fromstring(xml_content)
@@ -98,6 +98,61 @@ def extract_form_type_from_xml_string(xml_content):
                 return None
         else:
             return selected_types[0].lower()
+    except Exception as e:
+        messagebox.showerror("Error", f"Error parsing XML content: {str(e)}")
+        return None
+"""
+def extract_form_type_from_xml_string(xml_content):
+    try:
+        root = ET.fromstring(xml_content)
+        modelling = root.find('Modelling')
+        if modelling is None:
+            messagebox.showerror("Error", "No 'Modelling' element found in XML.")
+            return None
+        
+        type_element = modelling.find('Type')
+        if type_element is None:
+            messagebox.showerror("Error", "No 'Type' element found under 'Modelling' in XML.")
+            return None
+
+        # Dictionary to map XML tags to form types
+        type_mapping = {
+            'TCI': 'tci',
+            'Simple': 'simple',
+            'Cradle': 'cradle'
+            # Add other mappings as needed
+        }
+
+        selected_types = []
+
+        # Iterate over each type (TCI, Simple, Cradle)
+        for type_option in type_element:
+            tag = type_option.tag
+            text = type_option.text.strip() if type_option.text else ''
+            print(f"Checking type: {tag}, value: '{text}'")  # Debug statement
+
+            if text.lower() == 'yes':
+                form_type = type_mapping.get(tag)
+                if form_type:
+                    selected_types.append(form_type)
+                else:
+                    print(f"No mapping found for tag '{tag}'")  # Debug statement
+
+        if not selected_types:
+            messagebox.showerror("Error", "No form type marked 'Yes' found in the XML file.")
+            return None
+        elif len(selected_types) > 1:
+            # Prompt the user to select one
+            selected_type = simpledialog.askstring("Multiple Types Selected",
+                                                   f"Multiple form types are selected: {', '.join(selected_types)}.\nPlease enter the type you want to process:")
+            if selected_type and selected_type.lower() in [t.lower() for t in selected_types]:
+                return selected_type.lower()
+            else:
+                messagebox.showerror("Error", "Invalid type selected.")
+                return None
+        else:
+            print(f"Selected form type: {selected_types[0]}")  # Debug statement
+            return selected_types[0]
     except Exception as e:
         messagebox.showerror("Error", f"Error parsing XML content: {str(e)}")
         return None
@@ -181,7 +236,7 @@ def upload_file():
             logic_file_mapping = {
                 'tci': 'tci_logic.txt',
                 'simple': 'simple_insole_logic.txt',
-                'crade': 'crade_logic.txt'  # Add other mappings as needed
+                'cradle': 'cradle_logic.txt'  # Add other mappings as needed
             }
 
             logic_file_name = logic_file_mapping.get(form_type)

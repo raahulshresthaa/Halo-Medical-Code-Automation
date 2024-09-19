@@ -50,5 +50,3 @@ if you consider linings x and covers x how many x do you have, then consider x t
 2 extra covering - B55b
 3 extra covering or more - B55c
 If there is a pair of insoles then make sure there's two codes (ie b55c x2)( so that 2 extra covering B55b, then add x2 if it is a pair so : B55b x2)
-
-And always output the AutodocRef number i.e. AutoDocRef = SR548454

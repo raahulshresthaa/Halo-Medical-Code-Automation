@@ -61,5 +61,3 @@ if you consider linings x and covers x how many x do you have, then consider x t
 3 extra covering or more - B55c
 ( so that 2 extra covering B55b, then add x2 if it is a pair so : B55b x2)
 note that lining thickness does not denote a new different lining, its a description of the same one 
-
-And always output the AutodocRef number i.e. AutoDocRef = SR548454
