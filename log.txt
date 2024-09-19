@@ -325,3 +325,80 @@ B55a x2
 
 This is the final set of tariff codes based on the provided XML content and the logic document.
 --------------------------------------------------
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, here are the calculated tariff codes:
+
+### Modelling
+- **Base**: 50 Shore
+  - Code: B54c
+  - Since it's a pair, multiply by 2: B54c x2
+
+### Modifications
+- **Left Foot**:
+  - Medial Rearfoot Posting: 4mm
+    - Code: B56
+- **Right Foot**:
+  - Medial Rearfoot Posting: 4mm
+    - Code: B56
+
+### Additions
+- No additions specified in the XML content.
+
+### Top Cover and Linings
+- **Top Cover Material**: Alcantra (Brown)
+  - This counts as one covering.
+- **Base**: 50 Shore
+  - This requires an extra covering.
+- **Total Coverings**: 2 extra coverings
+  - Code: B55b
+  - Since it's a pair, multiply by 2: B55b x2
+
+### Final Codes
+- **Base**: B54c x2
+- **Postings**: B56 x2
+- **Top Cover and Linings**: B55b x2
+
+So, the final tariff codes are:
+
+```
+B54c x2
+B56 x2
+B55b x2
+```
+--------------------------------------------------
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, here are the calculated tariff codes:
+
+### Modelling
+- **Base**: 50 Shore (pair) → B54c x2
+
+### Modifications
+- **Left Foot**:
+  - Medial Rearfoot Posting → B56
+- **Right Foot**:
+  - Medial Rearfoot Posting → B56
+
+### Additions
+- No additions specified in the XML content.
+
+### Top Cover and Linings
+- **Top Cover Material**: Alcantra (Brown) (pair) → B55a
+- No linings specified in the XML content.
+
+Since there is one top cover (Alcantra) and no linings, this counts as 1 extra covering:
+- 1 extra covering → B55a x2
+
+### Final Codes
+- Base: B54c x2
+- Postings: B56 x2
+- Top Cover and Lining: B55a x2
+
+### Output
+```
+B54c x2
+B56 x2
+B55a x2
+```
+--------------------------------------------------

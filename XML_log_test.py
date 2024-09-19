@@ -227,7 +227,7 @@ def upload_file():
 # Set up the GUI window
 root = tk.Tk()
 root.title("Halo Medical Code Automation")
-root.geometry("800x800")
+root.geometry("1200x800")
 
 # Load the logo image
 try:
