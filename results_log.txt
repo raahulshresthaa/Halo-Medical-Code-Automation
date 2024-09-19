@@ -681,3 +681,32 @@ B54c x2
 B56 x2
 ```
 --------------------------------------------------
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, here are the calculated tariff codes:
+
+1. **Modelling Section:**
+   - Base: 50 Shore (pair) -> B54c x2
+
+2. **Modification Section:**
+   - Rearfoot Posting (both left and right): B56 x2
+
+3. **Additions Section:**
+   - No additions specified.
+
+4. **Top Cover and Linings:**
+   - Top Cover Material: Alcantra (Brown) (pair)
+   - No additional linings specified.
+   - Since there is only one top cover and no additional linings, no extra covering codes are needed.
+
+Final Codes:
+- B54c x2
+- B56 x2
+
+So, the final tariff codes are:
+
+```
+B54c x2
+B56 x2
+```
+--------------------------------------------------

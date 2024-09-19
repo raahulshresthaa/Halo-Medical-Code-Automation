@@ -203,7 +203,9 @@ def upload_file():
             logic_file_mapping = {
                 'tci': 'tci_logic.txt',
                 'simple': 'simple_insole_logic.txt',
-                'cradle': 'cradle_logic.txt'  # Add other mappings as needed
+                'cradle': 'cradle_logic.txt',  # Add other mappings as needed
+                'afo': 'afo_logic.txt',
+                'kafo': 'kafo_logic.txt'
             }
 
             logic_file_name = logic_file_mapping.get(form_type)
