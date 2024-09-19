@@ -716,3 +716,37 @@ B54c x2
 B56 x2
 B55a x2
 --------------------------------------------------
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, here are the calculated tariff codes:
+
+1. **Modelling Section**:
+   - Since it is a pair, we need to double the codes.
+   - Base: Shore50 (no specific code for Shore50, so no additional code here).
+
+2. **Modification Section**:
+   - No modifications are specified for cut out and additions, 1st Met Head, 1st Met Ray, 5th Met Ray, Navicular Sweet Spot, Fascial Accommodation, Heel Flange.
+   - Therefore, no BNS45 codes are added.
+
+3. **Postings Section**:
+   - Rearfoot posting is specified for both left and right foot (4mm each).
+   - Add B56 for Rearfoot (left and right): B56 x2.
+
+4. **Additions Section**:
+   - No specific additions are mentioned in the XML content.
+   - Therefore, no additional codes are added.
+
+5. **Top Cover and Linings Section**:
+   - One top cover material is specified: Alcantra (Brown).
+   - No additional linings are specified.
+   - Since there is only one top cover and no additional linings, no extra covering codes are added.
+
+**Final Codes**:
+- Postings: B56 x2
+
+So, the final tariff codes are:
+
+```
+B56 x2
+```
+--------------------------------------------------
