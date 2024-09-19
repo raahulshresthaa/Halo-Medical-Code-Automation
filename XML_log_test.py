@@ -68,40 +68,7 @@ def read_xml_file(xml_file_path):
         messagebox.showerror("Error", f"Error reading XML file: {str(e)}")
         return None
 
-"""# Function to extract form type from XML content
-def extract_form_type_from_xml_string(xml_content):
-    try:
-        root = ET.fromstring(xml_content)
-        modelling = root.find('Modelling')
-        if modelling is None:
-            return None
-        type_element = modelling.find('Type')
-        if type_element is None:
-            return None
-        
-        # Iterate over child elements of 'Type' to find which type is marked as 'Yes'
-        selected_types = []
-        for type_option in type_element:
-            if type_option.text and type_option.text.strip().lower() == 'yes':
-                selected_types.append(type_option.tag.lower())
-        
-        if not selected_types:
-            return None
-        elif len(selected_types) > 1:
-            # Prompt the user to select one
-            selected_type = simpledialog.askstring("Multiple Types Selected",
-                                                   f"Multiple form types are selected: {', '.join(selected_types)}.\nPlease enter the type you want to process:")
-            if selected_type and selected_type.lower() in [t.lower() for t in selected_types]:
-                return selected_type.lower()
-            else:
-                messagebox.showerror("Error", "Invalid type selected.")
-                return None
-        else:
-            return selected_types[0].lower()
-    except Exception as e:
-        messagebox.showerror("Error", f"Error parsing XML content: {str(e)}")
-        return None
-"""
+# Function to find form type
 def extract_form_type_from_xml_string(xml_content):
     try:
         root = ET.fromstring(xml_content)
