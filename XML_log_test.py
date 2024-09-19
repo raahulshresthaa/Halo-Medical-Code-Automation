@@ -1,14 +1,11 @@
-# openai.api_key = "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"
+import os
+import openai
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
-from tkinter import ttk
-from PIL import Image, ImageTk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-import openai
-import os
-import xml.etree.ElementTree as ET
-from PIL import Image, ImageTk  # To handle image loading
+from PIL import Image, ImageTk
+import xml.etree.ElementTree as ET # To handle image loading
 
 # Get your OpenAI API key from environment variable
 #openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -254,19 +251,31 @@ def upload_file():
         messagebox.showinfo("No XML File Selected", "Please select an XML file to process.")
 
 
+
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from PIL import Image, ImageTk
+import tkinter as tk
+from tkinter import messagebox
+
+# Function to change the theme
+def change_theme(event):
+    selected_theme = theme_var.get()
+    root.style.theme_use(selected_theme)
+
+
+# Assuming logo_file_path is defined
+#logo_file_path = 'path_to_logo_image.png'  # Replace with your actual logo file path
+
 # Set up the GUI window
-root = tk.Tk()
+root = ttk.Window(themename='darkly')
 root.title("Halo Medical Code Automation")
 root.geometry("1200x800")
-
-# Apply a theme
-style = ttk.Style()
-style.theme_use('darkly')  # You can change to another theme - ones i like lumin, darkly, solar, cyborg, journal, cerculean
 
 # Load the logo image
 try:
     logo_img = Image.open(logo_file_path)
-    logo_img = logo_img.resize((200, 80), Image.Resampling.LANCZOS)  # Updated resizing method
+    logo_img = logo_img.resize((200, 80), Image.Resampling.LANCZOS)
     logo_photo = ImageTk.PhotoImage(logo_img)
 
     # Create a label to display the logo using ttk.Label
@@ -281,15 +290,15 @@ title_label.pack(pady=5)
 
 # Create a frame for the result text and scrollbar using ttk.Frame
 frame = ttk.Frame(root)
-frame.pack(fill=tk.BOTH, expand=True, pady=10, padx=10)
+frame.pack(fill='both', expand=True, pady=10, padx=10)
 
-# Create a scrollable canvas (no ttk equivalent)
+# Create a scrollable canvas
 canvas = tk.Canvas(frame)
-canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+canvas.pack(side='left', fill='both', expand=True)
 
 # Create a vertical scrollbar using ttk.Scrollbar
-scrollbar = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=canvas.yview)
-scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+scrollbar = ttk.Scrollbar(frame, orient='vertical', command=canvas.yview)
+scrollbar.pack(side='right', fill='y')
 
 # Configure the canvas to work with the scrollbar
 canvas.configure(yscrollcommand=scrollbar.set)
@@ -299,18 +308,35 @@ canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("
 content_frame = ttk.Frame(canvas)
 canvas.create_window((0, 0), window=content_frame, anchor="nw")
 
-# Create a text widget inside the content_frame to display the results (no ttk equivalent)
-result_text = tk.Text(content_frame, wrap=tk.WORD, height=50, width=950)
-result_text.pack(fill=tk.BOTH, expand=True)
-result_text.config(state=tk.DISABLED)  # Make it read-only
+# Create a text widget inside the content_frame to display the results
+result_text = tk.Text(content_frame, wrap='word', height=50, width=950)
+result_text.pack(fill='both', expand=True)
+result_text.config(state='disabled')  # Make it read-only
 
-# Create an upload button using ttk.Button
+
+# Create an upload button using ttk.Button - FIX
 upload_button = ttk.Button(root, text="Upload XML File", command=upload_file)
 upload_button.pack(pady=10)
 
 # Create an exit button using ttk.Button
 exit_button = ttk.Button(root, text="Exit", command=root.quit)
 exit_button.pack(pady=10)
+
+# Create a bottom frame to hold the theme selection dropdown
+bottom_frame = ttk.Frame(root)
+bottom_frame.pack(side='bottom', fill='x', padx=10, pady=10)
+
+# Create a label and Combobox for theme selection
+theme_label = ttk.Label(bottom_frame, text='Theme:')
+theme_label.pack(side='left', padx=(0, 5))
+
+theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'journal', 'cerulean']
+theme_var = tk.StringVar(value='darkly')
+theme_combobox = ttk.Combobox(bottom_frame, textvariable=theme_var, values=theme_list, state='readonly')
+theme_combobox.pack(side='left')
+
+# Bind the selection change event
+theme_combobox.bind('<<ComboboxSelected>>', change_theme)
 
 # Start the GUI event loop
 root.mainloop()
