@@ -5,7 +5,8 @@ from tkinter import filedialog, messagebox, simpledialog
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from PIL import Image, ImageTk
-import xml.etree.ElementTree as ET # To handle image loading
+import xml.etree.ElementTree as ET
+import datetime  # Import datetime module
 
 # Get your OpenAI API key from environment variable
 #openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -159,11 +160,15 @@ def get_tariff_codes_from_xml(xml_string, file_context, logic_content):
     except Exception as e:
         return f"Error: {str(e)}"
 
-# Function to write tariff codes and auto doc reference to the log file
 def write_to_log_file(tariff_codes, auto_doc_ref):
     try:
         log_file_path = os.path.join(current_dir, 'results_log.txt')
         with open(log_file_path, 'a', encoding='utf-8') as log_file:
+            # Get the current date and time
+            current_datetime = datetime.datetime.now()
+            formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
+            log_file.write(f"Date and Time: {formatted_datetime}\n")
             log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
             log_file.write(f"Tariff Codes:\n{tariff_codes}\n")
             log_file.write("-" * 50 + "\n")  # Separator between entries
@@ -171,7 +176,7 @@ def write_to_log_file(tariff_codes, auto_doc_ref):
     except Exception as e:
         messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
 
-# Function to handle file upload and send XML content and logic to the API
+"""# Function to handle file upload and send XML content and logic to the API
 def upload_file():
     # Open a file dialog for selecting XML files
     xml_file_path = filedialog.askopenfilename(title="Select the XML File", filetypes=[("XML Files", "*.xml")])
@@ -235,10 +240,100 @@ def upload_file():
             # Get the tariff codes by sending the XML string, logic, and file context to OpenAI
             tariff_codes = get_tariff_codes_from_xml(xml_content, file_context, logic_content)
 
+                # Get the current date and time
+    current_datetime = datetime.datetime.now()
+    formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
+
+    # Display the result
+    result_text.config(state=tk.NORMAL)  # Enable editing temporarily
+    result_text.delete(1.0, tk.END)  # Clear previous content
+    result_text.insert(tk.END, f"Date and Time:\n{formatted_datetime}\n\n")
+    result_text.insert(tk.END, f"Auto Doc Ref:\n{AutoDocRef}\n\n")
+    result_text.insert(tk.END, f"Tariff Codes:\n{tariff_codes}")  # Insert new content
+    result_text.config(state=tk.DISABLED)  # Disable editing again
+
+            # Write the tariff codes and auto doc reference to the log file
+            write_to_log_file(tariff_codes, AutoDocRef)
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error processing the file: {str(e)}")
+    else:
+        messagebox.showinfo("No XML File Selected", "Please select an XML file to process.")
+
+"""
+# Function to handle file upload and send XML content and logic to the API
+def upload_file():
+    # Open a file dialog for selecting XML files
+    xml_file_path = filedialog.askopenfilename(title="Select the XML File", filetypes=[("XML Files", "*.xml")])
+    
+    if xml_file_path:
+        try:
+            # Read the XML file content as a string
+            xml_content = read_xml_file(xml_file_path)
+            if xml_content is None:
+                return
+
+            # Extract the form type from the XML string
+            form_type = extract_form_type_from_xml_string(xml_content)
+            print(f"Extracted form type: {form_type}")
+            if not form_type:
+                messagebox.showerror("Error", "No form type selected in the XML file.")
+                return
+
+            # Extract the auto doc reference from the XML string
+            AutoDocRef = extract_auto_doc_reference_from_xml_string(xml_content)
+            print(f"Extracted auto doc reference: {AutoDocRef}")
+            if not AutoDocRef:
+                AutoDocRef = "N/A"  # Default value if not found
+
+            # Sanitize form_type to prevent security issues
+            form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
+            print(f"Sanitized form type: {form_type}")
+
+            # Construct the logic file name and path based on the form type
+            logic_file_mapping = {
+                'tci': 'tci_logic.txt',
+                'simple': 'simple_insole_logic.txt',
+                'cradle': 'cradle_logic.txt',  # Add other mappings as needed
+                'afo': 'afo_logic.txt',
+                'kafo': 'kafo_logic.txt'
+            }
+
+            logic_file_name = logic_file_mapping.get(form_type)
+            print(f"Logic file name: {logic_file_name}")
+            if not logic_file_name:
+                messagebox.showerror("Error", f"No logic file mapping found for form type '{form_type}'.")
+                return
+
+            logic_folder_path = os.path.join(current_dir, 'logic_folder')
+            logic_file_path = os.path.join(logic_folder_path, logic_file_name)
+            print(f"Logic file path: {logic_file_path}")
+
+            # Read the logic file
+            logic_content = read_logic_file(logic_file_path)
+            if "Error" in logic_content:
+                messagebox.showerror("Error", logic_content)
+                return
+
+            # Automatically read the files from the 'context' folder
+            file_context = read_files_for_context()
+            if "Error" in file_context:
+                messagebox.showerror("Error", file_context)
+                return
+
+            # Get the tariff codes by sending the XML string, logic, and file context to OpenAI
+            tariff_codes = get_tariff_codes_from_xml(xml_content, file_context, logic_content)
+
+            # Get the current date and time
+            current_datetime = datetime.datetime.now()
+            formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
             # Display the result
             result_text.config(state=tk.NORMAL)  # Enable editing temporarily
             result_text.delete(1.0, tk.END)  # Clear previous content
-            result_text.insert(tk.END, f"Auto Doc Ref:\n{AutoDocRef}\n\n") 
+            result_text.insert(tk.END, f"Date and Time:\n{formatted_datetime}\n\n")
+            result_text.insert(tk.END, f"Auto Doc Ref:\n{AutoDocRef}\n\n")
             result_text.insert(tk.END, f"Tariff Codes:\n{tariff_codes}")  # Insert new content
             result_text.config(state=tk.DISABLED)  # Disable editing again
 
@@ -250,13 +345,6 @@ def upload_file():
     else:
         messagebox.showinfo("No XML File Selected", "Please select an XML file to process.")
 
-
-
-import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
-from PIL import Image, ImageTk
-import tkinter as tk
-from tkinter import messagebox
 
 # Function to change the theme
 def change_theme(event):
