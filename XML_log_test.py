@@ -161,7 +161,7 @@ def get_tariff_codes_from_xml(xml_string, file_context, logic_content):
 # Function to write tariff codes and auto doc reference to the log file
 def write_to_log_file(tariff_codes, auto_doc_ref):
     try:
-        log_file_path = os.path.join(current_dir, 'log.txt')
+        log_file_path = os.path.join(current_dir, 'results_log.txt')
         with open(log_file_path, 'a', encoding='utf-8') as log_file:
             log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
             log_file.write(f"Tariff Codes:\n{tariff_codes}\n")
