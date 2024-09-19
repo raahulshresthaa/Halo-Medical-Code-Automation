@@ -118,3 +118,26 @@ Hence, the calculated tariff codes are:
 - B56 x2
 - B55a x2
 --------------------------------------------------
+Auto Doc Reference: N/A
+Tariff Codes:
+For the given XML data, according to the provided logic, the tariff codes are:
+
+B54c x2
+B56 x2
+B56 x2
+B55b x2
+--------------------------------------------------
+Auto Doc Reference: N/A
+Tariff Codes:
+The tariff codes for the given XML content are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Auto Doc Reference: SR548454
+Tariff Codes:
+B54c x2
+B56 x2
+B55b x2
+--------------------------------------------------

@@ -101,12 +101,28 @@ def extract_form_type_from_xml_string(xml_content):
     except Exception as e:
         messagebox.showerror("Error", f"Error parsing XML content: {str(e)}")
         return None
-
+"""
 # Function to extract auto doc reference from XML content
 def extract_auto_doc_reference_from_xml_string(xml_content):
     try:
         root = ET.fromstring(xml_content)
         auto_doc_ref_element = root.find('AutoDocRef')
+        if auto_doc_ref_element is not None and auto_doc_ref_element.text:
+            return auto_doc_ref_element.text.strip()
+        else:
+            return None
+    except Exception as e:
+        messagebox.showerror("Error", f"Error extracting auto doc reference: {str(e)}")
+        return None
+"""
+#import xml.etree.ElementTree as ET
+#from tkinter import messagebox
+
+def extract_auto_doc_reference_from_xml_string(xml_content):
+    try:
+        root = ET.fromstring(xml_content)
+        # Use XPath-like search to find 'AutoDocRef' at any depth
+        auto_doc_ref_element = root.find('.//AutoDocRef')
         if auto_doc_ref_element is not None and auto_doc_ref_element.text:
             return auto_doc_ref_element.text.strip()
         else:
@@ -120,7 +136,7 @@ def get_tariff_codes_from_xml(xml_string, file_context, logic_content):
     try:
         # Send the XML string, logic, and file context to the assistant
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # Adjust this if you're using a different model
+            model="gpt-4o",  # Adjust this if you're using a different model
             messages=[
                 {"role": "system", "content": f"Use the following logic to generate tariff codes:\n\n{logic_content}\n\nOnly output the calculated tariff codes."},
                 {"role": "user", "content": f"Here is the XML content to process:\n{xml_string}\n\nRelevant file information:\n{file_context}"}
@@ -166,10 +182,10 @@ def upload_file():
                 return
 
             # Extract the auto doc reference from the XML string
-            auto_doc_ref = extract_auto_doc_reference_from_xml_string(xml_content)
-            print(f"Extracted auto doc reference: {auto_doc_ref}")
-            if not auto_doc_ref:
-                auto_doc_ref = "N/A"  # Default value if not found
+            AutoDocRef = extract_auto_doc_reference_from_xml_string(xml_content)
+            print(f"Extracted auto doc reference: {AutoDocRef}")
+            if not AutoDocRef:
+                AutoDocRef = "N/A"  # Default value if not found
 
             # Sanitize form_type to prevent security issues
             form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
@@ -213,7 +229,7 @@ def upload_file():
             result_text.config(state=tk.DISABLED)  # Disable editing again
 
             # Write the tariff codes and auto doc reference to the log file
-            write_to_log_file(tariff_codes, auto_doc_ref)
+            write_to_log_file(tariff_codes, AutoDocRef)
 
         except Exception as e:
             messagebox.showerror("Error", f"Error processing the file: {str(e)}")
