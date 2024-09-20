@@ -350,6 +350,13 @@ def upload_file():
     else:
         messagebox.showinfo("No XML File Selected", "Please select an XML file to process.")
 
+# Function to handle mouse wheel scrolling
+def _on_mouse_wheel(event):
+    if sys.platform == "darwin":  # macOS uses different bindings
+        canvas.yview_scroll(-1 * (event.delta), "units")
+    else:  # Windows and Linux
+        canvas.yview_scroll(-1 * (event.delta // 120), "units")
+
 
 # Set up the GUI window
 root = ttk.Window(themename='darkly')
@@ -388,6 +395,7 @@ frame.pack(fill='both', expand=True, pady=10, padx=10)
 canvas = tk.Canvas(frame)
 canvas.pack(side='left', fill='both', expand=True)
 
+
 # Create a vertical scrollbar using ttk.Scrollbar
 scrollbar = ttk.Scrollbar(frame, orient='vertical', command=canvas.yview)
 scrollbar.pack(side='right', fill='y')
@@ -404,6 +412,18 @@ canvas.create_window((0, 0), window=content_frame, anchor="nw")
 result_text = tk.Text(content_frame, wrap='word', height=50, width=950)
 result_text.pack(fill='both', expand=True)
 result_text.config(state='disabled')  # Make it read-only
+
+# Enable mouse wheel scrolling
+def _on_mouse_wheel(event):
+    if sys.platform == "darwin":  # macOS uses different bindings
+        canvas.yview_scroll(-1 * (event.delta), "units")
+    else:  # Windows and Linux
+        canvas.yview_scroll(-1 * (event.delta // 120), "units")
+
+# Bind the mouse wheel event to the canvas for scrolling
+canvas.bind_all("<MouseWheel>", _on_mouse_wheel)  # For Windows and Linux
+canvas.bind_all("<Button-4>", _on_mouse_wheel)    # For macOS
+canvas.bind_all("<Button-5>", _on_mouse_wheel)    # For macOS
 
 # Create an upload button using ttk.Button
 upload_button = ttk.Button(root, text="Upload XML File", command=upload_file)

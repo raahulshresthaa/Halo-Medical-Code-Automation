@@ -955,3 +955,30 @@ B54c x2
 B56 x2
 B55a x2
 --------------------------------------------------
+Date and Time: 2024-09-20 12:34:01
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot-left: B56
+- Rearfoot-right: B56
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- Top Cover Material: B55a
+- No additional linings or coverings, so no extra codes
+
+Final Codes:
+- B54c x2
+- B56 x2
+- B55a
+--------------------------------------------------
