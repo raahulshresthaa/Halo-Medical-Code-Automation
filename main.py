@@ -181,7 +181,7 @@ def get_tariff_codes_from_xml(xml_string, file_context, logic_content):
     try:
         # Send the XML string, logic, and file context to the assistant
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # Adjust this if you're using a different model
+            model="gpt-4o",  # Adjust this if you're using a different model
             messages=[
                 {"role": "system", "content": f"Use the following logic to generate tariff codes:\n\n{logic_content}\n\nOnly output the calculated tariff codes."},
                 {"role": "user", "content": f"Here is the XML content to process:\n{xml_string}\n\nRelevant file information:\n{file_context}"}
