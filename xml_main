@@ -1,0 +1,393 @@
+import os
+import openai
+import tkinter as tk
+from tkinter import filedialog, messagebox, simpledialog
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from PIL import Image, ImageTk
+import xml.etree.ElementTree as ET
+import datetime
+import threading  # For threading
+import sys  # For exception handling
+
+# Set your OpenAI API key
+openai.api_key = "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"
+
+if not openai.api_key:
+    messagebox.showerror("Error", "OpenAI API key not found. Please set the OPENAI_API_KEY environment variable.")
+    sys.exit()
+
+# Get the path of the directory where this Python script is located
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Define the path for the logo file
+logo_file_path = os.path.join(current_dir, 'HALO(TM)_Logo.png')
+
+# Define the path to the 'context' folder where the additional context files are stored
+context_folder_path = os.path.join(current_dir, 'context')
+
+# Function to read the logic file
+def read_logic_file(logic_file_path):
+    try:
+        with open(logic_file_path, 'r', encoding='utf-8') as logic_file:
+            logic_content = logic_file.read()
+        return logic_content
+    except Exception as e:
+        return f"Error reading the logic file '{logic_file_path}': {str(e)}"
+
+# Function to automatically read all files in the 'context' folder
+def read_files_for_context():
+    file_contents = []
+    try:
+        # Check if the context folder exists
+        if not os.path.exists(context_folder_path):
+            return "Error: 'context' folder not found."
+
+        # Iterate over all files in the 'context' folder
+        for file_name in os.listdir(context_folder_path):
+            file_path = os.path.join(context_folder_path, file_name)
+            
+            # Only process text files
+            if file_name.endswith(".txt"):
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        file_contents.append(f"File: {file_name}\n{content}")
+                except Exception as e:
+                    file_contents.append(f"Error reading {file_name}: {str(e)}")
+        
+        return "\n\n".join(file_contents) if file_contents else "No valid files found in the 'context' folder."
+    
+    except Exception as e:
+        return f"Error reading context files: {str(e)}"
+
+# Function to read the XML file content as a string
+def read_xml_file(xml_file_path):
+    try:
+        with open(xml_file_path, 'r', encoding='utf-8') as file:
+            xml_content = file.read()
+        return xml_content
+    except Exception as e:
+        messagebox.showerror("Error", f"Error reading XML file: {str(e)}")
+        return None
+
+# Function to find form type
+def extract_form_type_from_xml_string(xml_content):
+    try:
+        root = ET.fromstring(xml_content)
+        modelling = root.find('Modelling')
+        if modelling is None:
+            messagebox.showerror("Error", "No 'Modelling' element found in XML.")
+            return None
+        
+        type_element = modelling.find('Type')
+        if type_element is None:
+            messagebox.showerror("Error", "No 'Type' element found under 'Modelling' in XML.")
+            return None
+
+        # Dictionary to map XML tags to form types
+        type_mapping = {
+            'TCI': 'tci',
+            'Simple': 'simple',
+            'Cradle': 'cradle'
+            # Add other mappings as needed
+        }
+
+        selected_types = []
+
+        # Iterate over each type (TCI, Simple, Cradle)
+        for type_option in type_element:
+            tag = type_option.tag
+            text = type_option.text.strip() if type_option.text else ''
+            print(f"Checking type: {tag}, value: '{text}'")  # Debug statement
+
+            if text.lower() == 'yes':
+                form_type = type_mapping.get(tag)
+                if form_type:
+                    selected_types.append(form_type)
+                else:
+                    print(f"No mapping found for tag '{tag}'")  # Debug statement
+
+        if not selected_types:
+            messagebox.showerror("Error", "No form type marked 'Yes' found in the XML file.")
+            return None
+        elif len(selected_types) > 1:
+            # Prompt the user to select one
+            selected_type = simpledialog.askstring("Multiple Types Selected",
+                                                   f"Multiple form types are selected: {', '.join(selected_types)}.\nPlease enter the type you want to process:")
+            if selected_type and selected_type.lower() in [t.lower() for t in selected_types]:
+                return selected_type.lower()
+            else:
+                messagebox.showerror("Error", "Invalid type selected.")
+                return None
+        else:
+            print(f"Selected form type: {selected_types[0]}")  # Debug statement
+            return selected_types[0]
+    except Exception as e:
+        messagebox.showerror("Error", f"Error parsing XML content: {str(e)}")
+        return None
+
+def extract_auto_doc_reference_from_xml_string(xml_content):
+    try:
+        root = ET.fromstring(xml_content)
+        # Use XPath-like search to find 'AutoDocRef' at any depth
+        auto_doc_ref_element = root.find('.//AutoDocRef')
+        if auto_doc_ref_element is not None and auto_doc_ref_element.text:
+            return auto_doc_ref_element.text.strip()
+        else:
+            return None
+    except Exception as e:
+        messagebox.showerror("Error", f"Error extracting auto doc reference: {str(e)}")
+        return None
+
+# Function to process XML file and get tariff codes from the assistant using the logic from the text file
+def get_tariff_codes_from_xml(xml_string, file_context, logic_content):
+    try:
+        # Send the XML string, logic, and file context to the assistant
+        response = openai.ChatCompletion.create(
+            model="gpt-4",  # Adjust this if you're using a different model
+            messages=[
+                {"role": "system", "content": f"Use the following logic to generate tariff codes:\n\n{logic_content}\n\nOnly output the calculated tariff codes."},
+                {"role": "user", "content": f"Here is the XML content to process:\n{xml_string}\n\nRelevant file information:\n{file_context}"}
+            ],
+            max_tokens=1000,  # Adjust as necessary
+            temperature=0.1  # Adjust as needed
+        )
+
+        # Extract the assistant's response (tariff codes)
+        assistant_response = response['choices'][0]['message']['content']
+        return assistant_response
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+# Function to write tariff codes and auto doc reference to the log file
+def write_to_log_file(tariff_codes, auto_doc_ref):
+    try:
+        log_file_path = os.path.join(current_dir, 'results_log.txt')
+        with open(log_file_path, 'a', encoding='utf-8') as log_file:
+            # Get the current date and time
+            current_datetime = datetime.datetime.now()
+            formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
+            log_file.write(f"Date and Time: {formatted_datetime}\n")
+            log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
+            log_file.write(f"Tariff Codes:\n{tariff_codes}\n")
+            log_file.write("-" * 50 + "\n")  # Separator between entries
+        print(f"Successfully wrote to log file at {log_file_path}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
+
+# Function to display the results in the GUI
+def display_results(formatted_datetime, AutoDocRef, tariff_codes):
+    # Hide the loading message
+    loading_label.place_forget()
+    # Re-enable the upload button
+    upload_button.config(state='normal')
+
+    # Display the result
+    result_text.config(state=tk.NORMAL)  # Enable editing temporarily
+    result_text.delete(1.0, tk.END)  # Clear previous content
+    result_text.insert(tk.END, f"Date and Time:\n{formatted_datetime}\n\n")
+    result_text.insert(tk.END, f"Auto Doc Ref:\n{AutoDocRef}\n\n")
+    result_text.insert(tk.END, f"Tariff Codes:\n{tariff_codes}")  # Insert new content
+    result_text.config(state=tk.DISABLED)  # Disable editing again
+
+# Function to process the API call in a separate thread
+def process_api_call(xml_content, file_context, logic_content, AutoDocRef):
+    try:
+        # Get the tariff codes by sending the XML string, logic, and file context to OpenAI
+        tariff_codes = get_tariff_codes_from_xml(xml_content, file_context, logic_content)
+
+        # Get the current date and time
+        current_datetime = datetime.datetime.now()
+        formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
+        # Update the GUI with the results (must be done in the main thread)
+        root.after(0, display_results, formatted_datetime, AutoDocRef, tariff_codes)
+
+        # Write the tariff codes and auto doc reference to the log file
+        write_to_log_file(tariff_codes, AutoDocRef)
+
+    except Exception as e:
+        # Hide the loading message
+        root.after(0, loading_label.place_forget)
+        # Re-enable the upload button
+        root.after(0, upload_button.config, {'state': 'normal'})
+        # Show error message
+        root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
+
+# Function to handle file upload and start the process
+def upload_file():
+    # Open a file dialog for selecting XML files
+    xml_file_path = filedialog.askopenfilename(title="Select the XML File", filetypes=[("XML Files", "*.xml")])
+
+    if xml_file_path:
+        # Disable the upload button to prevent multiple clicks
+        upload_button.config(state='disabled')
+
+        try:
+            # Read the XML file content
+            xml_content = read_xml_file(xml_file_path)
+            if xml_content is None:
+                upload_button.config(state='normal')  # Re-enable the upload button
+                return
+
+            # Extract the form type from the XML string
+            form_type = extract_form_type_from_xml_string(xml_content)
+            print(f"Extracted form type: {form_type}")
+            if not form_type:
+                messagebox.showerror("Error", "No form type selected in the XML file.")
+                upload_button.config(state='normal')  # Re-enable the upload button
+                return
+
+            # Extract the auto doc reference from the XML string
+            AutoDocRef = extract_auto_doc_reference_from_xml_string(xml_content)
+            print(f"Extracted auto doc reference: {AutoDocRef}")
+            if not AutoDocRef:
+                AutoDocRef = "N/A"  # Default value if not found
+
+            # Sanitize form_type to prevent security issues
+            form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
+            print(f"Sanitized form type: {form_type}")
+
+            # Construct the logic file name and path based on the form type
+            logic_file_mapping = {
+                'tci': 'tci_logic.txt',
+                'simple': 'simple_insole_logic.txt',
+                'cradle': 'cradle_logic.txt',
+                'afo': 'afo_logic.txt',
+                'kafo': 'kafo_logic.txt'
+            }
+
+            logic_file_name = logic_file_mapping.get(form_type)
+            print(f"Logic file name: {logic_file_name}")
+            if not logic_file_name:
+                messagebox.showerror("Error", f"No logic file mapping found for form type '{form_type}'.")
+                upload_button.config(state='normal')  # Re-enable the upload button
+                return
+
+            logic_folder_path = os.path.join(current_dir, 'logic_folder')
+            logic_file_path = os.path.join(logic_folder_path, logic_file_name)
+            print(f"Logic file path: {logic_file_path}")
+
+            # Read the logic file
+            logic_content = read_logic_file(logic_file_path)
+            if "Error" in logic_content:
+                messagebox.showerror("Error", logic_content)
+                upload_button.config(state='normal')  # Re-enable the upload button
+                return
+
+            # Automatically read the files from the 'context' folder
+            file_context = read_files_for_context()
+            if "Error" in file_context:
+                messagebox.showerror("Error", file_context)
+                upload_button.config(state='normal')  # Re-enable the upload button
+                return
+
+            # Show the loading message
+            loading_label.place(relx=0.5, rely=0.3, anchor='center')  # Position the label at the bottom center
+
+            # Run the API call in a separate thread
+            api_thread = threading.Thread(target=process_api_call, args=(xml_content, file_context, logic_content, AutoDocRef))
+            api_thread.start()
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error processing the file: {str(e)}")
+            upload_button.config(state='normal')  # Re-enable the upload button
+            loading_label.place_forget()  # Hide the loading message
+    else:
+        messagebox.showinfo("No XML File Selected", "Please select an XML file to process.")
+
+# Function to change the theme
+def change_theme(event):
+    selected_theme = theme_var.get()
+    root.style.theme_use(selected_theme)
+
+# Set up the GUI window
+root = ttk.Window(themename='darkly')
+root.title("Halo Medical Code Automation")
+root.geometry("1200x800")
+
+# Load the logo image
+try:
+    logo_img = Image.open(logo_file_path)
+    logo_img = logo_img.resize((200, 80), Image.Resampling.LANCZOS)
+    logo_photo = ImageTk.PhotoImage(logo_img)
+
+    # Create a label to display the logo using ttk.Label
+    logo_label = ttk.Label(root, image=logo_photo)
+    logo_label.pack(pady=10)
+except Exception as e:
+    messagebox.showerror("Error", f"Error loading logo: {str(e)}")
+
+# Add a bold title below the logo using ttk.Label
+title_label = ttk.Label(root, text="Code Automation Program", font=("Helvetica", 16, "bold"))
+title_label.pack(pady=5)
+
+# Create a frame for the result text and scrollbar using ttk.Frame
+frame = ttk.Frame(root)
+frame.pack(fill='both', expand=True, pady=10, padx=10)
+
+# Create a scrollable canvas
+canvas = tk.Canvas(frame)
+canvas.pack(side='left', fill='both', expand=True)
+
+# Create a vertical scrollbar using ttk.Scrollbar
+scrollbar = ttk.Scrollbar(frame, orient='vertical', command=canvas.yview)
+scrollbar.pack(side='right', fill='y')
+
+# Configure the canvas to work with the scrollbar
+canvas.configure(yscrollcommand=scrollbar.set)
+canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+# Create another frame inside the canvas to hold the content using ttk.Frame
+content_frame = ttk.Frame(canvas)
+canvas.create_window((0, 0), window=content_frame, anchor="nw")
+
+# Enable mouse wheel scrolling
+def _on_mouse_wheel(event):
+    if sys.platform == "darwin":  # macOS uses different bindings
+        canvas.yview_scroll(-1 * (event.delta), "units")
+    else:  # Windows and Linux
+        canvas.yview_scroll(-1 * (event.delta // 120), "units")
+
+# Bind the mouse wheel event to the canvas for scrolling
+canvas.bind_all("<MouseWheel>", _on_mouse_wheel)  # For Windows and Linux
+canvas.bind_all("<Button-4>", _on_mouse_wheel)    # For macOS
+canvas.bind_all("<Button-5>", _on_mouse_wheel)    # For macOS
+
+# Create a text widget inside the content_frame to display the results
+result_text = tk.Text(content_frame, wrap='word', height=50, width=950)
+result_text.pack(fill='both', expand=True)
+result_text.config(state='disabled')  # Make it read-only
+
+# Create a loading label (initially hidden)
+loading_label = ttk.Label(root, text="Loading...", font=("Helvetica", 12, "bold"), foreground="blue")
+loading_label.place_forget()  # Hide it initially
+
+# Create an upload button using ttk.Button
+upload_button = ttk.Button(root, text="Upload XML File", command=upload_file)
+upload_button.pack(pady=10)
+
+# Create an exit button using ttk.Button
+exit_button = ttk.Button(root, text="Exit", command=root.quit)
+exit_button.pack(pady=10)
+
+# Create a bottom frame to hold the theme selection dropdown
+bottom_frame = ttk.Frame(root)
+bottom_frame.pack(side='bottom', fill='x', padx=10, pady=10)
+
+# Create a label and Combobox for theme selection
+theme_label = ttk.Label(bottom_frame, text='Theme:')
+theme_label.pack(side='left', padx=(0, 5))
+
+theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'journal', 'cerulean']
+theme_var = tk.StringVar(value='darkly')
+theme_combobox = ttk.Combobox(bottom_frame, textvariable=theme_var, values=theme_list, state='readonly')
+theme_combobox.pack(side='left')
+
+# Bind the selection change event
+theme_combobox.bind('<<ComboboxSelected>>', change_theme)
+
+# Start the GUI event loop
+root.mainloop()

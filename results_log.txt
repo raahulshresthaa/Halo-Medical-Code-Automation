@@ -812,3 +812,148 @@ Based on the provided XML content and the logic document, here are the calculate
 
 These are the calculated tariff codes based on the provided XML content and the logic document.
 --------------------------------------------------
+Date and Time: 2024-09-19 17:08:45
+Auto Doc Reference: SR548454
+Tariff Codes:
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-19 17:11:00
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, here are the calculated tariff codes:
+
+1. **Modelling Section:**
+   - Base: 50 Shore (B54c)
+   - Since it's a pair, the code is doubled: B54c x2
+
+2. **Modification Section:**
+   - Rearfoot Posting (both left and right): B56 x2
+
+3. **Additions Section:**
+   - No additions specified.
+
+4. **Top Cover and Linings:**
+   - Top Cover Material: Alcantra (Brown) (pair)
+   - No linings specified.
+   - Since there is one top cover and no linings, it counts as 1 extra covering: B55a x2
+
+**Final Codes:**
+- B54c x2
+- B56 x2
+- B55a x2
+
+So, the final calculated tariff codes are:
+
+```
+B54c x2
+B56 x2
+B55a x2
+```
+--------------------------------------------------
+Date and Time: 2024-09-20 09:23:13
+Auto Doc Reference: SR548454
+Tariff Codes:
+Error: Incorrect API key provided: your_ope************here. You can find your API key at https://platform.openai.com/account/api-keys.
+--------------------------------------------------
+Date and Time: 2024-09-20 09:23:28
+Auto Doc Reference: SR548454
+Tariff Codes:
+Error: Incorrect API key provided: your_ope************here. You can find your API key at https://platform.openai.com/account/api-keys.
+--------------------------------------------------
+Date and Time: 2024-09-20 09:24:15
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot-left: B56
+- Rearfoot-right: B56
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- One extra covering: B55a x2
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-20 09:29:22
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic from the Example Codes Document, the calculated tariff codes are as follows:
+
+Base:
+Cradle: Yes
+
+Insole Side:
+Pair: Yes
+
+Length:
+Full: Yes
+
+Template:
+LadiesRetail: Yes
+
+EvaBase:
+Shore50: Yes
+
+ScoopProfile:
+Medium: Yes
+
+InsoleThickness:
+Thickness3mm: Yes
+
+HeelCupHeight:
+Medium: Yes
+
+ShoeSize: 7
+
+CradeDetails: Increase arch support x5mm
+
+TopCover:
+TopCoverMaterial: Alcantra (Brown)
+TopCoverLength: Full
+
+AdditionalInformation: Increase arch support x5mm
+
+Please note that the tariff codes are generated based on the logic provided in the Example Codes Document. The actual tariff codes may vary depending on the specific rules and regulations of the tariff system being used.
+--------------------------------------------------
+Date and Time: 2024-09-20 09:33:13
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot-left: B56
+- Rearfoot-right: B56
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- Top Cover Material: B55a
+- No extra linings
+
+Final Codes:
+- B54c x2
+- B56 x2
+- B55a
+--------------------------------------------------
