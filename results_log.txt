@@ -1240,3 +1240,331 @@ B54c x2
 B56 x2
 B55a x2
 --------------------------------------------------
+Date and Time: 2024-09-20 14:42:07
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot (both left and right): B56 x2
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- One extra covering: B55a x2
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-20 14:42:33
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic from the Example Codes Document, the calculated tariff codes are as follows:
+
+Base:
+Cradle: Yes
+
+Insole Side:
+Pair: Yes
+
+Length:
+Full: Yes
+
+Template:
+LadiesRetail: Yes
+
+Eva Base:
+Shore50: Yes
+
+Scoop Profile:
+Medium: Yes
+
+Insole Thickness:
+Thickness3mm: Yes
+
+Heel Cup Height:
+Medium: Yes
+
+Shoe Size:
+7
+
+Top Cover Material:
+Alcantra (Brown): Yes
+
+Additional Information:
+Increase arch support x5mm
+
+Please note that the tariff codes are not explicitly mentioned in the XML content. The codes are derived based on the logic provided in the Example Codes Document. The actual tariff codes will depend on the specific tariff code system being used.
+--------------------------------------------------
+Date and Time: 2024-09-20 14:44:21
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot (both left and right): B56 x2
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- One extra covering: B55a x2
+
+Final Codes:
+- B54c x2
+- B56 x2
+- B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-20 14:47:21
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot-left: B56
+- Rearfoot-right: B56
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- One extra covering: B55a x2
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-20 14:50:32
+Auto Doc Reference: SR548454
+Tariff Codes:
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-20 14:50:51
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot-left: B56
+- Rearfoot-right: B56
+
+Additions:
+- No additions
+
+Top Cover and Linings:
+- Top Cover Material: B55a x2
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-20 14:51:00
+Auto Doc Reference: SR548454
+Tariff Codes:
+The provided XML data does not contain any tariff codes. The logic for generating tariff codes is not provided in the prompt. Therefore, it's not possible to generate tariff codes based on the provided XML data.
+--------------------------------------------------
+Date and Time: 2024-09-20 14:53:33
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot-left: B56
+- Rearfoot-right: B56
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- One extra covering: B55a x2
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-20 14:57:09
+Auto Doc Reference: SR548454
+Clinic: QEII
+Tariff Codes:
+Based on the provided XML content and the logic document, the calculated tariff codes are:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- Medial Rearfoot Posting (Left): B56
+- Medial Rearfoot Posting (Right): B56
+
+Top Cover:
+- Full Top Cover: B55a x2
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-20 14:59:15
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2 (as base is 50 Shore)
+
+Modification:
+- No modifications are mentioned, so no codes are added.
+
+Postings:
+- Rearfoot Posting for both left and right foot: B56 x2
+
+Additions:
+- No additions are mentioned, so no codes are added.
+
+Top Cover (coverings) and Linings:
+- One extra covering (Alcantra (Brown)): B55a x2 (as there is a pair of insoles)
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-20 14:59:48
+Auto Doc Reference: SR548454
+Clinic: QEII
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot-left: B56
+- Rearfoot-right: B56
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- Top Cover Material: B55a
+
+Final Codes:
+- B54c x2
+- B56 x2
+- B55a
+--------------------------------------------------
+Date and Time: 2024-09-20 15:00:04
+Auto Doc Reference: SR548454
+Clinic: QEII
+Tariff Codes:
+Based on the provided XML content and the logic from the Example Codes Document, the calculated tariff codes are as follows:
+
+Base:
+Cradle: Yes
+
+Insole Side:
+Pair: Yes
+
+Length:
+Full: Yes
+
+Template:
+LadiesRetail: Yes
+
+EvaBase:
+Shore50: Yes
+
+ScoopProfile:
+Medium: Yes
+
+InsoleThickness:
+Thickness3mm: Yes
+
+HeelCupHeight:
+Medium: Yes
+
+ShoeSize: 7
+
+CradeDetails: Increase arch support x5mm
+
+TopCover:
+TopCoverMaterial: Alcantra (Brown)
+TopCoverLength: Full
+
+AdditionalInformation: Increase arch support x5mm
+
+Please note that the Cradle logic sheet still needs to be filled out.
+--------------------------------------------------
+Date and Time: 2024-09-20 15:00:29
+Auto Doc Reference: SR548454
+Clinic: QEII
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot (both left and right): B56 x2
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- One extra covering (Alcantra (Brown)): B55a x2
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
