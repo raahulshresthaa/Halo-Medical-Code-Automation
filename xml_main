@@ -367,7 +367,7 @@ def change_theme(event):
 # Load the logo image
 try:
     logo_img = Image.open(logo_file_path)
-    logo_img = logo_img.resize((200, 80), Image.Resampling.LANCZOS)
+    logo_img = logo_img.resize((200, 100), Image.Resampling.LANCZOS)
     logo_photo = ImageTk.PhotoImage(logo_img)
 
     # Create a label to display the logo using ttk.Label
