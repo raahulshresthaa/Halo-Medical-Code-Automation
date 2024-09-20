@@ -205,7 +205,8 @@ def show_loading_popup():
     global loading_popup
     loading_popup = Toplevel(root)
     loading_popup.title("Loading...")
-#set icon 
+
+    # Set icon on loading pop-up
     loading_popup.iconphoto(False, tk.PhotoImage(file=icon_path))  # Set the pop-up window icon
 
     # Make the window non-resizable
