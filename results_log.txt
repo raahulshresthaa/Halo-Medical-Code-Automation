@@ -1004,3 +1004,159 @@ B54c x2
 B56 x2
 B55a x2
 --------------------------------------------------
+Date and Time: 2024-09-20 12:43:32
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+- Base is 50 Shore: B54c x2
+
+Modification:
+- No modifications are mentioned
+
+Postings:
+- Rearfoot for left foot: B56
+- Rearfoot for right foot: B56
+
+Additions:
+- No additions are mentioned
+
+Top Cover (coverings) and Linings:
+- One extra covering (Alcantra (Brown)): B55a
+- No linings are mentioned, so no extra coverings are added
+
+Final Codes:
+- B54c x4
+- B56 x2
+- B55a
+--------------------------------------------------
+Date and Time: 2024-09-20 12:45:20
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2 (as the base is 50 Shore)
+
+Modification:
+- No modifications are mentioned, so no codes are added here.
+
+Postings:
+- Medial Rearfoot Posting for both left and right foot: B56 x2
+
+Additions:
+- No additions are mentioned, so no codes are added here.
+
+Top Cover (coverings) and Linings:
+- Top Cover Material is mentioned but not the number of coverings. Assuming it's one covering, the code would be B55a. If it's a pair, then it would be B55a x2.
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2 (assuming a pair of top cover)
+--------------------------------------------------
+Date and Time: 2024-09-20 12:46:21
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+- Base is 50 Shore: B54c x2
+
+Modification:
+- No modifications are mentioned, so no codes are added.
+
+Postings:
+- Medial Rearfoot Posting for both left and right foot: B56 x2
+
+Additions:
+- No additions are mentioned, so no codes are added.
+
+Top Cover (coverings) and Linings:
+- One extra covering (Top Cover Material: Alcantra (Brown)): B55a
+- Since it's a pair, the code is multiplied by 2: B55a x2
+
+So, the final codes are:
+
+B54c x4
+B56 x2
+B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-20 12:46:34
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot (both left and right): B56 x2
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- One extra covering: B55a x2
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-20 12:46:47
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+Pair: B54c x2
+
+Modification:
+MedialRearfootPosting (both left and right): B56 x2
+
+Top Cover:
+Alcantra (Brown): B55a
+
+Since there are no additional coverings or linings, no extra codes are added for this section. 
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a
+--------------------------------------------------
+Date and Time: 2024-09-20 12:48:36
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot-left: B56
+- Rearfoot-right: B56
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- Top Cover Material: B55a x2
+
+Final Codes:
+- B54c x2
+- B56 x2
+- B55a x2
+--------------------------------------------------

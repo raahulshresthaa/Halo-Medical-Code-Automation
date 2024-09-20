@@ -205,6 +205,8 @@ def show_loading_popup():
     global loading_popup
     loading_popup = Toplevel(root)
     loading_popup.title("Loading...")
+#set icon 
+    loading_popup.iconphoto(False, tk.PhotoImage(file=icon_path))  # Set the pop-up window icon
 
     # Make the window non-resizable
     loading_popup.resizable(False, False)
@@ -216,6 +218,7 @@ def show_loading_popup():
     y = root.winfo_y() + (root.winfo_height() // 2) - (100 // 2)
     loading_popup.geometry(f"300x100+{x}+{y}")
 
+    
     # Make the window stay on top of the root window
     loading_popup.transient(root)
     loading_popup.grab_set()
