@@ -10,7 +10,6 @@ import datetime
 import threading  # For threading
 import sys  # For exception handling
 
-
 # Function to read the API key from a file
 def load_api_key():
     api_key_file = os.path.join(os.path.dirname(__file__), 'api_key.txt')

@@ -7,7 +7,7 @@ from PIL import Image, ImageTk  # To handle image loading
 
 # Get your OpenAI API key from environment variable
 #openai.api_key = os.getenv("OPENAI_API_KEY") #this is weird it would ivlove making a session - hamish
-openai.api_key = "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"
+openai.api_key = ""
 
 if not openai.api_key:
     messagebox.showerror("Error", "OpenAI API key not found. Please set the OPENAI_API_KEY environment variable.")
