@@ -40,14 +40,14 @@ if not openai.api_key:
 # Get the path of the directory where this Python script is located
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
+# Load and set the custom window icon (top-left)
+icon_path = os.path.join(current_dir, 'halo_simple_logo.png')  # Path to your .ico file
+
 # Define the path for the logo file
 logo_file_path = os.path.join(current_dir, 'HALO(TM)_Logo.png')
 
 # Define the path to the 'context' folder where the additional context files are stored
 context_folder_path = os.path.join(current_dir, 'context')
-
-# Function definitions (read_logic_file, read_files_for_context, read_xml_file, etc.)
-# Include all your existing function definitions here
 
 # Function to read the logic file
 def read_logic_file(logic_file_path):
@@ -356,6 +356,9 @@ root = ttk.Window(themename='darkly')
 root.title("Halo Medical Code Automation")
 root.geometry("1200x800")
 
+# Load and set the custom window icon (top-left)
+root.iconphoto(False, tk.PhotoImage(file=icon_path))
+
 # Function to change the theme
 def change_theme(event):
     selected_theme = theme_var.get()
@@ -364,7 +367,7 @@ def change_theme(event):
 # Load the logo image
 try:
     logo_img = Image.open(logo_file_path)
-    logo_img = logo_img.resize((200, 80), Image.Resampling.LANCZOS)
+    logo_img = logo_img.resize((200, 100), Image.Resampling.LANCZOS)
     logo_photo = ImageTk.PhotoImage(logo_img)
 
     # Create a label to display the logo using ttk.Label
