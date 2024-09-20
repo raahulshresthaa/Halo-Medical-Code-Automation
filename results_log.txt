@@ -957,3 +957,29 @@ Final Codes:
 - B56 x2
 - B55a
 --------------------------------------------------
+Date and Time: 2024-09-20 09:51:36
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the calculated tariff codes are:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot (both left and right): B56 x2
+
+Additions:
+- No additions
+
+Top Cover and Linings:
+- One extra covering (Alcantra (Brown)): B55a x2
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
