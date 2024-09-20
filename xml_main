@@ -445,7 +445,7 @@ bottom_frame.pack(side='bottom', fill='x', padx=10, pady=10)
 theme_label = ttk.Label(bottom_frame, text='Theme:')
 theme_label.pack(side='left', padx=(0, 5))
 
-theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'journal', 'cerulean']
+theme_list = ['lumen','warm_beige', 'darkly', 'solar', 'cyborg', 'journal', 'superhero']
 theme_var = tk.StringVar(value='darkly')
 theme_combobox = ttk.Combobox(bottom_frame, textvariable=theme_var, values=theme_list, state='readonly')
 theme_combobox.pack(side='left')
