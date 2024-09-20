@@ -1,14 +1,14 @@
 import os
 import openai
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog
+from tkinter import filedialog, messagebox, simpledialog, Toplevel
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from PIL import Image, ImageTk
 import xml.etree.ElementTree as ET
 import datetime
-import threading  # For threading
-import sys  # For exception handling
+import threading
+import sys
 
 # Function to read the API key from a file
 def load_api_key():
@@ -21,10 +21,10 @@ def load_api_key():
             return api_key
     except FileNotFoundError:
         messagebox.showerror("Error", "api_key.txt file not found. Please add the OpenAI API key in this file.")
-        sys.exit()  # Exit the program if the file is not found
+        sys.exit()
     except Exception as e:
         messagebox.showerror("Error", f"Error reading API key: {str(e)}")
-        sys.exit()  # Exit the program if any other error occurs
+        sys.exit()
 
 # Load the API key from the file
 openai_api_key = load_api_key()
@@ -45,6 +45,9 @@ logo_file_path = os.path.join(current_dir, 'HALO(TM)_Logo.png')
 
 # Define the path to the 'context' folder where the additional context files are stored
 context_folder_path = os.path.join(current_dir, 'context')
+
+# Function definitions (read_logic_file, read_files_for_context, read_xml_file, etc.)
+# Include all your existing function definitions here
 
 # Function to read the logic file
 def read_logic_file(logic_file_path):
@@ -197,13 +200,40 @@ def write_to_log_file(tariff_codes, auto_doc_ref):
     except Exception as e:
         messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
 
-# Function to display the results in the GUI
-def display_results(formatted_datetime, AutoDocRef, tariff_codes):
-    # Hide the loading message
-    loading_label.place_forget()
-    # Re-enable the upload button
-    upload_button.config(state='normal')
+# Function to show the loading pop-up
+def show_loading_popup():
+    global loading_popup
+    loading_popup = Toplevel(root)
+    loading_popup.title("Loading...")
 
+    # Make the window non-resizable
+    loading_popup.resizable(False, False)
+    loading_popup.protocol("WM_DELETE_WINDOW", lambda: None)  # Disable the close button
+
+    # Position the window in the center of the root window
+    root.update_idletasks()  # Update "requested size" from geometry manager
+    x = root.winfo_x() + (root.winfo_width() // 2) - (300 // 2)
+    y = root.winfo_y() + (root.winfo_height() // 2) - (100 // 2)
+    loading_popup.geometry(f"300x100+{x}+{y}")
+
+    # Make the window stay on top of the root window
+    loading_popup.transient(root)
+    loading_popup.grab_set()
+
+    # Add a label to display the loading message
+    loading_label = ttk.Label(loading_popup, text="Please wait, processing...", font=("Helvetica", 12, "bold"))
+    loading_label.pack(expand=True, pady=20)
+
+    # Disable the main window while loading
+    root.attributes('-disabled', True)
+
+# Function to close the loading pop-up
+def close_loading_popup():
+    loading_popup.destroy()
+    root.attributes('-disabled', False)  # Re-enable the main window
+
+# Function to display results
+def display_results(formatted_datetime, AutoDocRef, tariff_codes):
     # Display the result
     result_text.config(state=tk.NORMAL)  # Enable editing temporarily
     result_text.delete(1.0, tk.END)  # Clear previous content
@@ -229,14 +259,16 @@ def process_api_call(xml_content, file_context, logic_content, AutoDocRef):
         write_to_log_file(tariff_codes, AutoDocRef)
 
     except Exception as e:
-        # Hide the loading message
-        root.after(0, loading_label.place_forget)
-        # Re-enable the upload button
-        root.after(0, upload_button.config, {'state': 'normal'})
-        # Show error message
+        # Show error message in the main thread
         root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
+    finally:
+        # Close the loading pop-up when done
+        root.after(0, close_loading_popup)
+        # Re-enable the upload button
+        root.after(0, lambda: upload_button.config(state='normal'))
 
 # Function to handle file upload and start the process
+
 def upload_file():
     # Open a file dialog for selecting XML files
     xml_file_path = filedialog.askopenfilename(title="Select the XML File", filetypes=[("XML Files", "*.xml")])
@@ -304,8 +336,8 @@ def upload_file():
                 upload_button.config(state='normal')  # Re-enable the upload button
                 return
 
-            # Show the loading message
-            loading_label.place(relx=0.5, rely=0.3, anchor='center')  # Position the label at the bottom center
+            # Show the loading pop-up
+            show_loading_popup()
 
             # Run the API call in a separate thread
             api_thread = threading.Thread(target=process_api_call, args=(xml_content, file_context, logic_content, AutoDocRef))
@@ -314,19 +346,20 @@ def upload_file():
         except Exception as e:
             messagebox.showerror("Error", f"Error processing the file: {str(e)}")
             upload_button.config(state='normal')  # Re-enable the upload button
-            loading_label.place_forget()  # Hide the loading message
+            close_loading_popup()  # Ensure the loading pop-up is closed if an error occurs
     else:
         messagebox.showinfo("No XML File Selected", "Please select an XML file to process.")
 
-# Function to change the theme
-def change_theme(event):
-    selected_theme = theme_var.get()
-    root.style.theme_use(selected_theme)
 
 # Set up the GUI window
 root = ttk.Window(themename='darkly')
 root.title("Halo Medical Code Automation")
 root.geometry("1200x800")
+
+# Function to change the theme
+def change_theme(event):
+    selected_theme = theme_var.get()
+    root.style.theme_use(selected_theme)
 
 # Load the logo image
 try:
@@ -364,26 +397,10 @@ canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("
 content_frame = ttk.Frame(canvas)
 canvas.create_window((0, 0), window=content_frame, anchor="nw")
 
-# Enable mouse wheel scrolling
-def _on_mouse_wheel(event):
-    if sys.platform == "darwin":  # macOS uses different bindings
-        canvas.yview_scroll(-1 * (event.delta), "units")
-    else:  # Windows and Linux
-        canvas.yview_scroll(-1 * (event.delta // 120), "units")
-
-# Bind the mouse wheel event to the canvas for scrolling
-canvas.bind_all("<MouseWheel>", _on_mouse_wheel)  # For Windows and Linux
-canvas.bind_all("<Button-4>", _on_mouse_wheel)    # For macOS
-canvas.bind_all("<Button-5>", _on_mouse_wheel)    # For macOS
-
 # Create a text widget inside the content_frame to display the results
 result_text = tk.Text(content_frame, wrap='word', height=50, width=950)
 result_text.pack(fill='both', expand=True)
 result_text.config(state='disabled')  # Make it read-only
-
-# Create a loading label (initially hidden)
-loading_label = ttk.Label(root, text="Loading...", font=("Helvetica", 12, "bold"), foreground="blue")
-loading_label.place_forget()  # Hide it initially
 
 # Create an upload button using ttk.Button
 upload_button = ttk.Button(root, text="Upload XML File", command=upload_file)
