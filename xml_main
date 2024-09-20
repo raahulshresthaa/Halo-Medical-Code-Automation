@@ -361,7 +361,7 @@ def _on_mouse_wheel(event):
 # Set up the GUI window
 root = ttk.Window(themename='darkly')
 root.title("Halo Medical Code Automation")
-root.geometry("1200x800")
+root.geometry("800x900")
 
 # Load and set the custom window icon (top-left)
 root.iconphoto(False, tk.PhotoImage(file=icon_path))

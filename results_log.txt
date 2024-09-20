@@ -982,3 +982,25 @@ Final Codes:
 - B56 x2
 - B55a
 --------------------------------------------------
+Date and Time: 2024-09-20 12:37:09
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+Pair: B54c x2
+
+Modification:
+MedialRearfootPosting (Left): B56
+MedialRearfootPosting (Right): B56
+
+Top Cover:
+Alcantra (Brown): B55a
+
+Since there is only one extra covering (Alcantra Brown), the code for one extra covering is used. As it is a pair of insoles, the code is multiplied by 2: B55a x2
+
+Final Codes:
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
