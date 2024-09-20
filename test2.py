@@ -163,6 +163,19 @@ def extract_auto_doc_reference_from_xml_string(xml_content):
         messagebox.showerror("Error", f"Error extracting auto doc reference: {str(e)}")
         return None
 
+# Function to extract clinic from XML
+def extract_clinic_from_xml_string(xml_content):
+    try:
+        root = ET.fromstring(xml_content)
+        clinic_element = root.find('.//Clinic')
+        if clinic_element is not None and clinic_element.text:
+            return clinic_element.text.strip()
+        else:
+            return None
+    except Exception as e:
+        messagebox.showerror("Error", f"Error extracting clinic: {str(e)}")
+        return None
+
 # Function to process XML file and get tariff codes from the assistant using the logic from the text file
 def get_tariff_codes_from_xml(xml_string, file_context, logic_content):
     try:
@@ -219,7 +232,6 @@ def show_loading_popup():
     y = root.winfo_y() + (root.winfo_height() // 2) - (100 // 2)
     loading_popup.geometry(f"300x100+{x}+{y}")
 
-    
     # Make the window stay on top of the root window
     loading_popup.transient(root)
     loading_popup.grab_set()
@@ -237,27 +249,53 @@ def close_loading_popup():
     root.attributes('-disabled', False)  # Re-enable the main window
 
 # Function to display results
-def display_results(formatted_datetime, AutoDocRef, tariff_codes):
-    # Display the result
+def display_results(formatted_datetime, AutoDocRef, clinic, tariff_codes):
+    # Update the entries
+    auto_doc_ref_entry.config(state=tk.NORMAL)
+    auto_doc_ref_entry.delete(0, tk.END)
+    auto_doc_ref_entry.insert(0, AutoDocRef)
+    auto_doc_ref_entry.config(state='readonly')
+    
+    datetime_entry.config(state=tk.NORMAL)
+    datetime_entry.delete(0, tk.END)
+    datetime_entry.insert(0, formatted_datetime)
+    datetime_entry.config(state='readonly')
+    
+    clinic_entry.config(state=tk.NORMAL)
+    clinic_entry.delete(0, tk.END)
+    if clinic:
+        clinic_entry.insert(0, clinic)
+    else:
+        clinic_entry.insert(0, "N/A")
+    clinic_entry.config(state='readonly')
+
+    # Display the tariff codes in the result_text, centered
     result_text.config(state=tk.NORMAL)  # Enable editing temporarily
-    result_text.delete(1.0, tk.END)  # Clear previous content
-    result_text.insert(tk.END, f"Date and Time:\n{formatted_datetime}\n\n")
-    result_text.insert(tk.END, f"Auto Doc Ref:\n{AutoDocRef}\n\n")
-    result_text.insert(tk.END, f"Tariff Codes:\n{tariff_codes}")  # Insert new content
+    result_text.delete('1.0', tk.END)  # Clear previous content
+
+    # Configure the 'center' tag before inserting text
+    result_text.tag_configure('center', justify='center')
+
+    # Insert the tariff codes and apply the 'center' tag
+    result_text.insert(tk.END, tariff_codes, 'center')
+
     result_text.config(state=tk.DISABLED)  # Disable editing again
 
 # Function to process the API call in a separate thread
-def process_api_call(xml_content, file_context, logic_content, AutoDocRef):
+def process_api_call(xml_content, file_context, logic_content, AutoDocRef, clinic):
     try:
         # Get the tariff codes by sending the XML string, logic, and file context to OpenAI
         tariff_codes = get_tariff_codes_from_xml(xml_content, file_context, logic_content)
+
+        # Debug print to check the content of tariff_codes
+        print(f"Tariff codes received: {tariff_codes}")
 
         # Get the current date and time
         current_datetime = datetime.datetime.now()
         formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
         # Update the GUI with the results (must be done in the main thread)
-        root.after(0, display_results, formatted_datetime, AutoDocRef, tariff_codes)
+        root.after(0, display_results, formatted_datetime, AutoDocRef, clinic, tariff_codes)
 
         # Write the tariff codes and auto doc reference to the log file
         write_to_log_file(tariff_codes, AutoDocRef)
@@ -272,7 +310,6 @@ def process_api_call(xml_content, file_context, logic_content, AutoDocRef):
         root.after(0, lambda: upload_button.config(state='normal'))
 
 # Function to handle file upload and start the process
-
 def upload_file():
     # Open a file dialog for selecting XML files
     xml_file_path = filedialog.askopenfilename(title="Select the XML File", filetypes=[("XML Files", "*.xml")])
@@ -301,6 +338,12 @@ def upload_file():
             print(f"Extracted auto doc reference: {AutoDocRef}")
             if not AutoDocRef:
                 AutoDocRef = "N/A"  # Default value if not found
+
+            # Extract the clinic from the XML string
+            clinic = extract_clinic_from_xml_string(xml_content)
+            print(f"Extracted clinic: {clinic}")
+            if not clinic:
+                clinic = "N/A"
 
             # Sanitize form_type to prevent security issues
             form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
@@ -344,7 +387,7 @@ def upload_file():
             show_loading_popup()
 
             # Run the API call in a separate thread
-            api_thread = threading.Thread(target=process_api_call, args=(xml_content, file_context, logic_content, AutoDocRef))
+            api_thread = threading.Thread(target=process_api_call, args=(xml_content, file_context, logic_content, AutoDocRef, clinic))
             api_thread.start()
 
         except Exception as e:
@@ -353,14 +396,6 @@ def upload_file():
             close_loading_popup()  # Ensure the loading pop-up is closed if an error occurs
     else:
         messagebox.showinfo("No XML File Selected", "Please select an XML file to process.")
-
-# Function to handle mouse wheel scrolling
-def _on_mouse_wheel(event):
-    if sys.platform == "darwin":  # macOS uses different bindings
-        canvas.yview_scroll(-1 * (event.delta), "units")
-    else:  # Windows and Linux
-        canvas.yview_scroll(-1 * (event.delta // 120), "units")
-
 
 # Set up the GUI window
 root = ttk.Window(themename='darkly')
@@ -391,43 +426,38 @@ except Exception as e:
 title_label = ttk.Label(root, text="Code Automation Program", font=("Helvetica", 16, "bold"))
 title_label.pack(pady=5)
 
-# Create a frame for the result text and scrollbar using ttk.Frame
-frame = ttk.Frame(root)
-frame.pack(fill='both', expand=True, pady=10, padx=10)
+# Create a frame for the info boxes
+info_frame = ttk.Frame(root)
+info_frame.pack(pady=10)
 
-# Create a scrollable canvas
-canvas = tk.Canvas(frame)
-canvas.pack(side='left', fill='both', expand=True)
+# Create labels and entries for AutoDocRef, Clinic, Date and Time
+auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef:')
+auto_doc_ref_entry = ttk.Entry(info_frame, width=30)
+clinic_label = ttk.Label(info_frame, text='Clinic:')
+clinic_entry = ttk.Entry(info_frame, width=30)
+datetime_label = ttk.Label(info_frame, text='Date and Time:')
+datetime_entry = ttk.Entry(info_frame, width=30)
 
+# Arrange them from left to right
+auto_doc_ref_label.grid(row=0, column=0, padx=5, pady=5)
+auto_doc_ref_entry.grid(row=1, column=0, padx=5, pady=5)
+clinic_label.grid(row=0, column=1, padx=5, pady=5)
+clinic_entry.grid(row=1, column=1, padx=5, pady=5)
+datetime_label.grid(row=0, column=2, padx=5, pady=5)
+datetime_entry.grid(row=1, column=2, padx=5, pady=5)
 
-# Create a vertical scrollbar using ttk.Scrollbar
-scrollbar = ttk.Scrollbar(frame, orient='vertical', command=canvas.yview)
-scrollbar.pack(side='right', fill='y')
+# Create a frame to hold the result text widget
+result_frame = ttk.Frame(root)
+result_frame.pack(pady=10)
 
-# Configure the canvas to work with the scrollbar
-canvas.configure(yscrollcommand=scrollbar.set)
-canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+# Create a text widget inside the result_frame to display the results
+result_text = tk.Text(result_frame, wrap='word', height=20, width=60)
+result_text.pack()
 
-# Create another frame inside the canvas to hold the content using ttk.Frame
-content_frame = ttk.Frame(canvas)
-canvas.create_window((0, 0), window=content_frame, anchor="nw")
-
-# Create a text widget inside the content_frame to display the results
-result_text = tk.Text(content_frame, wrap='word', height=50, width=950)
-result_text.pack(fill='both', expand=True)
 result_text.config(state='disabled')  # Make it read-only
 
-# Enable mouse wheel scrolling
-def _on_mouse_wheel(event):
-    if sys.platform == "darwin":  # macOS uses different bindings
-        canvas.yview_scroll(-1 * (event.delta), "units")
-    else:  # Windows and Linux
-        canvas.yview_scroll(-1 * (event.delta // 120), "units")
-
-# Bind the mouse wheel event to the canvas for scrolling
-canvas.bind_all("<MouseWheel>", _on_mouse_wheel)  # For Windows and Linux
-canvas.bind_all("<Button-4>", _on_mouse_wheel)    # For macOS
-canvas.bind_all("<Button-5>", _on_mouse_wheel)    # For macOS
+# Center the result_frame
+result_frame.pack(anchor='center')
 
 # Create an upload button using ttk.Button
 upload_button = ttk.Button(root, text="Upload XML File", command=upload_file)
