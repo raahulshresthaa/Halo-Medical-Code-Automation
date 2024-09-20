@@ -849,3 +849,109 @@ B54c x2
 B56 x2
 B55a x2
 --------------------------------------------------
+Date and Time: 2024-09-20 11:15:55
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot (both left and right): B56 x2
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- One extra covering: B55a x2
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
+Date and Time: 2024-09-20 11:55:31
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the tariff codes are:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot-left: B56
+- Rearfoot-right: B56
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- Top Cover Material: B55a
+- No additional linings
+
+Final Codes:
+- B54c x2
+- B56 x2
+- B55a
+--------------------------------------------------
+Date and Time: 2024-09-20 11:55:41
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+Pair: B54c x2
+
+Modification:
+MedialRearfootPosting (both left and right): B56 x2
+
+Top Cover:
+Alcantra (Brown): B55a
+
+Since there are no additional coverings or linings, no extra codes are added for this section. 
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a
+--------------------------------------------------
+Date and Time: 2024-09-20 11:55:47
+Auto Doc Reference: SR548454
+Tariff Codes:
+The logic provided does not include a method for generating tariff codes. The instructions only state to return a message about a successful selection of Cradle and the need to fill out a Cradle logic sheet. Therefore, no tariff codes can be generated based on the provided logic.
+--------------------------------------------------
+Date and Time: 2024-09-20 11:56:51
+Auto Doc Reference: SR548454
+Tariff Codes:
+Based on the provided XML content and the logic document, the following tariff codes are generated:
+
+Modelling:
+- Pair: B54c x2
+
+Modification:
+- No modifications
+
+Postings:
+- Rearfoot (both left and right): B56 x2
+
+Additions:
+- No additions
+
+Top Cover and Lining:
+- One extra covering: B55a x2
+
+So, the final codes are:
+
+B54c x2
+B56 x2
+B55a x2
+--------------------------------------------------
