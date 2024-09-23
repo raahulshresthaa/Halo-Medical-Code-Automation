@@ -112,7 +112,8 @@ def extract_form_type_from_xml_string(xml_content):
         type_mapping = {
             'TCI': 'tci',
             'Simple': 'simple',
-            'Cradle': 'cradle'
+            'Cradle': 'cradle',
+            'HandMold': 'handmold'
             # Add other mappings as needed
         }
 
@@ -356,7 +357,8 @@ def upload_file():
                 'simple': 'simple_insole_logic.txt',
                 'cradle': 'cradle_logic.txt',
                 'afo': 'afo_logic.txt',
-                'kafo': 'kafo_logic.txt'
+                'kafo': 'kafo_logic.txt',
+                'handmold': 'handmold_logic.txt'
             }
 
             logic_file_name = logic_file_mapping.get(form_type)
