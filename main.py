@@ -10,9 +10,40 @@ import datetime
 import threading
 import sys
 
+# Get the path of the directory where this Python script is located
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Define the list of available themes
+theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'journal', 'superhero']
+
+# Function to load the saved theme setting
+def load_theme_setting():
+    settings_file = os.path.join(current_dir, 'settings.txt')
+    if os.path.exists(settings_file):
+        try:
+            with open(settings_file, 'r') as f:
+                theme = f.read().strip()
+                if theme in theme_list:
+                    return theme
+                else:
+                    return 'darkly'  # Default theme if saved theme is invalid
+        except:
+            return 'darkly'  # Default theme in case of error
+    else:
+        return 'darkly'  # Default theme if settings file does not exist
+
+# Function to save the selected theme setting
+def save_theme_setting(theme):
+    settings_file = os.path.join(current_dir, 'settings.txt')
+    with open(settings_file, 'w') as f:
+        f.write(theme)
+
+# Load the selected theme at startup
+selected_theme = load_theme_setting()
+
 # Function to read the API key from a file or prompt the user to enter it
 def load_api_key():
-    api_key_file = os.path.join(os.path.dirname(__file__), 'api_key.txt')
+    api_key_file = os.path.join(current_dir, 'api_key.txt')
     try:
         # Check if the api_key.txt file exists
         if not os.path.exists(api_key_file):
@@ -47,9 +78,6 @@ if not openai.api_key:
     messagebox.showerror("Error", "OpenAI API key not found or invalid.")
     sys.exit()
 
-# Get the path of the directory where this Python script is located
-current_dir = os.path.dirname(os.path.abspath(__file__))
-
 # Ensure that the log file exists
 def ensure_log_file_exists():
     log_file_path = os.path.join(current_dir, 'results_log.txt')
@@ -63,13 +91,83 @@ def ensure_log_file_exists():
 ensure_log_file_exists()
 
 # Load and set the custom window icon (top-left)
-icon_path = os.path.join(current_dir, 'halo_simple_logo.png')  # Path to your .ico file
+icon_path = os.path.join(current_dir, 'halo_simple_logo.png')  # Path to your .png file
 
 # Define the path for the logo file
 logo_file_path = os.path.join(current_dir, 'HALO(TM)_Logo.png')
 
 # Define the path to the 'context' folder where the additional context files are stored
 context_folder_path = os.path.join(current_dir, 'context')
+
+# Set up the GUI window with the selected theme
+root = ttk.Window(themename=selected_theme)
+root.title("Halo Medical Code Automation")
+root.geometry("800x900")
+
+# Load and set the custom window icon (top-left)
+icon_image = tk.PhotoImage(file=icon_path)
+root.iconphoto(False, icon_image)
+root.icon_image = icon_image  # Keep a reference to prevent garbage collection
+
+# Function to change the theme
+def change_theme(event):
+    selected_theme = theme_var.get()
+    root.style.theme_use(selected_theme)
+    save_theme_setting(selected_theme)
+
+# Load the logo image
+try:
+    logo_img = Image.open(logo_file_path)
+    logo_img = logo_img.resize((200, 100), Image.Resampling.LANCZOS)
+    logo_photo = ImageTk.PhotoImage(logo_img)
+    root.logo_photo = logo_photo  # Keep a reference to prevent garbage collection
+
+    # Create a label to display the logo using ttk.Label
+    logo_label = ttk.Label(root, image=logo_photo)
+    logo_label.pack(pady=10)
+except Exception as e:
+    messagebox.showerror("Error", f"Error loading logo: {str(e)}")
+
+# Add a bold title below the logo using ttk.Label
+title_label = ttk.Label(root, text="Code Automation Program", font=("Helvetica", 16, "bold"))
+title_label.pack(pady=5)
+
+# Create a frame for the info boxes
+info_frame = ttk.Frame(root)
+info_frame.pack(pady=10)
+
+# Create labels and entries for AutoDocRef, Clinic, Date and Time
+auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef:')
+auto_doc_ref_entry = ttk.Entry(info_frame, width=30)
+clinic_label = ttk.Label(info_frame, text='Clinic:')
+clinic_entry = ttk.Entry(info_frame, width=30)
+datetime_label = ttk.Label(info_frame, text='Date and Time:')
+datetime_entry = ttk.Entry(info_frame, width=30)
+
+# Arrange them from left to right
+auto_doc_ref_label.grid(row=0, column=0, padx=5, pady=5)
+auto_doc_ref_entry.grid(row=1, column=0, padx=5, pady=5)
+clinic_label.grid(row=0, column=1, padx=5, pady=5)
+clinic_entry.grid(row=1, column=1, padx=5, pady=5)
+datetime_label.grid(row=0, column=2, padx=5, pady=5)
+datetime_entry.grid(row=1, column=2, padx=5, pady=5)
+
+# Create a frame to hold the result text widget and scrollbar
+result_frame = ttk.Frame(root)
+result_frame.pack(pady=10, anchor='center')
+
+# Create a text widget inside the result_frame to display the results
+result_text = tk.Text(result_frame, wrap='word', height=25, width=80)
+result_text.grid(row=0, column=0)
+
+# Create a vertical scrollbar linked to the result_text widget
+result_scrollbar = ttk.Scrollbar(result_frame, orient='vertical', command=result_text.yview)
+result_scrollbar.grid(row=0, column=1, sticky='ns')
+
+# Configure the text widget to use the scrollbar
+result_text['yscrollcommand'] = result_scrollbar.set
+
+result_text.config(state='disabled')  # Make it read-only
 
 # Function to read the logic file
 def read_logic_file(logic_file_path):
@@ -204,7 +302,7 @@ def get_tariff_codes_from_xml(xml_string, file_context, logic_content):
     try:
         # Send the XML string, logic, and file context to the assistant
         response = openai.ChatCompletion.create(
-            model="gpt-4o",  # Adjust this if you're using a different model
+            model="gpt-4",  # Adjust this if you're using a different model
             messages=[
                 {"role": "system", "content": f"Use the following logic to generate tariff codes:\n\n{logic_content}\n\nOnly output the calculated tariff codes."},
                 {"role": "user", "content": f"Here is the XML content to process:\n{xml_string}\n\nRelevant file information:\n{file_context}"}
@@ -244,7 +342,9 @@ def show_loading_popup():
     loading_popup.title("Loading...")
 
     # Set icon on loading pop-up
-    loading_popup.iconphoto(False, tk.PhotoImage(file=icon_path))  # Set the pop-up window icon
+    icon_image_loading = tk.PhotoImage(file=icon_path)
+    loading_popup.iconphoto(False, icon_image_loading)
+    loading_popup.icon_image = icon_image_loading  # Keep a reference
 
     # Make the window non-resizable
     loading_popup.resizable(False, False)
@@ -422,72 +522,6 @@ def upload_file():
     else:
         messagebox.showinfo("No XML File Selected", "Please select an XML file to process.")
 
-# Set up the GUI window
-root = ttk.Window(themename='darkly')
-root.title("Halo Medical Code Automation")
-root.geometry("800x900")
-
-# Load and set the custom window icon (top-left)
-root.iconphoto(False, tk.PhotoImage(file=icon_path))
-
-# Function to change the theme
-def change_theme(event):
-    selected_theme = theme_var.get()
-    root.style.theme_use(selected_theme)
-
-# Load the logo image
-try:
-    logo_img = Image.open(logo_file_path)
-    logo_img = logo_img.resize((200, 100), Image.Resampling.LANCZOS)
-    logo_photo = ImageTk.PhotoImage(logo_img)
-
-    # Create a label to display the logo using ttk.Label
-    logo_label = ttk.Label(root, image=logo_photo)
-    logo_label.pack(pady=10)
-except Exception as e:
-    messagebox.showerror("Error", f"Error loading logo: {str(e)}")
-
-# Add a bold title below the logo using ttk.Label
-title_label = ttk.Label(root, text="Code Automation Program", font=("Helvetica", 16, "bold"))
-title_label.pack(pady=5)
-
-# Create a frame for the info boxes
-info_frame = ttk.Frame(root)
-info_frame.pack(pady=10)
-
-# Create labels and entries for AutoDocRef, Clinic, Date and Time
-auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef:')
-auto_doc_ref_entry = ttk.Entry(info_frame, width=30)
-clinic_label = ttk.Label(info_frame, text='Clinic:')
-clinic_entry = ttk.Entry(info_frame, width=30)
-datetime_label = ttk.Label(info_frame, text='Date and Time:')
-datetime_entry = ttk.Entry(info_frame, width=30)
-
-# Arrange them from left to right
-auto_doc_ref_label.grid(row=0, column=0, padx=5, pady=5)
-auto_doc_ref_entry.grid(row=1, column=0, padx=5, pady=5)
-clinic_label.grid(row=0, column=1, padx=5, pady=5)
-clinic_entry.grid(row=1, column=1, padx=5, pady=5)
-datetime_label.grid(row=0, column=2, padx=5, pady=5)
-datetime_entry.grid(row=1, column=2, padx=5, pady=5)
-
-# Create a frame to hold the result text widget and scrollbar
-result_frame = ttk.Frame(root)
-result_frame.pack(pady=10, anchor='center')
-
-# Create a text widget inside the result_frame to display the results
-result_text = tk.Text(result_frame, wrap='word', height=25, width=80)
-result_text.grid(row=0, column=0)
-
-# Create a vertical scrollbar linked to the result_text widget
-result_scrollbar = ttk.Scrollbar(result_frame, orient='vertical', command=result_text.yview)
-result_scrollbar.grid(row=0, column=1, sticky='ns')
-
-# Configure the text widget to use the scrollbar
-result_text['yscrollcommand'] = result_scrollbar.set
-
-result_text.config(state='disabled')  # Make it read-only
-
 # Create an upload button using ttk.Button
 upload_button = ttk.Button(root, text="Upload XML File", command=upload_file)
 upload_button.pack(pady=10)
@@ -504,8 +538,8 @@ bottom_frame.pack(side='bottom', fill='x', padx=10, pady=10)
 theme_label = ttk.Label(bottom_frame, text='Theme:')
 theme_label.pack(side='left', padx=(0, 5))
 
-theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'journal', 'superhero']
-theme_var = tk.StringVar(value='darkly')
+# Set the theme variable to the selected theme
+theme_var = tk.StringVar(value=selected_theme)
 theme_combobox = ttk.Combobox(bottom_frame, textvariable=theme_var, values=theme_list, state='readonly')
 theme_combobox.pack(side='left')
 
