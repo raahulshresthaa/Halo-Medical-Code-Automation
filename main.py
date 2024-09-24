@@ -10,23 +10,33 @@ import datetime
 import threading
 import sys
 
-# Function to read the API key from a file
+# Function to read the API key from a file or prompt the user to enter it
 def load_api_key():
     api_key_file = os.path.join(os.path.dirname(__file__), 'api_key.txt')
     try:
-        with open(api_key_file, 'r') as f:
-            api_key = f.readline().strip()  # Read and strip any extra whitespace
+        # Check if the api_key.txt file exists
+        if not os.path.exists(api_key_file):
+            # Prompt the user to enter their API key
+            api_key = simpledialog.askstring("API Key Required", "Please enter your OpenAI API key:")
             if not api_key:
-                raise ValueError("API key file is empty")
-            return api_key
-    except FileNotFoundError:
-        messagebox.showerror("Error", "api_key.txt file not found. Please add the OpenAI API key in this file.")
-        sys.exit()
+                messagebox.showerror("Error", "No API key entered. The application will exit.")
+                sys.exit()
+            # Save the API key to api_key.txt
+            with open(api_key_file, 'w') as f:
+                f.write(api_key.strip())
+            print(f"API key saved to {api_key_file}")
+        else:
+            # Read the API key from the file
+            with open(api_key_file, 'r') as f:
+                api_key = f.readline().strip()
+                if not api_key:
+                    raise ValueError("API key file is empty")
+        return api_key
     except Exception as e:
-        messagebox.showerror("Error", f"Error reading API key: {str(e)}")
+        messagebox.showerror("Error", f"Error handling API key: {str(e)}")
         sys.exit()
 
-# Load the API key from the file
+# Load the API key from the file or prompt the user to enter it
 openai_api_key = load_api_key()
 
 # Set the OpenAI API key for OpenAI requests
@@ -34,7 +44,7 @@ openai.api_key = openai_api_key
 
 # Check if the API key was properly loaded
 if not openai.api_key:
-    messagebox.showerror("Error", "OpenAI API key not found or invalid. Please set the API key in api_key.txt.")
+    messagebox.showerror("Error", "OpenAI API key not found or invalid.")
     sys.exit()
 
 # Get the path of the directory where this Python script is located
