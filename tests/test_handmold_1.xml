@@ -1,8 +1,8 @@
 
 <data>
     <Details>
-        <AutoDocRef>SR548454</AutoDocRef>
-        <Clinic>QEII</Clinic>
+        <AutoDocRef>1P656064</AutoDocRef>
+        <Clinic>Frimley</Clinic>
     </Details>
     <Modelling>
         <Type>
@@ -24,20 +24,20 @@
         <Template>
             <MensHalo>Blank</MensHalo>
             <MensRetail>Blank</MensRetail>
-            <LadiesHalo>Blank</LadiesHalo>
-            <LadiesRetail>Yes</LadiesRetail>
+            <LadiesHalo>Yes</LadiesHalo>
+            <LadiesRetail>Blank</LadiesRetail>
             <Child>Blank</Child>
         </Template>
         <EvaBase>
             <Eva302080SH>Blank</Eva302080SH>
             <Eva453080SH>Blank</Eva453080SH>
             <Shore40>Blank</Shore40>
-            <Shore50>Yes</Shore50>
-            <Shore65>Blank</Shore65>
+            <Shore50>Blank</Shore50>
+            <Shore65>Yes</Shore65>
         </EvaBase>
         <ScoopProfile>
-            <Low>Blank</Low>
-            <Medium>Yes</Medium>
+            <Low>Yes</Low>
+            <Medium>Blank</Medium>
             <High>Blank</High>
         </ScoopProfile>
         <InsoleThickness>
@@ -48,11 +48,11 @@
         <HeelCupHeight>
             <Flat>Blank</Flat>
             <Low>Blank</Low>
-            <Medium>Yes</Medium>
-            <High>Blank</High>
+            <Medium>Blank</Medium>
+            <High>Yes</High>
         </HeelCupHeight>
         <ShoeSize>7</ShoeSize>
-        <CradeDetails>Increase arch support x5mm</CradeDetails>
+        <CradeDetails>Blank</CradeDetails>
     </Modelling>
     <Left>
         <Modification>
@@ -62,9 +62,9 @@
             <MetRay5>Blank</MetRay5>
             <NavicularSweetSpot>Blank</NavicularSweetSpot>
             <FascialAccommodation>Blank</FascialAccommodation>
-            <HeelFlangeMedial>Blank</HeelFlangeMedial>
+            <HeelFlangeMedial>Yes</HeelFlangeMedial>
             <HeelFlangeLateral>Blank</HeelFlangeLateral>
-            <MedialRearfootPosting>4mm</MedialRearfootPosting>
+            <MedialRearfootPosting>Blank</MedialRearfootPosting>
             <LateralRearfootPosting>Blank</LateralRearfootPosting>
             <MedialForefootPosting>Blank</MedialForefootPosting>
             <LateralForefootPosting>Blank</LateralForefootPosting>
@@ -72,8 +72,8 @@
             <LateralKirbySkivePosting>Blank</LateralKirbySkivePosting>
         </Modification>
         <Additions>
-            <Addition1>Blank</Addition1>
-            <Addition1Thickness>Blank</Addition1Thickness>
+            <Addition1>Valgus Pad</Addition1>
+            <Addition1Thickness>3</Addition1Thickness>
             <Addition2>Blank</Addition2>
             <Addition2Thickness>Blank</Addition2Thickness>
             <Addition3>Blank</Addition3>
@@ -90,9 +90,9 @@
             <MetRay5>Blank</MetRay5>
             <NavicularSweetSpot>Blank</NavicularSweetSpot>
             <FascialAccommodation>Blank</FascialAccommodation>
-            <HeelFlangeMedial>Blank</HeelFlangeMedial>
+            <HeelFlangeMedial>Yes</HeelFlangeMedial>
             <HeelFlangeLateral>Blank</HeelFlangeLateral>
-            <MedialRearfootPosting>4mm</MedialRearfootPosting>
+            <MedialRearfootPosting>Blank</MedialRearfootPosting>
             <LateralRearfootPosting>Blank</LateralRearfootPosting>
             <MedialForefootPosting>Blank</MedialForefootPosting>
             <LateralForefootPosting>Blank</LateralForefootPosting>
@@ -100,8 +100,8 @@
             <LateralKirbySkivePosting>Blank</LateralKirbySkivePosting>
         </Modification>
         <Additions>
-            <Addition1>Blank</Addition1>
-            <Addition1Thickness>Blank</Addition1Thickness>
+            <Addition1>Valgus Pad</Addition1>
+            <Addition1Thickness>3</Addition1Thickness>
             <Addition2>Blank</Addition2>
             <Addition2Thickness>Blank</Addition2Thickness>
             <Addition3>Blank</Addition3>
@@ -116,8 +116,8 @@
         <Thickness>Blank</Thickness>
     </Lining>
     <TopCover>
-        <TopCoverMaterial>Alcantra (Brown)</TopCoverMaterial>
+        <TopCoverMaterial>Moron (Beige)</TopCoverMaterial>
         <TopCoverLength>Full</TopCoverLength>
     </TopCover>
-    <AdditionalInformation>Increase arch support x5mm</AdditionalInformation>
+    <AdditionalInformation>1 x pair of FFO's</AdditionalInformation>
 </data>
