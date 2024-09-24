@@ -108,15 +108,27 @@ logo_file_path = os.path.join(current_dir, 'HALO(TM)_Logo.png')
 # Define the path to the 'context' folder where the additional context files are stored
 context_folder_path = os.path.join(current_dir, 'context')
 
+# Function to load and resize the icon image
+def load_icon_image(icon_path, size=(32, 32)):
+    try:
+        icon_img = Image.open(icon_path)
+        icon_img = icon_img.resize(size, Image.Resampling.LANCZOS)
+        icon_photo = ImageTk.PhotoImage(icon_img)
+        return icon_photo
+    except Exception as e:
+        messagebox.showerror("Error", f"Error loading icon: {str(e)}")
+        return None
+
 # Set up the GUI window with the selected theme
 root = ttk.Window(themename=selected_theme)
 root.title("Halo Medical Code Automation")
 root.geometry("800x900")
 
 # Load and set the custom window icon (top-left)
-icon_image = tk.PhotoImage(file=icon_path)
-root.iconphoto(False, icon_image)
-root.icon_image = icon_image  # Keep a reference to prevent garbage collection
+icon_image = load_icon_image(icon_path, size=(32, 32))
+if icon_image:
+    root.iconphoto(False, icon_image)
+    root.icon_image = icon_image  # Keep a reference to prevent garbage collection
 
 # Function to change the theme
 def change_theme(event):
@@ -198,7 +210,7 @@ def read_files_for_context():
         # Iterate over all files in the 'context' folder
         for file_name in os.listdir(context_folder_path):
             file_path = os.path.join(context_folder_path, file_name)
-            
+
             # Only process text files
             if file_name.endswith(".txt"):
                 try:
@@ -207,9 +219,9 @@ def read_files_for_context():
                         file_contents.append(f"File: {file_name}\n{content}")
                 except Exception as e:
                     file_contents.append(f"Error reading {file_name}: {str(e)}")
-        
+
         return "\n\n".join(file_contents) if file_contents else "No valid files found in the 'context' folder."
-    
+
     except Exception as e:
         return f"Error reading context files: {str(e)}"
 
@@ -231,7 +243,7 @@ def extract_form_type_from_xml_string(xml_content):
         if modelling is None:
             messagebox.showerror("Error", "No 'Modelling' element found in XML.")
             return None
-        
+
         type_element = modelling.find('Type')
         if type_element is None:
             messagebox.showerror("Error", "No 'Type' element found under 'Modelling' in XML.")
@@ -311,7 +323,7 @@ def get_tariff_codes_from_xml(xml_string, file_context, logic_content):
     try:
         # Send the XML string, logic, and file context to the assistant
         response = openai.ChatCompletion.create(
-            model="gpt-4o",  # Adjust this if you're using a different model
+            model="gpt-4",  # Adjust this if you're using a different model
             messages=[
                 {"role": "system", "content": f"Use the following logic to generate tariff codes:\n\n{logic_content}\n\nOnly output the calculated tariff codes."},
                 {"role": "user", "content": f"Here is the XML content to process:\n{xml_string}\n\nRelevant file information:\n{file_context}"}
@@ -351,9 +363,10 @@ def show_loading_popup():
     loading_popup.title("Loading...")
 
     # Set icon on loading pop-up
-    icon_image_loading = tk.PhotoImage(file=icon_path)
-    loading_popup.iconphoto(False, icon_image_loading)
-    loading_popup.icon_image = icon_image_loading  # Keep a reference
+    icon_image_loading = load_icon_image(icon_path, size=(32, 32))
+    if icon_image_loading:
+        loading_popup.iconphoto(False, icon_image_loading)
+        loading_popup.icon_image = icon_image_loading  # Keep a reference
 
     # Make the window non-resizable
     loading_popup.resizable(False, False)
@@ -384,7 +397,7 @@ def animate_dots():
     global dot_index
     dots = ['.', '..', '...', '']  # The sequence of dots
     # Update the label text
-    loading_label.config(text=f"Please wait. Processing\n{dots[dot_index]}")
+    loading_label.config(text=f"Please wait, processing\n{dots[dot_index]}")
     dot_index = (dot_index + 1) % len(dots)  # Loop through the dots
     # Update every 500ms (0.5 seconds)
     loading_popup.after(500, animate_dots)
@@ -427,7 +440,6 @@ def display_results(formatted_datetime, AutoDocRef, clinic, tariff_codes):
     result_text.insert(tk.END, tariff_codes, 'center')
 
     result_text.config(state=tk.DISABLED)  # Disable editing again
-
 
 # Function to process the API call in a separate thread
 def process_api_call(xml_content, file_context, logic_content, AutoDocRef, clinic):
