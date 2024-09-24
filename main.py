@@ -40,6 +40,18 @@ if not openai.api_key:
 # Get the path of the directory where this Python script is located
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
+# Ensure that the log file exists
+def ensure_log_file_exists():
+    log_file_path = os.path.join(current_dir, 'results_log.txt')
+    if not os.path.exists(log_file_path):
+        with open(log_file_path, 'w', encoding='utf-8') as log_file:
+            log_file.write('')  # Create an empty file
+        print(f"Created new log file at {log_file_path}")
+    else:
+        print(f"Log file already exists at {log_file_path}")
+
+ensure_log_file_exists()
+
 # Load and set the custom window icon (top-left)
 icon_path = os.path.join(current_dir, 'halo_simple_logo.png')  # Path to your .ico file
 
