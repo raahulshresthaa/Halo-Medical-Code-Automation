@@ -1,5 +1,6 @@
 import os
 import openai
+import base64
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, Toplevel
 import ttkbootstrap as ttk
@@ -41,34 +42,42 @@ def save_theme_setting(theme):
 # Load the selected theme at startup
 selected_theme = load_theme_setting()
 
-# Function to read the API key from a file or prompt the user to enter it
-def load_api_key():
+# Function to write the API key in binary (encoded using Base64)
+def write_api_key(api_key):
     api_key_file = os.path.join(current_dir, 'api_key.txt')
-    try:
-        # Check if the api_key.txt file exists
-        if not os.path.exists(api_key_file):
-            # Prompt the user to enter their API key
-            api_key = simpledialog.askstring("API Key Required", "Please enter your OpenAI API key:")
+    # Encode the API key as bytes, then convert it to Base64 for binary storage
+    encoded_key = base64.b64encode(api_key.encode('utf-8'))
+    with open(api_key_file, 'wb') as f:
+        f.write(encoded_key)
+    print(f"API key saved to {api_key_file}")
+
+# Function to read and decode the API key from binary (Base64-decoded back to a string)
+def read_api_key():
+    api_key_file = os.path.join(current_dir, 'api_key.txt')
+    if os.path.exists(api_key_file):
+        try:
+            with open(api_key_file, 'rb') as f:
+                # Read the encoded binary data and decode it back to a string
+                encoded_key = f.read()
+                api_key = base64.b64decode(encoded_key).decode('utf-8')
             if not api_key:
-                messagebox.showerror("Error", "No API key entered. The application will exit.")
-                sys.exit()
-            # Save the API key to api_key.txt
-            with open(api_key_file, 'w') as f:
-                f.write(api_key.strip())
-            print(f"API key saved to {api_key_file}")
-        else:
-            # Read the API key from the file
-            with open(api_key_file, 'r') as f:
-                api_key = f.readline().strip()
-                if not api_key:
-                    raise ValueError("API key file is empty")
-        return api_key
-    except Exception as e:
-        messagebox.showerror("Error", f"Error handling API key: {str(e)}")
-        sys.exit()
+                raise ValueError("API key file is empty")
+            return api_key
+        except Exception as e:
+            messagebox.showerror("Error", f"Error reading API key: {str(e)}")
+            sys.exit()
+    else:
+        # Prompt the user to enter the API key if the file doesn't exist
+        api_key = simpledialog.askstring("API Key Required", "Please enter your OpenAI API key:")
+        if not api_key:
+            messagebox.showerror("Error", "No API key entered. The application will exit.")
+            sys.exit()
+        # Write the new API key to the file
+        write_api_key(api_key.strip())
+        return api_key.strip()
 
 # Load the API key from the file or prompt the user to enter it
-openai_api_key = load_api_key()
+openai_api_key = read_api_key()
 
 # Set the OpenAI API key for OpenAI requests
 openai.api_key = openai_api_key
