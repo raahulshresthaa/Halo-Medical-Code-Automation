@@ -150,11 +150,11 @@ except Exception as e:
     messagebox.showerror("Error", f"Error loading logo: {str(e)}")
 
 # Add a bold title below the logo using ttk.Label
-title_label = ttk.Label(root, text="Code Automation Program", font=("Helvetica", 16, "bold"))
+title_label = ttk.Label(root, text="Code Automation Program", font=("Calibri", 16, "bold"))
 title_label.pack(pady=5)
 
 # Define the custom font for the labels
-label_font = ('Helvetica', 11)  # Increase the size to 16 for the labels
+label_font = ('Calibri', 11)  # Increase the size to 16 for the labels
 
 # Create a frame for the info boxes
 info_frame = ttk.Frame(root)
@@ -386,7 +386,7 @@ def show_loading_popup():
     loading_popup.grab_set()
 
     # Add a label to display the loading message with dots on a new line
-    loading_label = ttk.Label(loading_popup, text="Please wait. Processing\n", font=("Helvetica", 12, "bold"))
+    loading_label = ttk.Label(loading_popup, text="Please wait. Processing\n", font=("Calibri", 12, "bold"))
     loading_label.pack(expand=True, pady=20)
 
     dot_index = 0  # Initialize the dot counter
