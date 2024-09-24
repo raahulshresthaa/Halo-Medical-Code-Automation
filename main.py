@@ -10,12 +10,12 @@ import xml.etree.ElementTree as ET
 import datetime
 import threading
 import sys
-
+#commetn 
 # Get the path of the directory where this Python script is located
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Define the list of available themes
-theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'journal', 'superhero', 'simplex', 'vapor']
+theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'journal', 'superhero', 'simplex','vapor']
 
 # Function to load the saved theme setting
 def load_theme_setting():
@@ -123,37 +123,23 @@ def load_icon_image(icon_path, size=(32, 32)):
 root = ttk.Window(themename=selected_theme)
 root.title("Halo Medical Code Automation")
 
+# Force Tkinter to calculate window size and layout before setting position
+root.update_idletasks()
+
+# Set the window size and position (800x900 starting at 100px from top and 100px from left)
+root.geometry("800x900+100+100")
+
 # Load and set the custom window icon (top-left)
 icon_image = load_icon_image(icon_path, size=(32, 32))
 if icon_image:
     root.iconphoto(False, icon_image)
     root.icon_image = icon_image  # Keep a reference to prevent garbage collection
 
-# Initialize the style object
-style = ttk.Style()
-style.theme_use(selected_theme)
-
-# Define the custom fonts
-calibri_font_12 = ('Calibri', 12)
-calibri_font_12_bold = ('Calibri', 12, 'bold')
-calibri_font_16_bold = ('Calibri', 16, 'bold')
-
-# Configure styles for ttk widgets
-style.configure('My.TButton', font=calibri_font_12)
-style.configure('My.TEntry', font=calibri_font_12)
-style.configure('My.TLabel', font=calibri_font_12)
-style.configure('My.TCombobox', font=calibri_font_12)
-
 # Function to change the theme
 def change_theme(event):
     selected_theme = theme_var.get()
     root.style.theme_use(selected_theme)
     save_theme_setting(selected_theme)
-    # Re-apply the styles after changing the theme
-    style.configure('My.TButton', font=calibri_font_12)
-    style.configure('My.TEntry', font=calibri_font_12)
-    style.configure('My.TLabel', font=calibri_font_12)
-    style.configure('My.TCombobox', font=calibri_font_12)
 
 # Load the logo image
 try:
@@ -169,20 +155,23 @@ except Exception as e:
     messagebox.showerror("Error", f"Error loading logo: {str(e)}")
 
 # Add a bold title below the logo using ttk.Label
-title_label = ttk.Label(root, text="Code Automation Program", font=calibri_font_16_bold)
+title_label = ttk.Label(root, text="Code Automation Program", font=("Calibri", 16, "bold"))
 title_label.pack(pady=5)
+
+# Define the custom font for the labels
+label_font = ('Calibri', 11)  # Increase the size to 16 for the labels
 
 # Create a frame for the info boxes
 info_frame = ttk.Frame(root)
 info_frame.pack(pady=10)
 
-# Create labels and entries for AutoDocRef, Clinic, Date and Time with the Calibri font
-auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef:', style='My.TLabel')
-auto_doc_ref_entry = ttk.Entry(info_frame, width=30, style='My.TEntry', font="Calibri")
-clinic_label = ttk.Label(info_frame, text='Clinic:', style='My.TLabel')
-clinic_entry = ttk.Entry(info_frame, width=30, style='My.TEntry',  font="Calibri")
-datetime_label = ttk.Label(info_frame, text='Date and Time:', style='My.TLabel')
-datetime_entry = ttk.Entry(info_frame, width=30, style='My.TEntry',  font="Calibri")
+# Create labels and entries for AutoDocRef, Clinic, Date and Time with the larger font
+auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef:', font=label_font)  # Increased font size
+auto_doc_ref_entry = ttk.Entry(info_frame, width=30)
+clinic_label = ttk.Label(info_frame, text='Clinic:', font=label_font)  # Increased font size
+clinic_entry = ttk.Entry(info_frame, width=30)
+datetime_label = ttk.Label(info_frame, text='Date and Time:', font=label_font)  # Increased font size
+datetime_entry = ttk.Entry(info_frame, width=30)
 
 # Arrange them from left to right
 auto_doc_ref_label.grid(row=0, column=0, padx=5, pady=5)
@@ -197,7 +186,7 @@ result_frame = ttk.Frame(root)
 result_frame.pack(pady=10, anchor='center')
 
 # Create a text widget inside the result_frame to display the results
-result_text = tk.Text(result_frame, wrap='word', height=25, width=80, font=calibri_font_12)
+result_text = tk.Text(result_frame, wrap='word', height=25, width=80)
 result_text.grid(row=0, column=0)
 
 # Create a vertical scrollbar linked to the result_text widget
@@ -342,7 +331,7 @@ def get_tariff_codes_from_xml(xml_string, file_context, logic_content):
     try:
         # Send the XML string, logic, and file context to the assistant
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # Adjust this if you're using a different model
+            model="gpt-4o",  # Adjust this if you're using a different model
             messages=[
                 {"role": "system", "content": f"Use the following logic to generate tariff codes:\n\n{logic_content}\n\nOnly output the calculated tariff codes."},
                 {"role": "user", "content": f"Here is the XML content to process:\n{xml_string}\n\nRelevant file information:\n{file_context}"}
@@ -402,7 +391,7 @@ def show_loading_popup():
     loading_popup.grab_set()
 
     # Add a label to display the loading message with dots on a new line
-    loading_label = ttk.Label(loading_popup, text="Please wait, processing\n", font=calibri_font_12_bold)
+    loading_label = ttk.Label(loading_popup, text="Please wait, processing\n", font=("Calibri", 12, "bold"))
     loading_label.pack(expand=True, pady=20)
 
     dot_index = 0  # Initialize the dot counter
@@ -434,12 +423,12 @@ def display_results(formatted_datetime, AutoDocRef, clinic, tariff_codes):
     auto_doc_ref_entry.delete(0, tk.END)
     auto_doc_ref_entry.insert(0, AutoDocRef)
     auto_doc_ref_entry.config(state='readonly')
-
+    
     datetime_entry.config(state=tk.NORMAL)
     datetime_entry.delete(0, tk.END)
     datetime_entry.insert(0, formatted_datetime)
     datetime_entry.config(state='readonly')
-
+    
     clinic_entry.config(state=tk.NORMAL)
     clinic_entry.delete(0, tk.END)
     if clinic:
@@ -577,46 +566,29 @@ def upload_file():
     else:
         messagebox.showinfo("No XML File Selected", "Please select an XML file to process.")
 
-# Create an upload button using ttk.Button with Calibri font
-upload_button = ttk.Button(root, text="Upload XML File", command=upload_file, style='My.TButton')
+# Create an upload button using ttk.Button
+upload_button = ttk.Button(root, text="Upload XML File", command=upload_file)
 upload_button.pack(pady=10)
 
-# Create an exit button using ttk.Button with Calibri font
-exit_button = ttk.Button(root, text="Exit", command=root.quit, style='My.TButton')
+# Create an exit button using ttk.Button
+exit_button = ttk.Button(root, text="Exit", command=root.quit)
 exit_button.pack(pady=10)
-
-# Define the custom font for the theme selection
-theme_font = calibri_font_12  # Use the same Calibri font
 
 # Create a bottom frame to hold the theme selection dropdown
 bottom_frame = ttk.Frame(root)
 bottom_frame.pack(side='bottom', fill='x', padx=10, pady=10)
 
-# Create a label and Combobox for theme selection with custom font
-theme_label = ttk.Label(bottom_frame, text='Theme:', style='My.TLabel')
+# Create a label and Combobox for theme selection
+theme_label = ttk.Label(bottom_frame, text='Theme:')
 theme_label.pack(side='left', padx=(0, 5))
 
 # Set the theme variable to the selected theme
 theme_var = tk.StringVar(value=selected_theme)
-theme_combobox = ttk.Combobox(
-    bottom_frame,
-    textvariable=theme_var,
-    values=theme_list,
-    state='readonly',
-    font=theme_font,
-    style='My.TCombobox'
-)
+theme_combobox = ttk.Combobox(bottom_frame, textvariable=theme_var, values=theme_list, state='readonly')
 theme_combobox.pack(side='left')
 
 # Bind the selection change event
 theme_combobox.bind('<<ComboboxSelected>>', change_theme)
-
-# Function to set the window size and position after all widgets have been added
-def set_window_position():
-    root.geometry("800x1000+0+0")
-
-# Schedule the geometry setting after the mainloop starts
-root.after(0, set_window_position)
 
 # Start the GUI event loop
 root.mainloop()
