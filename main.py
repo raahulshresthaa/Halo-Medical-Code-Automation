@@ -393,6 +393,7 @@ def animate_dots():
 def close_loading_popup():
     loading_popup.destroy()
     root.attributes('-disabled', False)  # Re-enable the main window
+    root.focus_force()  # Bring the main window back to focus
 
 # Function to display results
 def display_results(formatted_datetime, AutoDocRef, clinic, tariff_codes):
