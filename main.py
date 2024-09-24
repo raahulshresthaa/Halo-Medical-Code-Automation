@@ -386,7 +386,7 @@ def show_loading_popup():
     loading_popup.grab_set()
 
     # Add a label to display the loading message with dots on a new line
-    loading_label = ttk.Label(loading_popup, text="Please wait, processing\n", font=("Helvetica", 12, "bold"))
+    loading_label = ttk.Label(loading_popup, text="Please wait. Processing\n", font=("Helvetica", 12, "bold"))
     loading_label.pack(expand=True, pady=20)
 
     dot_index = 0  # Initialize the dot counter
