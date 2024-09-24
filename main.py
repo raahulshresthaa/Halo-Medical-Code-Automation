@@ -15,7 +15,7 @@ import sys
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Define the list of available themes
-theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'journal', 'superhero']
+theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'journal', 'superhero', 'simplex','vapor']
 
 # Function to load the saved theme setting
 def load_theme_setting():
@@ -153,16 +153,19 @@ except Exception as e:
 title_label = ttk.Label(root, text="Code Automation Program", font=("Helvetica", 16, "bold"))
 title_label.pack(pady=5)
 
+# Define the custom font for the labels
+label_font = ('Helvetica', 11)  # Increase the size to 16 for the labels
+
 # Create a frame for the info boxes
 info_frame = ttk.Frame(root)
 info_frame.pack(pady=10)
 
-# Create labels and entries for AutoDocRef, Clinic, Date and Time
-auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef:')
+# Create labels and entries for AutoDocRef, Clinic, Date and Time with the larger font
+auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef:', font=label_font)  # Increased font size
 auto_doc_ref_entry = ttk.Entry(info_frame, width=30)
-clinic_label = ttk.Label(info_frame, text='Clinic:')
+clinic_label = ttk.Label(info_frame, text='Clinic:', font=label_font)  # Increased font size
 clinic_entry = ttk.Entry(info_frame, width=30)
-datetime_label = ttk.Label(info_frame, text='Date and Time:')
+datetime_label = ttk.Label(info_frame, text='Date and Time:', font=label_font)  # Increased font size
 datetime_entry = ttk.Entry(info_frame, width=30)
 
 # Arrange them from left to right
