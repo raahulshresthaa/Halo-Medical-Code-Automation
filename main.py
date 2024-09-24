@@ -311,7 +311,7 @@ def get_tariff_codes_from_xml(xml_string, file_context, logic_content):
     try:
         # Send the XML string, logic, and file context to the assistant
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # Adjust this if you're using a different model
+            model="gpt-4o",  # Adjust this if you're using a different model
             messages=[
                 {"role": "system", "content": f"Use the following logic to generate tariff codes:\n\n{logic_content}\n\nOnly output the calculated tariff codes."},
                 {"role": "user", "content": f"Here is the XML content to process:\n{xml_string}\n\nRelevant file information:\n{file_context}"}
@@ -344,9 +344,9 @@ def write_to_log_file(tariff_codes, auto_doc_ref, clinic):
     except Exception as e:
         messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
 
-# Function to show the loading pop-up
+# Function to show the loading pop-up with moving dots animation on a new line
 def show_loading_popup():
-    global loading_popup
+    global loading_popup, loading_label, dot_index
     loading_popup = Toplevel(root)
     loading_popup.title("Loading...")
 
@@ -369,12 +369,25 @@ def show_loading_popup():
     loading_popup.transient(root)
     loading_popup.grab_set()
 
-    # Add a label to display the loading message
-    loading_label = ttk.Label(loading_popup, text="Please wait, processing...", font=("Helvetica", 12, "bold"))
+    # Add a label to display the loading message with dots on a new line
+    loading_label = ttk.Label(loading_popup, text="Please wait, processing\n", font=("Helvetica", 12, "bold"))
     loading_label.pack(expand=True, pady=20)
+
+    dot_index = 0  # Initialize the dot counter
+    animate_dots()  # Start the animation
 
     # Disable the main window while loading
     root.attributes('-disabled', True)
+
+# Function to animate the moving dots
+def animate_dots():
+    global dot_index
+    dots = ['.', '..', '...', '']  # The sequence of dots
+    # Update the label text
+    loading_label.config(text=f"Please wait. Processing\n{dots[dot_index]}")
+    dot_index = (dot_index + 1) % len(dots)  # Loop through the dots
+    # Update every 500ms (0.5 seconds)
+    loading_popup.after(500, animate_dots)
 
 # Function to close the loading pop-up
 def close_loading_popup():
@@ -413,6 +426,7 @@ def display_results(formatted_datetime, AutoDocRef, clinic, tariff_codes):
     result_text.insert(tk.END, tariff_codes, 'center')
 
     result_text.config(state=tk.DISABLED)  # Disable editing again
+
 
 # Function to process the API call in a separate thread
 def process_api_call(xml_content, file_context, logic_content, AutoDocRef, clinic):
@@ -517,7 +531,7 @@ def upload_file():
                 upload_button.config(state='normal')  # Re-enable the upload button
                 return
 
-            # Show the loading pop-up
+            # Show the loading pop-up with animation
             show_loading_popup()
 
             # Run the API call in a separate thread
