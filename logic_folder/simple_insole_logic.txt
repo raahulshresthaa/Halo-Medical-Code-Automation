@@ -3,9 +3,10 @@ This is the Logic document for Simple insoles price coding.
 Modelling 
 
 If there is a pair then do x2 of the codes for the modelling section. (i.e. B54c x2)
-If base is Poron add code : B40b
+If base is Poron = Yes, add code : B40b
 If base is Bontex add code : B40a
 If base is Leather add code : B40a
+If base is Carbon Fibre = Yes, add code : RSTest
 
 Modification 
 
