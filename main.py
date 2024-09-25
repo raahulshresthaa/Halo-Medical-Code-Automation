@@ -15,7 +15,7 @@ import sys
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Define the list of available themes
-theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'journal', 'superhero', 'simplex','vapor']
+theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'simplex','vapor']
 
 # Function to load the saved theme setting
 def load_theme_setting():
