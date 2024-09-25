@@ -87,17 +87,16 @@ if not openai.api_key:
     messagebox.showerror("Error", "OpenAI API key not found or invalid.")
     sys.exit()
 
-# Ensure that the log file exists
-def ensure_log_file_exists():
-    log_file_path = os.path.join(current_dir, 'results_log.txt')
-    if not os.path.exists(log_file_path):
-        with open(log_file_path, 'w', encoding='utf-8') as log_file:
-            log_file.write('')  # Create an empty file
-        print(f"Created new log file at {log_file_path}")
+# Check if there is results folder 
+def ensure_result_logs_folder_exists():
+    result_logs_folder = os.path.join(current_dir, 'result_logs')
+    if not os.path.exists(result_logs_folder):
+        os.makedirs(result_logs_folder)
+        print(f"Created 'result_logs' folder at {result_logs_folder}")
     else:
-        print(f"Log file already exists at {log_file_path}")
+        print(f"'result_logs' folder already exists at {result_logs_folder}")
 
-ensure_log_file_exists()
+ensure_result_logs_folder_exists()
 
 # Load and set the custom window icon (top-left)
 icon_path = os.path.join(current_dir, 'halo_simple_logo.png')  # Path to your .png file
@@ -349,10 +348,20 @@ def get_tariff_codes_from_xml(xml_string, file_context, logic_content):
 # Function to write tariff codes, auto doc reference, and clinic to the log file
 def write_to_log_file(tariff_codes, auto_doc_ref, clinic):
     try:
-        log_file_path = os.path.join(current_dir, 'results_log.txt')
+        # Ensure the result_logs folder exists
+        result_logs_folder = os.path.join(current_dir, 'result_logs')
+        if not os.path.exists(result_logs_folder):
+            os.makedirs(result_logs_folder)
+
+        # Get the current date and time
+        current_datetime = datetime.datetime.now()
+        formatted_date = current_datetime.strftime('%d_%m_%y')  # Format: DD_MM_YY
+
+        # Construct the log file path
+        log_file_name = f"log_{formatted_date}.txt"
+        log_file_path = os.path.join(result_logs_folder, log_file_name)
+
         with open(log_file_path, 'a', encoding='utf-8') as log_file:
-            # Get the current date and time
-            current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
             log_file.write(f"Date and Time: {formatted_datetime}\n")
