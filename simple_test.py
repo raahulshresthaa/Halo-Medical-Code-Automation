@@ -14,7 +14,7 @@ import threading
 class InsolePricingLogic:
     def __init__(self, pair=False, form_type=None, base=None, modifications=None, postings=None,
                  left_additions=None, right_additions=None,
-                 extra_coverings=0, spenco=False, linings=0):
+                 covers_from_xml=0, linings_from_xml=0):
         self.pair = pair
         self.form_type = form_type
         self.base = base
@@ -23,13 +23,12 @@ class InsolePricingLogic:
         self.postings = postings or []
         self.left_additions = left_additions or []
         self.right_additions = right_additions or []
-        self.extra_coverings = extra_coverings
-        self.spenco = spenco
-        self.linings = linings
+        self.covers_from_xml = covers_from_xml
+        self.linings_from_xml = linings_from_xml
         self.codes = []
 
     def apply_pair_handling(self, code):
-        """Applies pair handling logic by multiplying the code if applicable."""
+        """Applies pair handling logic by adding ' x2' if applicable."""
         if self.pair:
             return f"{code} x2"
         return code
@@ -93,40 +92,32 @@ class InsolePricingLogic:
                 self.codes.append(code)
 
     def coverings_and_linings_section(self):
-        """Adds codes based on the number of extra coverings and linings."""
-        # Determine included covers based on form_type
-        if self.form_type == "simple":
-            included_cover = 1
-        else:
-            included_cover = 0
-
-        # Total covers from XML
-        total_coverings_from_xml = self.extra_coverings + (2 if self.spenco else 0) + self.linings
-
-        # Actual total covers including the included cover (if any)
-        actual_total_coverings = included_cover + total_coverings_from_xml
-
+        """Adds codes based on the number of covers and linings."""
+        # Calculate total covers
         if self.form_type == "simple":
             # Simple insoles include one cover by default
-            if actual_total_coverings == 1:
-                pass  # Nothing to add
-            elif actual_total_coverings == 2:
-                self.codes.append("B55a")
-            elif actual_total_coverings == 3:
-                self.codes.append("B55b")
-            elif actual_total_coverings > 3:
-                self.codes.append("B55c")
+            total_covers = (self.covers_from_xml )
         else:
-            # Other insoles do not include a default cover
-            coverings_mapping = {
-                1: "B55a",
-                2: "B55b",
-                3: "B55c"  # 3 or more coverings
-            }
+            total_covers = self.covers_from_xml
+        print (total_covers,"   ",self.linings_from_xml)
+        # Calculate y
+        y = total_covers + self.linings_from_xml
 
-            if total_coverings_from_xml >= 1:
-                code = coverings_mapping.get(total_coverings_from_xml, "B55c")  # Default to B55c if >=3
-                self.codes.append(self.apply_pair_handling(code))
+        # Assign codes based on y
+        if y == 2:
+            code = "B55a"
+        elif y == 3:
+            code = "B55b"
+        elif y >= 4:
+            code = "B55c"
+        else:
+            code = None  # No code if y < 2
+
+        if code:
+            code = self.apply_pair_handling(code)
+            print(f"Code before adding to codes list: {code}")
+            self.codes.append(code)
+        print (y)
 
     def process_logic(self):
         """Processes all sections to generate the correct codes."""
@@ -314,9 +305,29 @@ def process_xml_and_get_codes(xml_content, form_type):
     postings = []  # List to hold postings
     left_additions = []
     right_additions = []
-    extra_coverings = 0
-    spenco = False
-    linings = 0
+    covers_from_xml = 0
+    linings_from_xml = 0
+
+    # Corrected XPath expression
+    top_cover_elements = root.findall('.//TopCover')
+    print(f"Number of TopCover elements found: {len(top_cover_elements)}")  # Debugging statement
+
+    if not top_cover_elements:
+        print("No TopCover elements found. Check XML structure and element names.")  # Debugging statement
+
+    for top_cover in top_cover_elements:
+        material = top_cover.findtext('TopCoverMaterial')
+        print(f"TopCoverMaterial found: {material}")  # Debugging statement
+        if material:
+            material = material.strip()
+            if material == 'Spenco (Green)':
+                covers_from_xml += 2  # Spenco counts as two covers
+                print(f"Added 2 to covers_from_xml, new value: {covers_from_xml}")  # Debugging statement
+            else:
+                covers_from_xml += 1
+                print(f"Added 1 to covers_from_xml, new value: {covers_from_xml}")  # Debugging statement
+        else:
+            print("TopCoverMaterial is missing or empty.")  # Debugging statement
 
     # Extract Pair Information
     insole_side = root.find('.//InsoleSide')
@@ -418,26 +429,17 @@ def process_xml_and_get_codes(xml_content, form_type):
             if addition and addition.strip() in additions_mapping_values:
                 right_additions.append(addition.strip())
 
-    # Extract Coverings and Linings
-    # As per your logic, set defaults or extract from XML if available
-    # Here, setting defaults for demonstration
-    extra_coverings = 0  # Adjust based on your actual logic or extract from XML
-    linings = 0          # Adjust based on your actual logic or extract from XML
-    spenco = False       # Adjust based on your actual logic or extract from XML
+    # Extract Covers from XML
+    # TopCover elements can be multiple; count accordingly
+    top_cover_elements = root.findall('.//TopCover')
+    for top_cover in top_cover_elements:
+        material = top_cover.findtext('TopCoverMaterial')
 
-    # Check for extra coverings, spenco, and linings in XML if applicable
-    # Example extraction (modify according to your XML structure)
-    extra_coverings_element = root.find('.//Coverings/ExtraCoverings')
-    if extra_coverings_element is not None and extra_coverings_element.text.isdigit():
-        extra_coverings = int(extra_coverings_element.text)
-
-    spenco_element = root.find('.//Coverings/Spenco')
-    if spenco_element is not None and spenco_element.text.lower() == 'yes':
-        spenco = True
-
-    linings_element = root.find('.//Coverings/Linings')
-    if linings_element is not None and linings_element.text.isdigit():
-        linings = int(linings_element.text)
+    # Extract Linings from XML
+    # Assuming one <Lining> element per insole
+    lining_elements = root.findall('.//Lining')
+    for lining in lining_elements:
+        linings_from_xml += 1  # Each <Lining> counts as one
 
     # Create an instance of InsolePricingLogic with the extracted data
     logic = InsolePricingLogic(
@@ -448,9 +450,8 @@ def process_xml_and_get_codes(xml_content, form_type):
         postings=postings,
         left_additions=left_additions,
         right_additions=right_additions,
-        extra_coverings=extra_coverings,
-        spenco=spenco,
-        linings=linings
+        covers_from_xml=covers_from_xml,
+        linings_from_xml=linings_from_xml
     )
 
     # Process the logic to get the codes
@@ -464,18 +465,18 @@ def write_to_log_file(tariff_codes, auto_doc_ref, clinic):
         result_logs_folder = os.path.join(current_dir, 'result_logs')
         if not os.path.exists(result_logs_folder):
             os.makedirs(result_logs_folder)
-
+    
         # Get the current date and time
         current_datetime = datetime.datetime.now()
         formatted_date = current_datetime.strftime('%d_%m_%y')  # Format: DD_MM_YY
-
+    
         # Construct the log file path
         log_file_name = f"log_{formatted_date}.txt"
         log_file_path = os.path.join(result_logs_folder, log_file_name)
-
+    
         with open(log_file_path, 'a', encoding='utf-8') as log_file:
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
-
+    
             log_file.write(f"Date and Time: {formatted_datetime}\n")
             log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
             log_file.write(f"Clinic: {clinic}\n")

@@ -1,8 +1,8 @@
 
 <data>
     <Details>
-        <AutoDocRef>M7630707</AutoDocRef>
-        <Clinic>East Surrey</Clinic>
+        <AutoDocRef>1J955548</AutoDocRef>
+        <Clinic>Frimley</Clinic>
     </Details>
     <Modelling>
         <Type>
@@ -19,13 +19,13 @@
         <Length>
             <threeQuarter></threeQuarter>
             <Sculus></Sculus>
-            <Full>Pair</Full>
+            <Full>Full</Full>
         </Length>
         <Template>
             <MensHalo></MensHalo>
             <MensRetail></MensRetail>
-            <LadiesHalo></LadiesHalo>
-            <LadiesRetail>Yes</LadiesRetail>
+            <LadiesHalo>Yes</LadiesHalo>
+            <LadiesRetail></LadiesRetail>
             <Child></Child>
         </Template>
         <Base>
@@ -35,8 +35,8 @@
             <Shore50></Shore50>
             <Shore65></Shore65>
             <Polypropylene></Polypropylene>
-            <Poron></Poron>
-            <CarbonFibre>Yes</CarbonFibre>
+            <Poron>Yes</Poron>
+            <CarbonFibre></CarbonFibre>
         </Base>
         <ScoopProfile>
             <Low></Low>
@@ -45,16 +45,16 @@
         </ScoopProfile>
         <InsoleThickness>
             <Thickness1_5mm></Thickness1_5mm>
-            <Thickness3mm></Thickness3mm>
+            <Thickness3mm>Yes</Thickness3mm>
             <Thickness6mm></Thickness6mm>
         </InsoleThickness>
         <HeelCupHeight>
-            <Flat>Yes</Flat>
+            <Flat></Flat>
             <Low></Low>
             <Medium></Medium>
             <High></High>
         </HeelCupHeight>
-        <ShoeSize>5</ShoeSize>
+        <ShoeSize>7</ShoeSize>
         <CradeDetails></CradeDetails>
     </Modelling>
     <Left>
@@ -67,16 +67,16 @@
             <FascialAccommodation></FascialAccommodation>
             <HeelFlangeMedial></HeelFlangeMedial>
             <HeelFlangeLateral></HeelFlangeLateral>
-            <MedialRearfootPosting>Blank</MedialRearfootPosting>
-            <LateralRearfootPosting>Blank</LateralRearfootPosting>
-            <MedialForefootPosting>Blank</MedialForefootPosting>
-            <LateralForefootPosting>Blank</LateralForefootPosting>
-            <MedialKirbySkivePosting>Blank</MedialKirbySkivePosting>
-            <LateralKirbySkivePosting>Blank</LateralKirbySkivePosting>
+            <MedialRearfootPosting></MedialRearfootPosting>
+            <LateralRearfootPosting></LateralRearfootPosting>
+            <MedialForefootPosting></MedialForefootPosting>
+            <LateralForefootPosting></LateralForefootPosting>
+            <MedialKirbySkivePosting></MedialKirbySkivePosting>
+            <LateralKirbySkivePosting></LateralKirbySkivePosting>
         </Modification>
         <Additions>
             <Addition1>Valgus Pad</Addition1>
-            <Addition1Thickness>18 poron</Addition1Thickness>
+            <Addition1Thickness>3</Addition1Thickness>
             <Addition2></Addition2>
             <Addition2Thickness></Addition2Thickness>
             <Addition3></Addition3>
@@ -95,18 +95,18 @@
             <FascialAccommodation></FascialAccommodation>
             <HeelFlangeMedial></HeelFlangeMedial>
             <HeelFlangeLateral></HeelFlangeLateral>
-            <MedialRearfootPosting>Blank</MedialRearfootPosting>
-            <LateralRearfootPosting>Blank</LateralRearfootPosting>
-            <MedialForefootPosting>Blank</MedialForefootPosting>
-            <LateralForefootPosting>Blank</LateralForefootPosting>
-            <MedialKirbySkivePosting>Blank</MedialKirbySkivePosting>
-            <LateralKirbySkivePosting>Blank</LateralKirbySkivePosting>
+            <MedialRearfootPosting>Yes</MedialRearfootPosting>
+            <LateralRearfootPosting></LateralRearfootPosting>
+            <MedialForefootPosting></MedialForefootPosting>
+            <LateralForefootPosting></LateralForefootPosting>
+            <MedialKirbySkivePosting></MedialKirbySkivePosting>
+            <LateralKirbySkivePosting></LateralKirbySkivePosting>
         </Modification>
         <Additions>
             <Addition1>Valgus Pad</Addition1>
-            <Addition1Thickness>18 poron</Addition1Thickness>
-            <Addition2></Addition2>
-            <Addition2Thickness></Addition2Thickness>
+            <Addition1Thickness>3</Addition1Thickness>
+            <Addition2>Metatarsal Pad</Addition2>
+            <Addition2Thickness>6</Addition2Thickness>
             <Addition3></Addition3>
             <Addition3Thickness></Addition3Thickness>
             <Addition4></Addition4>
@@ -116,11 +116,17 @@
     <Lining>
         <Length>Full</Length>
         <Density>Soft</Density>
-        <Thickness>1.5mm</Thickness>
+        <Thickness>3mm</Thickness>
     </Lining>
     <TopCover>
-        <TopCoverMaterial>Eva (Black)</TopCoverMaterial>
+        <TopCoverMaterial>Spenco (Green)</TopCoverMaterial>
         <TopCoverLength>Full</TopCoverLength>
     </TopCover>
-    <AdditionalInformation>Carbon fibre footplate (to prevent tip toeing) Ladies size 5 uk template With valgus pad and soft mid/top layer</AdditionalInformation>
+    <AdditionalInformation>1 x pair of simple insoles (repeat of pad number: 396924 - 02/08/22) 
+    - 3mm XRD poron Base
+    - 3mm SD valguss pads Rt Lt 
+    - 5mm LHP on Rt and Lt
+    - 6mm LD klaxon met bar on Rt
+    - Leather topcover 
+    - Halo womens size 7 template</AdditionalInformation>
 </data>
