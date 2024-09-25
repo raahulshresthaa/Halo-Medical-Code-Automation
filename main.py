@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 import datetime
 import threading
 import sys
-#commetn 
+
 # Get the path of the directory where this Python script is located
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
