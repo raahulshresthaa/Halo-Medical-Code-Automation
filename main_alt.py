@@ -9,7 +9,9 @@ import ttkbootstrap as ttk
 from PIL import Image, ImageTk
 
 import simple_logic  # Ensure this is all lowercase
+import tci_logic     # Import the tci_logic module
 import gui
+import xml_utils     # Import the xml_utils module
 
 # Initialize paths
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -84,9 +86,43 @@ result_text.config(state='disabled')
 def change_theme(event):
     gui.change_theme(event, root, theme_var)
 
+def write_to_log_file(tariff_codes, auto_doc_ref, clinic):
+    try:
+        result_logs_folder = os.path.join(current_dir, 'result_logs')
+        if not os.path.exists(result_logs_folder):
+            os.makedirs(result_logs_folder)
+
+        current_datetime = datetime.datetime.now()
+        formatted_date = current_datetime.strftime('%d_%m_%y')
+
+        log_file_name = f"log_{formatted_date}.txt"
+        log_file_path = os.path.join(result_logs_folder, log_file_name)
+
+        with open(log_file_path, 'a', encoding='utf-8') as log_file:
+            formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
+            log_file.write(f"Date and Time: {formatted_datetime}\n")
+            log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
+            log_file.write(f"Clinic: {clinic}\n")
+            log_file.write(f"Tariff Codes:\n{tariff_codes}\n")
+            log_file.write("-" * 50 + "\n")
+        print(f"Successfully wrote to log file at {log_file_path}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
+
 def process_api_call(xml_content, form_type, AutoDocRef, clinic):
     try:
-        tariff_codes = simple_logic.process_xml_and_get_codes(xml_content, form_type)
+        # Based on form_type, call the appropriate module
+        if form_type == 'simple':
+            tariff_codes = simple_logic.process_xml_and_get_codes(xml_content, form_type)
+        elif form_type == 'tci' or 'handmould':
+            tariff_codes = tci_logic.process_xml_and_get_codes(xml_content, form_type)
+        else:
+            messagebox.showerror("Error", f"Unsupported form type: {form_type}")
+            root.after(0, gui.close_loading_popup, root)
+            root.after(0, lambda: upload_button.config(state='normal'))
+            return
+
         print(f"Tariff codes received: {tariff_codes}")
 
         current_datetime = datetime.datetime.now()
@@ -95,7 +131,8 @@ def process_api_call(xml_content, form_type, AutoDocRef, clinic):
         root.after(0, gui.display_results, formatted_datetime, AutoDocRef, clinic, tariff_codes,
                    auto_doc_ref_entry, datetime_entry, clinic_entry, result_text)
 
-        simple_logic.write_to_log_file('\n'.join(tariff_codes), AutoDocRef, clinic)
+        # Write the tariff codes, auto doc reference, and clinic to the log file
+        write_to_log_file('\n'.join(tariff_codes), AutoDocRef, clinic)
 
     except Exception as e:
         root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
@@ -110,25 +147,25 @@ def upload_file():
         upload_button.config(state='disabled')
 
         try:
-            # Correct function call without typos
-            xml_content = simple_logic.read_xml_file(xml_file_path)
+            # Use functions from xml_utils
+            xml_content = xml_utils.read_xml_file(xml_file_path)
             if xml_content is None:
                 upload_button.config(state='normal')
                 return
 
-            form_type = simple_logic.extract_form_type_from_xml_string(xml_content)
+            form_type = xml_utils.extract_form_type_from_xml_string(xml_content)
             print(f"Extracted form type: {form_type}")
             if not form_type:
                 messagebox.showerror("Error", "No form type selected in the XML file.")
                 upload_button.config(state='normal')
                 return
 
-            AutoDocRef = simple_logic.extract_auto_doc_reference_from_xml_string(xml_content)
+            AutoDocRef = xml_utils.extract_auto_doc_reference_from_xml_string(xml_content)
             print(f"Extracted auto doc reference: {AutoDocRef}")
             if not AutoDocRef:
                 AutoDocRef = "N/A"
 
-            clinic = simple_logic.extract_clinic_from_xml_string(xml_content)
+            clinic = xml_utils.extract_clinic_from_xml_string(xml_content)
             print(f"Extracted clinic: {clinic}")
             if not clinic:
                 clinic = "N/A"
