@@ -178,6 +178,8 @@ class TxtButtonHandler:
                         break
                     elif key == 'simple test' and data[key].lower() == 'selected':
                         form_type = 'simple'
+                    elif key == 'simple' and data[key].lower() == 'selected':
+                        form_type = 'simple'                    
                         break
                     # Add other form types as needed
                 if not form_type:
