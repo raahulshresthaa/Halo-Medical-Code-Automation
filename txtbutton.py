@@ -182,6 +182,9 @@ class TxtButtonHandler:
                     elif key == 'hand mould' and data[key].lower() == 'selected':# note the spelling error
                         form_type = 'handmold'  
                         break
+                    elif key == 'cradle' and data[key].lower() == 'selected':# note the spelling error
+                        form_type = 'cradle'  
+                        break
                     # Add other form types as needed
                 if not form_type:
                     messagebox.showerror("Error", "No form type found in the TXT file.")
