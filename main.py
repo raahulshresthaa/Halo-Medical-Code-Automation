@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 import datetime
 import threading
 import sys
+import txtbutton
 
 # Get the path of the directory where this Python script is located
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -578,6 +579,26 @@ def upload_file():
 # Create an upload button using ttk.Button
 upload_button = ttk.Button(root, text="Upload XML File", command=upload_file)
 upload_button.pack(pady=10)
+
+# Create an instance of TxtButtonHandler
+txt_handler = txtbutton.TxtButtonHandler(
+    root=root,
+    current_dir=current_dir,
+    result_text=result_text,
+    auto_doc_ref_entry=auto_doc_ref_entry,
+    datetime_entry=datetime_entry,
+    clinic_entry=clinic_entry,
+    show_loading_popup=show_loading_popup,
+    close_loading_popup=close_loading_popup,
+    display_results=display_results
+)
+
+# Create an upload TXT button using ttk.Button
+upload_txt_button = ttk.Button(root, text="Upload TXT File", command=txt_handler.upload_txt_file)
+upload_txt_button.pack(pady=10)
+
+# Set the upload_txt_button in txt_handler
+txt_handler.set_upload_txt_button(upload_txt_button)
 
 # Create an exit button using ttk.Button
 exit_button = ttk.Button(root, text="Exit", command=root.quit)
