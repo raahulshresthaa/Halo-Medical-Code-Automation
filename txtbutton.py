@@ -176,6 +176,9 @@ class TxtButtonHandler:
                     if key == 'tci test' and data[key].lower() == 'selected':
                         form_type = 'tci'
                         break
+                    elif key == 'tci' and data[key].lower() == 'selected':
+                        form_type = 'tci'
+                        break
                     elif key == 'simple test' and data[key].lower() == 'selected':
                         form_type = 'simple'
                         break
