@@ -1,5 +1,4 @@
 # txtbutton.py
-# txtbutton.py
 
 import os
 import threading
@@ -138,6 +137,17 @@ class TxtButtonHandler:
         except Exception as e:
             messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
 
+    def parse_txt_content(self, txt_content):
+        data = {}
+        lines = txt_content.strip().split('\n')
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                key = key.strip().lower()
+                value = value.strip()
+                data[key] = value
+        return data
+
     def upload_txt_file(self):
         # Open a file dialog for selecting TXT files
         txt_file_path = filedialog.askopenfilename(title="Select the TXT File", filetypes=[("Text Files", "*.txt")])
@@ -155,25 +165,35 @@ class TxtButtonHandler:
                     self.upload_txt_button.config(state='normal')  # Re-enable the upload button
                     return
 
-                # Ask the user to specify the form type, since we can't extract it from the TXT content
-                form_type = simpledialog.askstring("Form Type Required", "Please enter the form type (e.g., 'tci', 'simple'):")
+                # Parse the TXT content to extract needed fields
+                data = self.parse_txt_content(txt_content)
+                print(f"Parsed data: {data}")
+
+                # Extract form_type from data
+                # Assuming form_type is indicated by keys like 'tci test' or 'simple test' etc.
+                form_type = None
+                for key in data:
+                    if key == 'tci test' and data[key].lower() == 'selected':
+                        form_type = 'tci'
+                        break
+                    elif key == 'simple test' and data[key].lower() == 'selected':
+                        form_type = 'simple'
+                        break
+                    # Add other form types as needed
                 if not form_type:
-                    messagebox.showerror("Error", "No form type entered.")
+                    messagebox.showerror("Error", "No form type found in the TXT file.")
                     self.upload_txt_button.config(state='normal')  # Re-enable the upload button
                     return
+
+                # Extract AutoDocRef and Clinic from data
+                AutoDocRef = data.get('autodocref', 'N/A')
+                clinic = data.get('clinic', 'N/A')
 
                 # Sanitize form_type to prevent security issues
                 form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
                 print(f"Form type: {form_type}")
-
-                # Extract auto doc reference and clinic from the user (since we can't extract from TXT content)
-                AutoDocRef = simpledialog.askstring("Auto Doc Reference", "Please enter the Auto Doc Reference:")
-                if not AutoDocRef:
-                    AutoDocRef = "N/A"
-
-                clinic = simpledialog.askstring("Clinic", "Please enter the Clinic:")
-                if not clinic:
-                    clinic = "N/A"
+                print(f"AutoDocRef: {AutoDocRef}")
+                print(f"Clinic: {clinic}")
 
                 # Construct the logic file name and path based on the form type
                 logic_file_mapping = {
