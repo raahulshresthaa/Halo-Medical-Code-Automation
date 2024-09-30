@@ -1,4 +1,6 @@
 General Rules
+Write out all of your working out, always.
+
 Pair Handling: If the insoles are a pair (Pair = Yes), multiply all applicable codes by 2 (e.g., B54c x2).
 1. Modelling Section
 Base Material Codes
@@ -97,3 +99,5 @@ Exclusions: Do not add codes for items or postings that are not selected.
 Order of Operations: Process the sections in the order presented to ensure all applicable codes are added correctly.
 Avoid Duplicates: Ensure that codes are not duplicated unless required by the rules (e.g., Pair Handling).
 By following this structured logic, you can accurately determine the correct codes based on the options selected in the XML input. Ensure that each condition is checked precisely, and the corresponding action is taken accordingly.
+
+Be sure to write out all of your working out
