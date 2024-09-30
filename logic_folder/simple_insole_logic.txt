@@ -17,6 +17,7 @@ Add code: B54b
 If Base = 50 Shore, 40 Shore, or 65 Shore:
 Add code: B54c
 Note: Remember to apply the Pair Handling rule if applicable.
+If no base add: "Query which base?" below the codes 
 
 2. Modification Section
 For each of the following Modifications selected (Modification = Yes), add code BNS45:
@@ -42,7 +43,7 @@ Add code: B56
 No Posting Selected
 If neither Rearfoot nor Forefoot postings are selected:
 Do not add any posting codes.
-Note: Remember to apply the Pair Handling rule if applicable.
+
 
 4. Additions Section
 For each Addition selected (Addition = Yes), add the corresponding code:
@@ -94,6 +95,11 @@ For All Applicable Codes:
 
 If Pair = Yes, multiply the quantity of each code by 2 (not modifications or additions).
 Ensure that codes are only multiplied where the Pair Handling rule applies.
+
+6. Additional information
+Check this additional information for anything saying make multiple and then multiply All of the codes accordingly
+Also check for any codes that might be in the description 
+
 Important Notes:
 
 Modifications and Additions: Apply codes for each selected item, considering both feet if it's a pair.
