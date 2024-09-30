@@ -1,1 +1,67 @@
-this is an important test just return the following "This is a test, you have successfully selected Cradle. The Cradle logic sheet still needs to be filled out."
+This is the Logic document for Cradle insoles price coding.
+
+Modelling 
+
+If there is a pair then do x2 of the codes for the modelling section. (i.e. B54c x2)
+If base is Carbon Fibre add code : B54a
+If base is polypropylene add code : B54b
+If base is 40 Shore, 50 Shore or 65 Shore then add code B54c
+
+Cradle details
+Up to 25mm = A10
+Each additional 25mm = A9 
+
+Modification 
+
+Add BNS45 for all of the following (not for postings) 
+for both the left and right foot modifications : 
+Cut out and additions - BNS45
+1st Met Head - BNS45
+1st Met Ray - BNS45
+5th Met Ray - BNS45
+Navicular Sweet Spot - BNS45
+Fascial Accommodation - BNS45
+Heel Flange - BNS45
+if these are on both feet just put BNS45 x2,
+
+Postings 
+
+Make sure that if nothing is ticked then you do not charge for rear foot and fore foot
+Add A45 for Rearfoot 
+Add A45 for Forefoot.
+
+Additions
+
+The following is a list of all the additions that can be made, if the specified addition is present add the following codes.
+Valgus Pad - A45
+Metatarsal Pad - A45
+Metatarsal Bar - A45
+Morton's Extension - A45
+Reverse Morton's Extension - A45
+Neurological Footplate - D8a
+Balance Pad - A45
+Heel Pad - A45
+Cuboid Pad - A45 
+Kinetic Wedge - A45
+Cobra Pad - A45
+Neuroma Pad - A45 
+Sulcus Crest - A45
+Poron Forefoot - A45
+Arch Fill - A45
+Heel Raise - A45
+Rigid 1st Extension - B20
+Recess - BNS45
+Hole & Plug - BNS45
+Partial Toe Block - A46
+Full Toe Block - A47
+
+Top Cover (coverings) and Linings (charged with the same code)
+
+If there is a pair of insoles then make sure there's two codes (i.e. b55c x2)
+note that spenco counts as two coverings. And that any linings (to shell, to sulcus, full) count as 1 extra covering
+if you consider linings x and covers x how many x do you have, then consider x the number of covers and use that to work out the codes
+1 extra covering - A44a
+2 extra covering - A44b
+3 extra covering or more - A44c
+( so that 2 extra covering A44b, then add x2 if it is a pair so : A44b x2)
+note that lining thickness does not denote a new different lining, its a description of the same one 
