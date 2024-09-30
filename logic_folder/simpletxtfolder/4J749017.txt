@@ -1,0 +1,10 @@
+doc_type: insoleFormV3
+confidence: 0.997
+simple: selected
+Right: selected
+base: 50 Shore
+Clinic: James Paget
+AutoDocRef: 4J749017
+1st addition right: Heel Raise
+top cover material: Eva (Black)
+--------------------------------------------------

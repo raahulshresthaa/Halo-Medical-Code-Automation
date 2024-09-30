@@ -1,0 +1,10 @@
+doc_type: insoleFormV3
+confidence: 0.997
+simple: selected
+Left: selected
+base: 50 Shore
+Clinic: Wexham Park
+AutoDocRef: J7766601
+top cover material: Heel
+additional information: raise x
+--------------------------------------------------

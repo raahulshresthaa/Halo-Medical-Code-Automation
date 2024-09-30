@@ -1,0 +1,11 @@
+doc_type: insoleFormV3
+confidence: 0.997
+simple: selected
+Right: selected
+Clinic: Oak Tree
+AutoDocRef: AF976952
+Left Lateral Rearfoot: selected
+Right Lateral Rearfoot: selected
+top cover material: Eva (Multi)
+additional information: There is no option on this app for a leather base material , just need something fim to hold the wedges onto .
+--------------------------------------------------

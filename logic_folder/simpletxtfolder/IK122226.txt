@@ -1,0 +1,10 @@
+doc_type: insoleFormV3
+confidence: 0.997
+simple: selected
+Left: selected
+Clinic: Norfolk and Norwich
+AutoDocRef: IK122226
+1st addition left: Heel Raise
+top cover material: Vinyl (Black)
+additional information: First 50mm to be parallel please then taper to nil behind joints. Make 2 please. Cheers Gordon
+--------------------------------------------------

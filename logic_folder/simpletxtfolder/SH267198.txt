@@ -1,0 +1,12 @@
+doc_type: insoleFormV3
+confidence: 0.992
+simple: selected
+Pair: selected
+Poron: selected
+Clinic: N&N
+AutoDocRef: SH267198
+1st addition left: Valgus Pad
+1st addition right: Valgus Pad
+top cover material: Eva (Blue)
+additional information: Add 3mm medial angled heel posts to both Grey poron inlays
+--------------------------------------------------

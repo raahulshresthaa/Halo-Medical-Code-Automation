@@ -1,0 +1,13 @@
+doc_type: insoleFormV3
+confidence: 0.997
+simple: selected
+Pair: selected
+base: 65 Shore
+Clinic: Norfolk & Norwich
+AutoDocRef: HH251216
+Left Lateral Rearfoot: selected
+1st addition left: Cuboid Pad
+1st addition right: Cuboid Pad
+2nd addition right: Heel Raise
+top cover material: Alcantra (Brown)
+--------------------------------------------------
