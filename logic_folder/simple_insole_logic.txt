@@ -14,6 +14,8 @@ If Base = Carbon Fibre:
 Add code: B54a
 If Base = Polypropylene:
 Add code: B54b
+If Base = 50 Shore, 40 Shore, or 65 Shore:
+Add code: B54c
 Note: Remember to apply the Pair Handling rule if applicable.
 
 2. Modification Section
@@ -75,7 +77,7 @@ Counting Extra Coverings
 Calculate Total Extra Coverings (X):
 
 Each Additional Covering counts as 1.
-Spenco Material counts as 2 coverings.
+Spenco Material counts as 1 additional covering. 
 Each Lining (to shell, to sulcus, full) counts as 1 extra covering.
 Determine the Code Based on X:
 
@@ -90,7 +92,7 @@ If the insoles are a pair (Pair = Yes), multiply the covering code by 2 (e.g., B
 Summary of Pair Handling
 For All Applicable Codes:
 
-If Pair = Yes, multiply the quantity of each code by 2.
+If Pair = Yes, multiply the quantity of each code by 2 (not modifications or additions).
 Ensure that codes are only multiplied where the Pair Handling rule applies.
 Important Notes:
 
