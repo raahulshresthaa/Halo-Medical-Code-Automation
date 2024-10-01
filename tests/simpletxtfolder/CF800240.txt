@@ -1,10 +1,11 @@
-doc_type: insoleFormV4
+doc_type: insoleFormV5
 confidence: 0.997
 simple: selected
 Pair: selected
 Poron: selected
 Clinic: Norfolk & Norwich
 AutoDocRef: CF800240
+right as left: selected
 Left Lateral Rearfoot: selected
 Left Lateral Forefoot: selected
 1st addition left: Cuboid Pad
