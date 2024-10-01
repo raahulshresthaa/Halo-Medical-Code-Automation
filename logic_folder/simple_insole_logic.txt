@@ -91,7 +91,7 @@ Ensure that codes are only multiplied where the Pair Handling rule applies.
 
 6. Additional information
 Check this additional information for anything saying make multiple and then multiply All of the codes accordingly
-Also check for any codes that might be in the description 
+Also check for any codes that might be in the description but check that they are not already mentioned in the the rest of the document before adding them
 
 Important Notes:
 
