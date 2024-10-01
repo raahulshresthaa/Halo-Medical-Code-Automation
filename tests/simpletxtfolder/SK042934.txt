@@ -1,5 +1,5 @@
-doc_type: insoleFormV3
-confidence: 0.992
+doc_type: insoleFormV4
+confidence: 0.997
 simple: selected
 Pair: selected
 base: Carbon Fibre
@@ -7,5 +7,5 @@ Carbon Fibre: selected
 Clinic: Hackney Ark
 AutoDocRef: SK042934
 top cover material: Spenco (Green)
-additional information: 1.6MM SPENCO TOP COVER PITCH HEEL AND TOE FOR 4MM PITCH STIFF CARBON FIBRE
+additional information: 1.6MM SPENCO TOP COVER PITCH HEEL AND TOE FOR 4MM PITCH STIFF CARBON FIBRE HNKL LN10 / 2292
 --------------------------------------------------

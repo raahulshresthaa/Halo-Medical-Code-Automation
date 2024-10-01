@@ -1,5 +1,5 @@
-doc_type: insoleFormV3
-confidence: 0.992
+doc_type: insoleFormV4
+confidence: 0.997
 simple: selected
 Pair: selected
 Poron: selected
@@ -8,5 +8,6 @@ AutoDocRef: 1J955548
 Right Lateral Rearfoot: selected
 1st addition left: Valgus Pad
 1st addition right: Valgus Pad
+2nd addition right: Metatarsal Pad
 additional information: 1 x pair of simple insoles (repeat of pad number: 396924 - 02/08/22) - 3mm XRD poron base - 3mm SD valgus pads Rt and Lt - 5mm LHP on Rt - 6mm LD klaxon met bar on Rt - Leather topcover - Halo women's size 7 template.
 --------------------------------------------------
