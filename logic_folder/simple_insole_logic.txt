@@ -1,7 +1,7 @@
 General Rules
 Write out all of your working out, always.
 
-Pair Handling: If the insoles are a pair (Pair = Yes), multiply all applicable codes by 2 (e.g., B54c x2).
+Pair Handling: If the insoles are a pair (Pair = Yes), multiply base and lining codes by 2 (e.g., B54c x2).
 1. Modelling Section
 Base Material Codes
 Add the corresponding code based on the selected Base Material:
@@ -18,6 +18,8 @@ If Base = 50 Shore, 40 Shore, or 65 Shore:
 Add code: B54c
 Note: Remember to apply the Pair Handling rule if applicable.
 If no base add: "Query which base?" below the codes 
+
+If right as left is selected, multiply modifications and posting and additions by 2, and and the message with the codes "Query please check the right as left is filled out correctly"
 
 2. Modification Section
 For each of the following Modifications selected (Modification = Yes), add code BNS45:
@@ -93,7 +95,7 @@ If the insoles are a pair (Pair = Yes), multiply the covering code by 2 (e.g., B
 Summary of Pair Handling
 For All Applicable Codes:
 
-If Pair = Yes, multiply the quantity of each code by 2 (not modifications or additions).
+If Pair = Yes, multiply the quantity of base codes and lining codes by 2 (not modifications or additions).
 Ensure that codes are only multiplied where the Pair Handling rule applies.
 
 6. Additional information
