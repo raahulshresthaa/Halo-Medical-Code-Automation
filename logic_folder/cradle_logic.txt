@@ -1,4 +1,4 @@
-This is the Logic document for TCI insoles price coding.
+This is the Logic document for Cradle insoles price coding.
 Be sure to write out all of your working out
 
 Modelling 
