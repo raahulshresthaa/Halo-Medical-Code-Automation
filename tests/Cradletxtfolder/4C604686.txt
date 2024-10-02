@@ -1,0 +1,13 @@
+doc_type: insoleFormV5
+confidence: 0.992
+Cradle: selected
+Pair: selected
+base: 45/30/80 SH
+Clinic: Kingston
+AutoDocRef: 4C604686
+Left Lateral Rearfoot: selected
+Right Lateral Rearfoot: selected
+1st addition left: Valgus Pad
+1st addition right: Valgus Pad
+additional information: Please see impression box and drafts on box for dimensions particularly width as pt has very wide feet
+--------------------------------------------------

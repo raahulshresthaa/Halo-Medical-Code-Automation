@@ -1,0 +1,12 @@
+doc_type: insoleFormV5
+confidence: 0.997
+Cradle: selected
+Pair: selected
+Clinic: Peterborough City Hospital
+AutoDocRef: TO075374
+Right 1st Met Head: selected
+Left Medial Rearfoot: selected
+Right Medial Rearfoot: selected
+1st addition right: Hole & Plug
+additional information: 3x hole and plugs. 1 at heel, 1 5th met head and 1x 1st met head as per pictures. All on right side only.
+--------------------------------------------------

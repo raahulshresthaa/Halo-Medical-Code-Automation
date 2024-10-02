@@ -1,12 +1,14 @@
 doc_type: insoleFormV5
-confidence: 0.997
+confidence: 0.992
 Cradle: selected
 Pair: selected
-base: Polypropylene
+base: SH
 Clinic: Kingston
-AutoDocRef: T4083860
+AutoDocRef: M1055542
 Left Medial Rearfoot: selected
 Right Medial Rearfoot: selected
-Lining to full: selected
-top cover material: Eva (Black)
+1st addition left: Valgus Pad
+2nd addition left: Morton's Extension
+1st addition right: Valgus Pad
+2nd addition right: Morton's Extension
 --------------------------------------------------
