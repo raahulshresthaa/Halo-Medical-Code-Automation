@@ -62,6 +62,7 @@ if you consider linings x and covers x how many x do you have, then consider x t
 3 covering or more - B55c
 (so that 2 covering B55b, then add x2 if it is a pair so : B55b x2)
 note that lining thickness does not denote a new different lining, its a description of the same one 
+if there is no coverings selected assume there is one and therefore a B55a code (B55a x2 for a pair)
 
 Please put a note at the end with the final codes saying "This cradle has been coded as a TCI"
 
