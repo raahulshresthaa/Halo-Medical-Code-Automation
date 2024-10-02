@@ -1,4 +1,5 @@
 This is the Logic document for TCI insoles price coding.
+Be sure to write out all of your working out
 
 Modelling 
 
@@ -56,10 +57,12 @@ Top Cover (coverings) and Linings (charged with the same code)
 If there is a pair of insoles then make sure there's two codes (i.e. b55c x2)
 note that spenco counts as two coverings and that if the base is 35/40/80 SH or 45/30/80 SH then we charge for an extra covering. And that any linings (to shell, to sulcus, full) count as 1 extra covering
 if you consider linings x and covers x how many x do you have, then consider x the number of covers and use that to work out the codes
-1 extra covering - B55a
-2 extra covering - B55b
-3 extra covering or more - B55c
-( so that 2 extra covering B55b, then add x2 if it is a pair so : B55b x2)
+1 covering - B55a
+2 covering - B55b
+3 covering or more - B55c
+(so that 2 covering B55b, then add x2 if it is a pair so : B55b x2)
 note that lining thickness does not denote a new different lining, its a description of the same one 
 
 Please put a note at the end with the final codes saying "This cradle has been coded as a TCI"
+
+Be sure to write out all of your working out
