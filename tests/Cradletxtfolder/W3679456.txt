@@ -1,0 +1,12 @@
+doc_type: insoleFormV5
+confidence: 0.997
+Cradle: selected
+Pair: selected
+base: 45/30/80 SH
+Clinic: Kingston
+AutoDocRef: W3679456
+Left Medial Rearfoot: selected
+Right Medial Rearfoot: selected
+1st addition left: Valgus Pad
+1st addition right: Valgus Pad
+--------------------------------------------------
