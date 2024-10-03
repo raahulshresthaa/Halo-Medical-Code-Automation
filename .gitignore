@@ -5,4 +5,6 @@ api_key.txt
 settings.txt
 /result_logs
 \__pycache__
-
+azure_endpoint.txt
+azure_key.txt
+azure_model_id.txt

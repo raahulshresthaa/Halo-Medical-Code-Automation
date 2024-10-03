@@ -4,10 +4,12 @@ import os
 import threading
 import datetime
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog
+from tkinter import filedialog, messagebox, simpledialog, Toplevel
 import openai
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.formrecognizer import DocumentAnalysisClient
 
-class TxtButtonHandler:
+class PdfButtonHandler:
     def __init__(self, root, current_dir, result_text, auto_doc_ref_entry, datetime_entry, clinic_entry, show_loading_popup, close_loading_popup, display_results):
         self.root = root
         self.current_dir = current_dir
@@ -22,11 +24,19 @@ class TxtButtonHandler:
         # Path to the 'context' folder where the additional context files are stored
         self.context_folder_path = os.path.join(self.current_dir, 'context')
 
-        # Reference to the upload TXT button (will be set later)
-        self.upload_txt_button = None
+        # Reference to the upload PDF button (will be set later)
+        self.upload_pdf_button = None
 
-    def set_upload_txt_button(self, button):
-        self.upload_txt_button = button
+        # Azure Form Recognizer configuration
+        self.endpoint = os.getenv('AZURE_ENDPOINT')
+        self.key = os.getenv('AZURE_KEY')
+        self.model_id = os.getenv('AZURE_MODEL_ID', 'your_model_id')  # Replace 'your_model_id' with your model ID
+
+        # Initialize Azure Form Recognizer client
+        self.document_analysis_client = DocumentAnalysisClient(endpoint=self.endpoint, credential=AzureKeyCredential(self.key))
+
+    def set_upload_pdf_button(self, button):
+        self.upload_pdf_button = button
 
     # Function to read the logic file
     def read_logic_file(self, logic_file_path):
@@ -63,14 +73,14 @@ class TxtButtonHandler:
         except Exception as e:
             return f"Error reading context files: {str(e)}"
 
-    def get_tariff_codes_from_txt(self, txt_content, file_context, logic_content):
+    def get_tariff_codes_from_content(self, content, file_context, logic_content):
         try:
-            # Send the TXT content, logic, and file context to the assistant
+            # Send the content, logic, and file context to the assistant
             response = openai.ChatCompletion.create(
-                model="gpt-4o-2024-08-06",  # Use the appropriate model
+                model="gpt-4",  # Use the appropriate model
                 messages=[
                     {"role": "system", "content": f"Use the following logic to generate tariff codes:\n\n{logic_content}\n\nOnly output the calculated tariff codes."},
-                    {"role": "user", "content": f"Here is the content to process:\n{txt_content}\n\nRelevant file information:\n{file_context}"}
+                    {"role": "user", "content": f"Here is the content to process:\n{content}\n\nRelevant file information:\n{file_context}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
                 temperature=0.1  # Adjust as needed
@@ -82,10 +92,10 @@ class TxtButtonHandler:
         except Exception as e:
             return f"Error: {str(e)}"
 
-    def process_api_call_txt(self, txt_content, file_context, logic_content, AutoDocRef, clinic):
+    def process_api_call(self, content, file_context, logic_content, AutoDocRef, clinic):
         try:
-            # Get the tariff codes by sending the TXT content, logic, and file context to OpenAI
-            tariff_codes = self.get_tariff_codes_from_txt(txt_content, file_context, logic_content)
+            # Get the tariff codes by sending the content, logic, and file context to OpenAI
+            tariff_codes = self.get_tariff_codes_from_content(content, file_context, logic_content)
 
             # Debug print to check the content of tariff_codes
             print(f"Tariff codes received: {tariff_codes}")
@@ -107,7 +117,7 @@ class TxtButtonHandler:
             # Close the loading pop-up when done
             self.root.after(0, self.close_loading_popup)
             # Re-enable the upload button
-            self.root.after(0, lambda: self.upload_txt_button.config(state='normal'))
+            self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
     # Function to write tariff codes, auto doc reference, and clinic to the log file
     def write_to_log_file(self, tariff_codes, auto_doc_ref, clinic):
@@ -137,115 +147,137 @@ class TxtButtonHandler:
         except Exception as e:
             messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
 
-    def parse_txt_content(self, txt_content):
-        data = {}
-        lines = txt_content.strip().split('\n')
-        for line in lines:
-            if ':' in line:
-                key, value = line.split(':', 1)
-                key = key.strip().lower()
-                value = value.strip()
-                data[key] = value
-        return data
+    def parse_extracted_data(self, data_dict):
+        """Convert extracted data into a string format suitable for processing."""
+        lines = []
+        for key, value in data_dict.items():
+            lines.append(f"{key}: {value}")
+        return "\n".join(lines)
 
-    def upload_txt_file(self):
-        # Open a file dialog for selecting TXT files
-        txt_file_path = filedialog.askopenfilename(title="Select the TXT File", filetypes=[("Text Files", "*.txt")])
+    def upload_pdf_file(self):
+        # Open a file dialog for selecting PDF files
+        pdf_file_path = filedialog.askopenfilename(title="Select the PDF File", filetypes=[("PDF Files", "*.pdf")])
 
-        if txt_file_path:
+        if pdf_file_path:
             # Disable the upload button to prevent multiple clicks
-            self.upload_txt_button.config(state='disabled')
+            self.upload_pdf_button.config(state='disabled')
 
             try:
-                # Read the TXT file content
-                with open(txt_file_path, 'r', encoding='utf-8') as file:
-                    txt_content = file.read()
-                if not txt_content:
-                    messagebox.showerror("Error", "The selected TXT file is empty.")
-                    self.upload_txt_button.config(state='normal')  # Re-enable the upload button
-                    return
-
-                # Parse the TXT content to extract needed fields
-                data = self.parse_txt_content(txt_content)
-                print(f"Parsed data: {data}")
-
-                # Extract form_type from data
-                # Assuming form_type is indicated by keys like 'tci test' or 'simple test' etc.
-                form_type = None
-                for key in data:
-                    if key == 'tci' and data[key].lower() == 'selected':
-                        form_type = 'tci'
-                        break
-                    elif key == 'simple' and data[key].lower() == 'selected':
-                        form_type = 'simple'                    
-                        break
-                    elif key == 'hand mould' and data[key].lower() == 'selected':# note the spelling error
-                        form_type = 'handmold'  
-                        break
-                    elif key == 'cradle' and data[key].lower() == 'selected':# note the spelling error
-                        form_type = 'cradle'  
-                        break
-                    # Add other form types as needed
-                if not form_type:
-                    messagebox.showerror("Error", "No form type found in the TXT file.")
-                    self.upload_txt_button.config(state='normal')  # Re-enable the upload button
-                    return
-
-                # Extract AutoDocRef and Clinic from data
-                AutoDocRef = data.get('autodocref', 'N/A')
-                clinic = data.get('clinic', 'N/A')
-
-                # Sanitize form_type to prevent security issues
-                form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
-                print(f"Form type: {form_type}")
-                print(f"AutoDocRef: {AutoDocRef}")
-                print(f"Clinic: {clinic}")
-
-                # Construct the logic file name and path based on the form type
-                logic_file_mapping = {
-                    'tci': 'tci_logic.txt',
-                    'simple': 'simple_insole_logic.txt',
-                    'cradle': 'cradle_logic.txt',
-                    'afo': 'afo_logic.txt',
-                    'kafo': 'kafo_logic.txt',
-                    'handmold': 'handmold_logic.txt'
-                }
-
-                logic_file_name = logic_file_mapping.get(form_type)
-                print(f"Logic file name: {logic_file_name}")
-                if not logic_file_name:
-                    messagebox.showerror("Error", f"No logic file mapping found for form type '{form_type}'.")
-                    self.upload_txt_button.config(state='normal')  # Re-enable the upload button
-                    return
-
-                logic_folder_path = os.path.join(self.current_dir, 'logic_folder')
-                logic_file_path = os.path.join(logic_folder_path, logic_file_name)
-                print(f"Logic file path: {logic_file_path}")
-
-                # Read the logic file
-                logic_content = self.read_logic_file(logic_file_path)
-                if "Error" in logic_content:
-                    messagebox.showerror("Error", logic_content)
-                    self.upload_txt_button.config(state='normal')  # Re-enable the upload button
-                    return
-
-                # Automatically read the files from the 'context' folder
-                file_context = self.read_files_for_context()
-                if "Error" in file_context:
-                    messagebox.showerror("Error", file_context)
-                    self.upload_txt_button.config(state='normal')  # Re-enable the upload button
-                    return
-
                 # Show the loading pop-up with animation
                 self.show_loading_popup()
 
-                # Run the API call in a separate thread
-                api_thread = threading.Thread(target=self.process_api_call_txt, args=(txt_content, file_context, logic_content, AutoDocRef, clinic))
-                api_thread.start()
+                # Start processing the PDF file in a separate thread
+                threading.Thread(target=self.process_pdf_and_call_api, args=(pdf_file_path,)).start()
 
             except Exception as e:
                 messagebox.showerror("Error", f"Error processing the file: {str(e)}")
-                self.upload_txt_button.config(state='normal')  # Re-enable the upload button
+                self.upload_pdf_button.config(state='normal')  # Re-enable the upload button
                 self.close_loading_popup()  # Ensure the loading pop-up is closed if an error occurs
         else:
-            messagebox.showinfo("No TXT File Selected", "Please select a TXT file to process.")
+            messagebox.showinfo("No PDF File Selected", "Please select a PDF file to process.")
+
+    def process_pdf_and_call_api(self, pdf_file_path):
+        try:
+            # Analyze the PDF using Azure Form Recognizer
+            with open(pdf_file_path, "rb") as pdf_file:
+                poller = self.document_analysis_client.begin_analyze_document(self.model_id, document=pdf_file)
+                result = poller.result()
+
+            # Extract fields from the result
+            fields_data = self.extract_fields_from_result(result)
+
+            if not fields_data:
+                raise ValueError("No data extracted from the PDF.")
+
+            # Convert extracted data to text format
+            content = self.parse_extracted_data(fields_data)
+            print(f"Extracted content: {content}")
+
+            # Extract AutoDocRef and Clinic from the data
+            AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
+            clinic = fields_data.get('Clinic', 'N/A')
+
+            # Determine form_type based on extracted data
+            form_type = self.determine_form_type(fields_data)
+            if not form_type:
+                raise ValueError("No form type found in the extracted data.")
+
+            # Sanitize form_type
+            form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
+            print(f"Form type: {form_type}")
+
+            # Construct the logic file name and path based on the form type
+            logic_file_mapping = {
+                'tci': 'tci_logic.txt',
+                'simple': 'simple_insole_logic.txt',
+                'cradle': 'cradle_logic.txt',
+                'afo': 'afo_logic.txt',
+                'kafo': 'kafo_logic.txt',
+                'handmold': 'handmold_logic.txt'
+            }
+
+            logic_file_name = logic_file_mapping.get(form_type)
+            print(f"Logic file name: {logic_file_name}")
+            if not logic_file_name:
+                raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
+
+            logic_folder_path = os.path.join(self.current_dir, 'logic_folder')
+            logic_file_path = os.path.join(logic_folder_path, logic_file_name)
+            print(f"Logic file path: {logic_file_path}")
+
+            # Read the logic file
+            logic_content = self.read_logic_file(logic_file_path)
+            if "Error" in logic_content:
+                raise ValueError(logic_content)
+
+            # Read context files
+            file_context = self.read_files_for_context()
+            if "Error" in file_context:
+                raise ValueError(file_context)
+
+            # Call the API with the content
+            self.process_api_call(content, file_context, logic_content, AutoDocRef, clinic)
+
+        except Exception as e:
+            # Show error message in the main thread
+            self.root.after(0, messagebox.showerror, "Error", f"Error processing the PDF file: {str(e)}")
+            # Re-enable the upload button
+            self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+            # Close the loading pop-up
+            self.root.after(0, self.close_loading_popup)
+
+    def extract_fields_from_result(self, result):
+        """Extract relevant fields from Azure analysis result."""
+        fields_data = {}
+        for document in result.documents:
+            for name, field in document.fields.items():
+                field_value = field.value if field.value else field.content
+                if field_value and str(field_value).lower() not in ['none', 'unselected']:
+                    fields_data[name.strip()] = field_value.strip()
+        return fields_data
+
+    def determine_form_type(self, data):
+        """Determine the form type based on the extracted data."""
+        # Assuming form_type is indicated by keys like 'tci test' or 'simple test' etc.
+        form_type = None
+        for key, value in data.items():
+            if key.lower() == 'tci' and value.lower() == 'selected':
+                form_type = 'tci'
+                break
+            elif key.lower() == 'simple' and value.lower() == 'selected':
+                form_type = 'simple'
+                break
+            elif key.lower() == 'hand mould' and value.lower() == 'selected':
+                form_type = 'handmold'
+                break
+            elif key.lower() == 'cradle' and value.lower() == 'selected':
+                form_type = 'cradle'
+                break
+            elif key.lower() == 'afo' and value.lower() == 'selected':
+                form_type = 'afo'
+                break
+            elif key.lower() == 'kafo' and value.lower() == 'selected':
+                form_type = 'kafo'
+                break
+            # Add other form types as needed
+        return form_type
