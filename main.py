@@ -485,7 +485,7 @@ except Exception as e:
     messagebox.showerror("Error", f"Error loading logo: {str(e)}")
 
 # Add a bold title below the logo using ttk.Label
-title_label = ttk.Label(root, text="PDF Code Automation Program", font=("Calibri", 16, "bold"))
+title_label = ttk.Label(root, text="Code Automation Program", font=("Calibri", 16, "bold"))
 title_label.pack(pady=5)
 
 # Define the custom font for the labels
