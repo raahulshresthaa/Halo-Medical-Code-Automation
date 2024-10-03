@@ -232,6 +232,9 @@ class PdfButtonHandler:
                 poller = self.document_analysis_client.begin_analyze_document(self.model_id, document=pdf_file)
                 result = poller.result()
 
+            # After reading and analyzing the file, update the loading message
+            self.root.after(0, self.update_loading_message, "Please wait, calculating the codes")
+
             # Extract fields from the result
             fields_data = self.extract_fields_from_result(result)
 
@@ -330,6 +333,12 @@ class PdfButtonHandler:
                 break
             # Add other form types as needed
         return form_type
+
+    def update_loading_message(self, new_message):
+        """Update the loading pop-up message."""
+        global base_message
+        base_message = new_message
+        loading_label.config(text=f"{base_message}\n{dot_index * '.'}")
 
 # --- Main Application Setup ---
 
@@ -521,7 +530,7 @@ result_text.config(state='disabled')  # Make it read-only
 
 # Function to show the loading pop-up with moving dots animation on a new line
 def show_loading_popup():
-    global loading_popup, loading_label, dot_index
+    global loading_popup, loading_label, dot_index, base_message
     loading_popup = Toplevel(root)
     loading_popup.title("Loading...")
 
@@ -545,8 +554,11 @@ def show_loading_popup():
     loading_popup.transient(root)
     loading_popup.grab_set()
 
+    # Set initial base message
+    base_message = "Please wait, reading the file"
+
     # Add a label to display the loading message with dots on a new line
-    loading_label = ttk.Label(loading_popup, text="Please wait, processing\n", font=("Calibri", 12, "bold"))
+    loading_label = ttk.Label(loading_popup, text=f"{base_message}\n", font=("Calibri", 12, "bold"))
     loading_label.pack(expand=True, pady=20)
 
     dot_index = 0  # Initialize the dot counter
@@ -557,10 +569,10 @@ def show_loading_popup():
 
 # Function to animate the moving dots
 def animate_dots():
-    global dot_index
-    dots = ['.', '..', '...', '']  # The sequence of dots
+    global dot_index, base_message
+    dots = ['.', '..', '...', '']
     # Update the label text
-    loading_label.config(text=f"Please wait, processing\n{dots[dot_index]}")
+    loading_label.config(text=f"{base_message}\n{dots[dot_index]}")
     dot_index = (dot_index + 1) % len(dots)  # Loop through the dots
     # Update every 500ms (0.5 seconds)
     loading_popup.after(500, animate_dots)
