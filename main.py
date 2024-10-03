@@ -10,6 +10,9 @@ import datetime
 import threading
 import sys
 
+# Import TkinterDnD for drag-and-drop functionality
+from tkinterdnd2 import DND_FILES, TkinterDnD
+
 # Azure Form Recognizer imports
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.formrecognizer import DocumentAnalysisClient
@@ -127,7 +130,7 @@ class PdfButtonHandler:
         try:
             # Send the content, logic, and file context to the assistant
             response = openai.ChatCompletion.create(
-                model="gpt-4o-2024-08-06",  # Use the appropriate model
+                model="gpt-4",  # Use the appropriate model
                 messages=[
                     {"role": "system", "content": f"Use the following logic to generate tariff codes:\n\n{logic_content}\n\nOnly output the calculated tariff codes."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}\n\nRelevant file information:\n{file_context}"}
@@ -340,6 +343,29 @@ class PdfButtonHandler:
         base_message = new_message
         loading_label.config(text=f"{base_message}\n{dot_index * '.'}")
 
+    def handle_drop(self, event):
+        """Handle files dropped into the result_text widget."""
+        # event.data contains the list of files dropped
+        # It may contain multiple files separated by spaces or newlines
+        files = self.root.tk.splitlist(event.data)
+        pdf_files = [f for f in files if f.lower().endswith('.pdf')]
+        if pdf_files:
+            for pdf_file in pdf_files:
+                # Disable the upload button to prevent multiple clicks
+                self.upload_pdf_button.config(state='disabled')
+                try:
+                    # Show the loading pop-up with animation
+                    self.show_loading_popup()
+
+                    # Start processing each PDF file in a separate thread
+                    threading.Thread(target=self.process_pdf_and_call_api, args=(pdf_file,)).start()
+                except Exception as e:
+                    messagebox.showerror("Error", f"Error processing the file: {str(e)}")
+                    self.upload_pdf_button.config(state='normal')  # Re-enable the upload button
+                    self.close_loading_popup()  # Ensure the loading pop-up is closed if an error occurs
+        else:
+            messagebox.showinfo("No PDF Files", "Please drop PDF files only.")
+
 # --- Main Application Setup ---
 
 # Get the path of the directory where this Python script is located
@@ -450,7 +476,14 @@ def load_icon_image(icon_path, size=(32, 32)):
         return None
 
 # Set up the GUI window with the selected theme
-root = ttk.Window(themename=selected_theme)
+
+# Initialize TkinterDnD root window
+root = TkinterDnD.Tk()
+
+# Apply ttkbootstrap style to the root window
+style = ttk.Style('lumen')  # You can set a default theme here
+style.theme_use(selected_theme)
+
 root.title("Halo Medical Code Automation - PDF Processing")
 
 # Force Tkinter to calculate window size and layout before setting position
@@ -468,7 +501,7 @@ if icon_image:
 # Function to change the theme
 def change_theme(event):
     selected_theme = theme_var.get()
-    root.style.theme_use(selected_theme)
+    style.theme_use(selected_theme)
     save_theme_setting(selected_theme)
 
 # Load the logo image
@@ -527,6 +560,35 @@ result_scrollbar.grid(row=0, column=1, sticky='ns')
 result_text['yscrollcommand'] = result_scrollbar.set
 
 result_text.config(state='disabled')  # Make it read-only
+
+# Make the result_text widget a drop target
+result_text.drop_target_register(DND_FILES)
+
+# Function to handle dropped files
+def handle_drop(event):
+    # event.data contains the list of files dropped
+    # It may contain multiple files separated by spaces or newlines
+    files = root.tk.splitlist(event.data)
+    pdf_files = [f for f in files if f.lower().endswith('.pdf')]
+    if pdf_files:
+        for pdf_file in pdf_files:
+            # Disable the upload button to prevent multiple clicks
+            pdf_handler.upload_pdf_button.config(state='disabled')
+            try:
+                # Show the loading pop-up with animation
+                show_loading_popup()
+
+                # Start processing each PDF file in a separate thread
+                threading.Thread(target=pdf_handler.process_pdf_and_call_api, args=(pdf_file,)).start()
+            except Exception as e:
+                messagebox.showerror("Error", f"Error processing the file: {str(e)}")
+                pdf_handler.upload_pdf_button.config(state='normal')  # Re-enable the upload button
+                close_loading_popup()  # Ensure the loading pop-up is closed if an error occurs
+    else:
+        messagebox.showinfo("No PDF Files", "Please drop PDF files only.")
+
+# Bind the drop event to the handle_drop function
+result_text.dnd_bind('<<Drop>>', handle_drop)
 
 # Function to show the loading pop-up with moving dots animation on a new line
 def show_loading_popup():
