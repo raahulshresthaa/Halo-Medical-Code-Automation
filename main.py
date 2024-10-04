@@ -11,6 +11,7 @@ import threading
 import sys
 
 # Import TkinterDnD for drag-and-drop functionality
+import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 # Azure Form Recognizer imports
