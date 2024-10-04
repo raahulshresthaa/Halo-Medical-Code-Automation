@@ -694,7 +694,7 @@ pdf_handler = PdfButtonHandler(
 )
 
 # Create the upload PDF button
-upload_pdf_button = ttk.Button(root, text="Upload PDF File", command=pdf_handler.upload_pdf_file)
+upload_pdf_button = ttk.Button(root, text="Upload PDF", command=pdf_handler.upload_pdf_file)
 upload_pdf_button.pack(pady=10)
 
 # Set the button reference in the handler
