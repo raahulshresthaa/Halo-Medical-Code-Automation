@@ -319,6 +319,8 @@ class PdfButtonHandler:
             if key.lower() == 'tci' and value.lower() == 'selected':
                 form_type = 'tci'
                 break
+            elif key.lower() == 'tci test' and value.lower() == 'selected':
+                form_type = 'tci'
             elif key.lower() == 'simple' and value.lower() == 'selected':
                 form_type = 'simple'
                 break

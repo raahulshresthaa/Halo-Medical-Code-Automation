@@ -59,7 +59,6 @@ The default code is b55a
 If the top cover is spenco the code is b55b (b55c if there is a lining)
 If the base is 35/20/80 SH or 45/30/80 SH b55b(b55c if top cover is spenco or if there is a lining (or both))
 
-Then add x2 if it is a pair so : B55a x2
 if there is no coverings selected assume there is one and therefore a B55a code (B55a x2 for a pair)
 
 Be sure to write out all of your working out
