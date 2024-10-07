@@ -21,9 +21,10 @@ from azure.ai.formrecognizer import DocumentAnalysisClient
 # --- PdfButtonHandler Class Definition ---
 
 class PdfButtonHandler:
-    def __init__(self, root, current_dir, result_text, auto_doc_ref_entry, datetime_entry, clinic_entry, show_loading_popup, close_loading_popup, display_results):
+    def __init__(self, root, result_text, auto_doc_ref_entry, datetime_entry, clinic_entry, show_loading_popup, close_loading_popup, display_results):
         self.root = root
-        self.current_dir = current_dir
+        # REMOVED: current_dir parameter
+        # self.current_dir = current_dir  # REMOVED
         self.result_text = result_text
         self.auto_doc_ref_entry = auto_doc_ref_entry
         self.datetime_entry = datetime_entry
@@ -32,8 +33,8 @@ class PdfButtonHandler:
         self.close_loading_popup = close_loading_popup
         self.display_results = display_results
 
-        # Path to the 'context' folder where the additional context files are stored
-        self.context_folder_path = os.path.join(self.current_dir, 'context')
+        # CHANGED: Use os.getcwd() instead of self.current_dir
+        self.context_folder_path = os.path.join(os.getcwd(), 'context')  # CHANGED
 
         # Reference to the upload PDF button (will be set later)
         self.upload_pdf_button = None
@@ -62,7 +63,8 @@ class PdfButtonHandler:
 
     def read_azure_credential_file(self, filename, credential_name):
         """Reads and decodes the Azure credential from a file."""
-        file_path = os.path.join(self.current_dir, filename)
+        # CHANGED: Use os.getcwd() instead of self.current_dir
+        file_path = os.path.join(os.getcwd(), filename)  # CHANGED
         if os.path.exists(file_path):
             try:
                 with open(file_path, 'rb') as f:
@@ -87,7 +89,8 @@ class PdfButtonHandler:
 
     def write_azure_credential_file(self, filename, credential):
         """Encodes and writes the Azure credential to a file."""
-        file_path = os.path.join(self.current_dir, filename)
+        # CHANGED: Use os.getcwd() instead of self.current_dir
+        file_path = os.path.join(os.getcwd(), filename)  # CHANGED
         # Encode the credential as bytes, then convert it to Base64 for binary storage
         encoded_data = base64.b64encode(credential.encode('utf-8'))
         with open(file_path, 'wb') as f:
@@ -175,8 +178,8 @@ class PdfButtonHandler:
 
     def write_to_log_file(self, tariff_codes, auto_doc_ref, clinic):
         try:
-            # Ensure the result_logs folder exists
-            result_logs_folder = os.path.join(self.current_dir, 'result_logs')
+            # CHANGED: Use os.getcwd() instead of self.current_dir
+            result_logs_folder = os.path.join(os.getcwd(), 'result_logs')  # CHANGED
             if not os.path.exists(result_logs_folder):
                 os.makedirs(result_logs_folder)
 
@@ -277,8 +280,8 @@ class PdfButtonHandler:
             if not logic_file_name:
                 raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
 
-            logic_folder_path = os.path.join(self.current_dir, 'logic_folder')
-            logic_file_path = os.path.join(logic_folder_path, logic_file_name)
+            # CHANGED: Use os.getcwd() instead of self.current_dir
+            logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)  # CHANGED
             print(f"Logic file path: {logic_file_path}")
 
             # Read the logic file
@@ -371,15 +374,15 @@ class PdfButtonHandler:
 
 # --- Main Application Setup ---
 
-# Get the path of the directory where this Python script is located
-current_dir = os.path.dirname(os.path.abspath(__file__))
+# REMOVED: current_dir based on __file__
+# current_dir = os.path.dirname(os.path.abspath(__file__))  # REMOVED
 
 # Define the list of available themes
 theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'simplex', 'vapor']
 
 # Function to load the saved theme setting
 def load_theme_setting():
-    settings_file = os.path.join(current_dir, 'settings.txt')
+    settings_file = os.path.join(os.getcwd(), 'settings.txt')  # CHANGED
     if os.path.exists(settings_file):
         try:
             with open(settings_file, 'r') as f:
@@ -395,7 +398,7 @@ def load_theme_setting():
 
 # Function to save the selected theme setting
 def save_theme_setting(theme):
-    settings_file = os.path.join(current_dir, 'settings.txt')
+    settings_file = os.path.join(os.getcwd(), 'settings.txt')  # CHANGED
     with open(settings_file, 'w') as f:
         f.write(theme)
 
@@ -404,7 +407,7 @@ selected_theme = load_theme_setting()
 
 # Function to write the API key in binary (encoded using Base64)
 def write_api_key(api_key):
-    api_key_file = os.path.join(current_dir, 'api_key.txt')
+    api_key_file = os.path.join(os.getcwd(), 'api_key.txt')  # CHANGED
     # Encode the API key as bytes, then convert it to Base64 for binary storage
     encoded_key = base64.b64encode(api_key.encode('utf-8'))
     with open(api_key_file, 'wb') as f:
@@ -413,7 +416,7 @@ def write_api_key(api_key):
 
 # Function to read and decode the API key from binary (Base64-decoded back to a string)
 def read_api_key():
-    api_key_file = os.path.join(current_dir, 'api_key.txt')
+    api_key_file = os.path.join(os.getcwd(), 'api_key.txt')  # CHANGED
     if os.path.exists(api_key_file):
         try:
             with open(api_key_file, 'rb') as f:
@@ -449,7 +452,7 @@ if not openai.api_key:
 
 # Check if there is results folder
 def ensure_result_logs_folder_exists():
-    result_logs_folder = os.path.join(current_dir, 'result_logs')
+    result_logs_folder = os.path.join(os.getcwd(), 'result_logs')  # CHANGED
     if not os.path.exists(result_logs_folder):
         os.makedirs(result_logs_folder)
         print(f"Created 'result_logs' folder at {result_logs_folder}")
@@ -459,13 +462,14 @@ def ensure_result_logs_folder_exists():
 ensure_result_logs_folder_exists()
 
 # Load and set the custom window icon (top-left)
-icon_path = os.path.join(current_dir, 'halo_simple_logo.png')  # Path to your .png file
+icon_path = os.path.join(os.getcwd(), 'halo_simple_logo.png')  # CHANGED
 
 # Define the path for the logo file
-logo_file_path = os.path.join(current_dir, 'HALO(TM)_Logo.png')
+logo_file_path = os.path.join(os.getcwd(), 'HALO(TM)_Logo.png')  # CHANGED
 
 # Define the path to the 'context' folder where the additional context files are stored
-context_folder_path = os.path.join(current_dir, 'context')
+# Already handled in PdfButtonHandler, no need to define here
+# context_folder_path = os.path.join(current_dir, 'context')  # REMOVED
 
 # Function to load and resize the icon image
 def load_icon_image(icon_path, size=(32, 32)):
@@ -509,7 +513,7 @@ def change_theme(event):
 
 # Load the logo image
 try:
-    logo_img = Image.open(logo_file_path)
+    logo_img = Image.open(logo_file_path)  # CHANGED: Use os.getcwd()
     logo_img = logo_img.resize((200, 100), Image.LANCZOS)
     logo_photo = ImageTk.PhotoImage(logo_img)
     root.logo_photo = logo_photo  # Keep a reference to prevent garbage collection
@@ -686,7 +690,6 @@ def display_results(formatted_datetime, AutoDocRef, clinic, tariff_codes):
 # Create an instance of PdfButtonHandler
 pdf_handler = PdfButtonHandler(
     root=root,
-    current_dir=current_dir,
     result_text=result_text,
     auto_doc_ref_entry=auto_doc_ref_entry,
     datetime_entry=datetime_entry,
