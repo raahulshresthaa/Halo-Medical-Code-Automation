@@ -54,11 +54,11 @@ Full Toe Block - B51
 
 Top Cover (coverings) and Linings (charged with the same code)
 
-If there is a pair of insoles then make sure there's two codes (i.e. b55c x2)
-The default code is b55a 
-If the top cover is spenco the code is b55b (b55c if there is a lining)
-If the base is 35/20/80 SH or 45/30/80 SH b55b(b55c if top cover is spenco or if there is a lining (or both))
-if there is a lining and not the previous two options then it is b55b
+If there is a pair of insoles then make sure there's two codes (i.e. B55c x2)
+The default code is B55a 
+If the top cover is spenco the code is B55b (B55c if there is a lining)
+If the base is 35/20/80 SH or 45/30/80 SH B55b (B55c if top cover is spenco or if there is a lining (or both))
+if there is a lining and not the previous two options then it is B55b
 
 if there is no coverings selected assume there is one and therefore a B55a code (B55a x2 for a pair)
 
