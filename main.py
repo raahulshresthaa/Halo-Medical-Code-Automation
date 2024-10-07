@@ -491,7 +491,7 @@ root = TkinterDnD.Tk()
 style = ttk.Style('lumen')  # You can set a default theme here
 style.theme_use(selected_theme)
 
-root.title("Halo Medical Code Automation - PDF Processing")
+root.title("Halo Medical Code Automation - 0.1")
 
 # Force Tkinter to calculate window size and layout before setting position
 root.update_idletasks()
