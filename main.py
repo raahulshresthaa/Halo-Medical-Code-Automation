@@ -267,12 +267,12 @@ class PdfButtonHandler:
 
             # Construct the logic file name and path based on the form type
             logic_file_mapping = {
-                'tci': 'tci_logic.txt',
+                'tci': 'tci_logic.txt', 
                 'simple': 'simple_insole_logic.txt',
-                'cradle': 'cradle_logic.txt',
+                'cradle': 'tci_logic.txt', # not currently using cradle_logic.txt because the coding is the same
                 'afo': 'afo_logic.txt',
                 'kafo': 'kafo_logic.txt',
-                'handmold': 'handmold_logic.txt'
+                'handmold': 'tci_logic.txt' # not currently using handmold_logic.txt because the coding is the same
             }
 
             logic_file_name = logic_file_mapping.get(form_type)
