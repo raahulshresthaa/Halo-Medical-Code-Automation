@@ -10,6 +10,9 @@ import datetime
 import threading
 import sys
 
+# Version number
+VERSION = "1.0.0"
+
 # Import TkinterDnD for drag-and-drop functionality
 import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -725,6 +728,14 @@ theme_combobox.pack(side='left')
 
 # Bind the selection change event
 theme_combobox.bind('<<ComboboxSelected>>', change_theme)
+
+# Create a bottom frame to hold the theme selection dropdown and version label
+version_frame = ttk.Frame(root)
+version_frame.pack(side='bottom', anchor='se', padx=10, pady=5)  # Adjust padx and pady as needed
+
+# Create a label for the version number using the VERSION variable
+version_label = ttk.Label(version_frame, text=f"Version {VERSION}", font=("Calibri", 10))
+version_label.pack(side='right')
 
 # Start the GUI event loop
 root.mainloop()
