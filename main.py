@@ -462,7 +462,7 @@ def ensure_result_logs_folder_exists():
 ensure_result_logs_folder_exists()
 
 # Load and set the custom window icon (top-left)
-icon_path = os.path.join(os.getcwd(), 'halo_simple_logo.png')  # CHANGED
+icon_path = os.path.join(os.getcwd(), 'halo_simple_logo.ico')  # CHANGED
 
 # Define the path for the logo file
 logo_file_path = os.path.join(os.getcwd(), 'HALO(TM)_Logo.png')  # CHANGED
