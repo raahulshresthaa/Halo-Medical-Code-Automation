@@ -259,7 +259,7 @@ class PdfButtonHandler:
             # Determine form_type based on extracted data
             form_type = self.determine_form_type(fields_data)
             if not form_type:
-                raise ValueError("No form type found in the extracted data.")
+                raise ValueError("No form type found in the extracted data. Check the type of form you are uploading.")
 
             # Sanitize form_type
             form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
