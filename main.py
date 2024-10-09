@@ -9,13 +9,19 @@ from PIL import Image, ImageTk
 import datetime
 import threading
 import sys
+# Import TkinterDnD for drag-and-drop functionality
+import tkinterdnd2
+from tkinterdnd2 import DND_FILES, TkinterDnD
 
 # Version number
 VERSION = "1.0.0"
 
-# Import TkinterDnD for drag-and-drop functionality
-import tkinterdnd2
-from tkinterdnd2 import DND_FILES, TkinterDnD
+# To fix blurryness on some displays 
+try:
+    from ctypes import windll
+    windll.shcore.SetProcessDpiAwareness(1)
+except Exception:
+    pass 
 
 # Azure Form Recognizer imports
 from azure.core.credentials import AzureKeyCredential
@@ -499,8 +505,18 @@ root.title("Halo Medical Code Automation - PDF Processing")
 # Force Tkinter to calculate window size and layout before setting position
 root.update_idletasks()
 
-# Set the window size and position (800x900 starting at 100px from top and 100px from left)
-root.geometry("800x900+100+100")
+# Get the scaling factor
+scaling_factor = root.tk.call('tk', 'scaling')
+print(f"Scaling factor: {scaling_factor}")
+
+# Adjust the window size based on the scaling factor
+base_width = 800
+base_height = 900
+adjusted_width = int(base_width * scaling_factor)
+adjusted_height = int(base_height * scaling_factor)
+
+# Set the window size and position (starting at 100px from top and 100px from left)
+root.geometry(f"{adjusted_width}x{adjusted_height}+100+100")
 
 # Load and set the custom window icon (top-left)
 icon_image = load_icon_image(icon_path, size=(32, 32))
