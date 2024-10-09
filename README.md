@@ -21,6 +21,6 @@
 - Insole Forms
 
 ## Prerequisites
-- Python 3.12 installed on your system (if you need to edit the code, you should be able to edit the logic sheets without it) 
+- Python 3.12 installed on your system (does not effect users if they use the exe)
 - Access to the Azure Document Intelligence API
 - API key for OpenAI's gpt_4o_08_05
