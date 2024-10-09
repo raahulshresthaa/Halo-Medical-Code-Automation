@@ -471,10 +471,10 @@ def ensure_result_logs_folder_exists():
 ensure_result_logs_folder_exists()
 
 # Load and set the custom window icon (top-left)
-icon_path = os.path.join(os.getcwd(), 'halo_simple_logo.ico')  # CHANGED
+icon_path = os.path.join(os.getcwd(), 'images', 'halo_simple_logo.ico')
 
 # Define the path for the logo file
-logo_file_path = os.path.join(os.getcwd(), 'HALO(TM)_Logo.png')  # CHANGED
+logo_file_path = os.path.join(os.getcwd(), 'images', 'HALO(TM)_Logo.png')
 
 # Define the path to the 'context' folder where the additional context files are stored
 # Already handled in PdfButtonHandler, no need to define here
