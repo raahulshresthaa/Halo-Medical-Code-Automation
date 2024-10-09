@@ -1,4 +1,4 @@
-# Halo-AI-Coder
+# Halo Medical Code Automation
 
 <p align="center">
     <img src="HALO(TM)_Logo.png" width="400" alt="Halo Logo">
