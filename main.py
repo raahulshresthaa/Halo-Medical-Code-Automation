@@ -510,8 +510,8 @@ scaling_factor = root.tk.call('tk', 'scaling')
 print(f"Scaling factor: {scaling_factor}")
 
 # Adjust the window size based on the scaling factor
-base_width = 800
-base_height = 900
+base_width = 600
+base_height = 700
 adjusted_width = int(base_width * scaling_factor)
 adjusted_height = int(base_height * scaling_factor)
 
