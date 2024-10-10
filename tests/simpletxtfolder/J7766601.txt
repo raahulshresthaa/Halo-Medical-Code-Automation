@@ -1,9 +1,0 @@
-doc_type: insoleFormV4
-confidence: 0.997
-simple: selected
-Left: selected
-base: 50 Shore
-Clinic: Wexham Park
-AutoDocRef: J7766601
-additional information: Heel raise x 1 15mm tapered 3/4 length Left
---------------------------------------------------
