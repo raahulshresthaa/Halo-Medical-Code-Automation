@@ -173,8 +173,8 @@ class PdfButtonHandler:
             # Update the GUI with the results (must be done in the main thread)
             self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, tariff_codes)
 
-            # Write the tariff codes, auto doc reference, and clinic to the log file
-            self.write_to_log_file(tariff_codes, AutoDocRef, clinic)
+            # Write the tariff codes, auto doc reference, clinic, and Azure data to the log file
+            self.write_to_log_file(tariff_codes, AutoDocRef, clinic, content)
 
         except Exception as e:
             # Show error message in the main thread
@@ -185,18 +185,16 @@ class PdfButtonHandler:
             # Re-enable the upload button
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
-    def write_to_log_file(self, tariff_codes, auto_doc_ref, clinic):
+
+    def write_to_log_file(self, tariff_codes, auto_doc_ref, clinic, azure_data):
         try:
-            # CHANGED: Use os.getcwd() instead of self.current_dir
-            result_logs_folder = os.path.join(os.getcwd(), 'result_logs')  # CHANGED
+            result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
             if not os.path.exists(result_logs_folder):
                 os.makedirs(result_logs_folder)
 
-            # Get the current date and time
             current_datetime = datetime.datetime.now()
             formatted_date = current_datetime.strftime('%d_%m_%y')  # Format: DD_MM_YY
 
-            # Construct the log file path
             log_file_name = f"log_{formatted_date}.txt"
             log_file_path = os.path.join(result_logs_folder, log_file_name)
 
@@ -205,12 +203,14 @@ class PdfButtonHandler:
 
                 log_file.write(f"Date and Time: {formatted_datetime}\n")
                 log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
-                log_file.write(f"Clinic: {clinic}\n")
-                log_file.write(f"Tariff Codes:\n{tariff_codes}\n")
+                log_file.write(f"Clinic: {clinic}\n\n")
+                log_file.write(f"Azure Extracted Data:\n\n{azure_data}\n\n")  # Azure log data
+                log_file.write(f"Tariff Codes:\n\n{tariff_codes}\n")
                 log_file.write("-" * 50 + "\n")  # Separator between entries
             print(f"Successfully wrote to log file at {log_file_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
+
 
     def parse_extracted_data(self, data_dict):
         """Convert extracted data into a string format suitable for processing."""
