@@ -12,3 +12,4 @@ azure_model_id.txt
 main.spec
 /build
 /tests
+\tests
