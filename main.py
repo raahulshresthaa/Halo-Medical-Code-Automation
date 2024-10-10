@@ -729,7 +729,7 @@ pdf_handler.set_upload_pdf_button(upload_pdf_button)
 exit_button = ttk.Button(root, text="Exit", command=root.quit)
 exit_button.pack(pady=10)
 
-# Create a bottom frame to hold the theme selection dropdown
+# Create a bottom frame to hold the theme selection dropdown and version label
 bottom_frame = ttk.Frame(root)
 bottom_frame.pack(side='bottom', fill='x', padx=10, pady=10)
 
@@ -739,19 +739,23 @@ theme_label.pack(side='left', padx=(0, 5))
 
 # Set the theme variable to the selected theme
 theme_var = tk.StringVar(value=selected_theme)
-theme_combobox = ttk.Combobox(bottom_frame, textvariable=theme_var, values=theme_list, state='readonly')
+theme_combobox = ttk.Combobox(
+    bottom_frame, textvariable=theme_var, values=theme_list, state='readonly'
+)
 theme_combobox.pack(side='left')
+
+# Add a spacer frame to push the version label to the right
+spacer = ttk.Frame(bottom_frame)
+spacer.pack(side='left', expand=True, fill='x')
+
+# Create a label for the version number using the VERSION variable
+version_label = ttk.Label(
+    bottom_frame, text=f"Version {VERSION}", font=("Calibri", 10)
+)
+version_label.pack(side='right')
 
 # Bind the selection change event
 theme_combobox.bind('<<ComboboxSelected>>', change_theme)
-
-# Create a bottom frame to hold the theme selection dropdown and version label
-version_frame = ttk.Frame(root)
-version_frame.pack(side='bottom', anchor='se', padx=10, pady=5)  # Adjust padx and pady as needed
-
-# Create a label for the version number using the VERSION variable
-version_label = ttk.Label(version_frame, text=f"Version {VERSION}", font=("Calibri", 10))
-version_label.pack(side='right')
 
 # Start the GUI event loop
 root.mainloop()
