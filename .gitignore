@@ -9,3 +9,6 @@ azure_endpoint.txt
 azure_key.txt
 azure_model_id.txt
 /dist
+main.spec
+/build
+/tests
