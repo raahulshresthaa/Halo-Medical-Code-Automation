@@ -204,8 +204,8 @@ class PdfButtonHandler:
                 log_file.write(f"Date and Time: {formatted_datetime}\n")
                 log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
                 log_file.write(f"Clinic: {clinic}\n\n")
-                log_file.write(f"Azure Extracted Data:\n\n{azure_data}\n\n")  # Azure log data
-                log_file.write(f"Tariff Codes:\n\n{tariff_codes}\n")
+                log_file.write(f"AZURE EXTRACTED DATA:\n\n{azure_data}\n\n")  # Azure log data
+                log_file.write(f"TARIFF CODES:\n\n{tariff_codes}\n")
                 log_file.write("-" * 50 + "\n")  # Separator between entries
             print(f"Successfully wrote to log file at {log_file_path}")
         except Exception as e:
