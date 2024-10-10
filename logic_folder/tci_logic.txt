@@ -72,4 +72,8 @@ The default code is B55a
 
 if there is no coverings selected assume there is one and therefore a B55a code (B55a x2 for a pair)
 
+Additional information
+Check this additional information for anything saying make multiple and then multiply All of the codes accordingly
+Also check for any codes that might be in the description but check that they are not already mentioned in the the rest of the document before adding them
+
 Be sure to write out all of your working out

@@ -16,12 +16,12 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 # Version number
 VERSION = "1.1.0"
 
-# To fix blurryness on some displays 
+# To fix blurriness on some displays
 try:
     from ctypes import windll
     windll.shcore.SetProcessDpiAwareness(1)
 except Exception:
-    pass 
+    pass
 
 # Azure Form Recognizer imports
 from azure.core.credentials import AzureKeyCredential
@@ -32,8 +32,6 @@ from azure.ai.formrecognizer import DocumentAnalysisClient
 class PdfButtonHandler:
     def __init__(self, root, result_text, auto_doc_ref_entry, datetime_entry, clinic_entry, show_loading_popup, close_loading_popup, display_results):
         self.root = root
-        # REMOVED: current_dir parameter
-        # self.current_dir = current_dir  # REMOVED
         self.result_text = result_text
         self.auto_doc_ref_entry = auto_doc_ref_entry
         self.datetime_entry = datetime_entry
@@ -42,8 +40,7 @@ class PdfButtonHandler:
         self.close_loading_popup = close_loading_popup
         self.display_results = display_results
 
-        # CHANGED: Use os.getcwd() instead of self.current_dir
-        self.context_folder_path = os.path.join(os.getcwd(), 'context')  # CHANGED
+        self.context_folder_path = os.path.join(os.getcwd(), 'context')
 
         # Reference to the upload PDF button (will be set later)
         self.upload_pdf_button = None
@@ -72,8 +69,7 @@ class PdfButtonHandler:
 
     def read_azure_credential_file(self, filename, credential_name):
         """Reads and decodes the Azure credential from a file."""
-        # CHANGED: Use os.getcwd() instead of self.current_dir
-        file_path = os.path.join(os.getcwd(), filename)  # CHANGED
+        file_path = os.path.join(os.getcwd(), filename)
         if os.path.exists(file_path):
             try:
                 with open(file_path, 'rb') as f:
@@ -98,8 +94,7 @@ class PdfButtonHandler:
 
     def write_azure_credential_file(self, filename, credential):
         """Encodes and writes the Azure credential to a file."""
-        # CHANGED: Use os.getcwd() instead of self.current_dir
-        file_path = os.path.join(os.getcwd(), filename)  # CHANGED
+        file_path = os.path.join(os.getcwd(), filename)
         # Encode the credential as bytes, then convert it to Base64 for binary storage
         encoded_data = base64.b64encode(credential.encode('utf-8'))
         with open(file_path, 'wb') as f:
@@ -139,20 +134,20 @@ class PdfButtonHandler:
         except Exception as e:
             return f"Error reading context files: {str(e)}"
 
-    def get_tariff_codes_from_content(self, content, file_context, logic_content):
+    def get_price_codes_from_content(self, content, file_context, logic_content):
         try:
             # Send the content, logic, and file context to the assistant
             response = openai.ChatCompletion.create(
                 model="gpt-4o-2024-08-06",  # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate tariff codes:\n\n{logic_content}\n\nOnly output the calculated tariff codes."},
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nOnly output the calculated price codes."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}\n\nRelevant file information:\n{file_context}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
                 temperature=0.1  # Adjust as needed
             )
 
-            # Extract the assistant's response (tariff codes)
+            # Extract the assistant's response (price codes)
             assistant_response = response['choices'][0]['message']['content']
             return assistant_response
         except Exception as e:
@@ -160,21 +155,21 @@ class PdfButtonHandler:
 
     def process_api_call(self, content, file_context, logic_content, AutoDocRef, clinic):
         try:
-            # Get the tariff codes by sending the content, logic, and file context to OpenAI
-            tariff_codes = self.get_tariff_codes_from_content(content, file_context, logic_content)
+            # Get the price codes by sending the content, logic, and file context to OpenAI
+            price_codes = self.get_price_codes_from_content(content, file_context, logic_content)
 
-            # Debug print to check the content of tariff_codes
-            print(f"Tariff codes received: {tariff_codes}")
+            # Debug print to check the content of price_codes
+            print(f"Price codes received: {price_codes}")
 
             # Get the current date and time
             current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
             # Update the GUI with the results (must be done in the main thread)
-            self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, tariff_codes)
+            self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes)
 
-            # Write the tariff codes, auto doc reference, clinic, and Azure data to the log file
-            self.write_to_log_file(tariff_codes, AutoDocRef, clinic, content)
+            # Write the price codes, auto doc reference, clinic, and Azure data to the log file
+            self.write_to_log_file(price_codes, AutoDocRef, clinic, content)
 
         except Exception as e:
             # Show error message in the main thread
@@ -185,8 +180,7 @@ class PdfButtonHandler:
             # Re-enable the upload button
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
-
-    def write_to_log_file(self, tariff_codes, auto_doc_ref, clinic, azure_data):
+    def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data):
         try:
             result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
             if not os.path.exists(result_logs_folder):
@@ -205,12 +199,11 @@ class PdfButtonHandler:
                 log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
                 log_file.write(f"Clinic: {clinic}\n\n")
                 log_file.write(f"AZURE EXTRACTED DATA:\n\n{azure_data}\n\n")  # Azure log data
-                log_file.write(f"TARIFF CODES:\n\n{tariff_codes}\n")
+                log_file.write(f"PRICE CODES:\n\n{price_codes}\n")
                 log_file.write("-" * 50 + "\n")  # Separator between entries
             print(f"Successfully wrote to log file at {log_file_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
-
 
     def parse_extracted_data(self, data_dict):
         """Convert extracted data into a string format suitable for processing."""
@@ -276,12 +269,12 @@ class PdfButtonHandler:
 
             # Construct the logic file name and path based on the form type
             logic_file_mapping = {
-                'tci': 'tci_logic.txt', 
+                'tci': 'tci_logic.txt',
                 'simple': 'simple_insole_logic.txt',
-                'cradle': 'tci_logic.txt', # not currently using cradle_logic.txt because the coding is the same
+                'cradle': 'tci_logic.txt',  # not currently using cradle_logic.txt because the coding is the same
                 'afo': 'afo_logic.txt',
                 'kafo': 'kafo_logic.txt',
-                'handmold': 'tci_logic.txt' # not currently using handmold_logic.txt because the coding is the same
+                'handmold': 'tci_logic.txt'  # not currently using handmold_logic.txt because the coding is the same
             }
 
             logic_file_name = logic_file_mapping.get(form_type)
@@ -289,8 +282,7 @@ class PdfButtonHandler:
             if not logic_file_name:
                 raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
 
-            # CHANGED: Use os.getcwd() instead of self.current_dir
-            logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)  # CHANGED
+            logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
             print(f"Logic file path: {logic_file_path}")
 
             # Read the logic file
@@ -383,15 +375,12 @@ class PdfButtonHandler:
 
 # --- Main Application Setup ---
 
-# REMOVED: current_dir based on __file__
-# current_dir = os.path.dirname(os.path.abspath(__file__))  # REMOVED
-
 # Define the list of available themes
 theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'simplex', 'vapor']
 
 # Function to load the saved theme setting
 def load_theme_setting():
-    settings_file = os.path.join(os.getcwd(), 'settings.txt')  # CHANGED
+    settings_file = os.path.join(os.getcwd(), 'settings.txt')
     if os.path.exists(settings_file):
         try:
             with open(settings_file, 'r') as f:
@@ -399,15 +388,15 @@ def load_theme_setting():
                 if theme in theme_list:
                     return theme
                 else:
-                    return 'darkly'  # Default theme if saved theme is invalid
+                    return 'simplex'  # Default theme if saved theme is invalid
         except:
-            return 'darkly'  # Default theme in case of error
+            return 'simplex'  # Default theme in case of error
     else:
-        return 'darkly'  # Default theme if settings file does not exist
+        return 'simplex'  # Default theme if settings file does not exist
 
 # Function to save the selected theme setting
 def save_theme_setting(theme):
-    settings_file = os.path.join(os.getcwd(), 'settings.txt')  # CHANGED
+    settings_file = os.path.join(os.getcwd(), 'settings.txt')
     with open(settings_file, 'w') as f:
         f.write(theme)
 
@@ -416,7 +405,7 @@ selected_theme = load_theme_setting()
 
 # Function to write the API key in binary (encoded using Base64)
 def write_api_key(api_key):
-    api_key_file = os.path.join(os.getcwd(), 'api_key.txt')  # CHANGED
+    api_key_file = os.path.join(os.getcwd(), 'api_key.txt')
     # Encode the API key as bytes, then convert it to Base64 for binary storage
     encoded_key = base64.b64encode(api_key.encode('utf-8'))
     with open(api_key_file, 'wb') as f:
@@ -425,7 +414,7 @@ def write_api_key(api_key):
 
 # Function to read and decode the API key from binary (Base64-decoded back to a string)
 def read_api_key():
-    api_key_file = os.path.join(os.getcwd(), 'api_key.txt')  # CHANGED
+    api_key_file = os.path.join(os.getcwd(), 'api_key.txt')
     if os.path.exists(api_key_file):
         try:
             with open(api_key_file, 'rb') as f:
@@ -461,7 +450,7 @@ if not openai.api_key:
 
 # Check if there is results folder
 def ensure_result_logs_folder_exists():
-    result_logs_folder = os.path.join(os.getcwd(), 'result_logs')  # CHANGED
+    result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
     if not os.path.exists(result_logs_folder):
         os.makedirs(result_logs_folder)
         print(f"Created 'result_logs' folder at {result_logs_folder}")
@@ -475,10 +464,6 @@ icon_path = os.path.join(os.getcwd(), 'images', 'halo_simple_logo.ico')
 
 # Define the path for the logo file
 logo_file_path = os.path.join(os.getcwd(), 'images', 'HALO(TM)_Logo.png')
-
-# Define the path to the 'context' folder where the additional context files are stored
-# Already handled in PdfButtonHandler, no need to define here
-# context_folder_path = os.path.join(current_dir, 'context')  # REMOVED
 
 # Function to load and resize the icon image
 def load_icon_image(icon_path, size=(32, 32)):
@@ -532,7 +517,7 @@ def change_theme(event):
 
 # Load the logo image
 try:
-    logo_img = Image.open(logo_file_path)  # CHANGED: Use os.getcwd()
+    logo_img = Image.open(logo_file_path)
     logo_img = logo_img.resize((200, 100), Image.LANCZOS)
     logo_photo = ImageTk.PhotoImage(logo_img)
     root.logo_photo = logo_photo  # Keep a reference to prevent garbage collection
@@ -555,11 +540,11 @@ info_frame = ttk.Frame(root)
 info_frame.pack(pady=10)
 
 # Create labels and entries for AutoDocRef, Clinic, Date and Time with the larger font
-auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef:', font=label_font)  # Adjust font size if needed
+auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef:', font=label_font)
 auto_doc_ref_entry = ttk.Entry(info_frame, width=30)
-clinic_label = ttk.Label(info_frame, text='Clinic:', font=label_font)  # Adjust font size if needed
+clinic_label = ttk.Label(info_frame, text='Clinic:', font=label_font)
 clinic_entry = ttk.Entry(info_frame, width=30)
-datetime_label = ttk.Label(info_frame, text='Date and Time:', font=label_font)  # Adjust font size if needed
+datetime_label = ttk.Label(info_frame, text='Date and Time:', font=label_font)
 datetime_entry = ttk.Entry(info_frame, width=30)
 
 # Arrange them in a grid layout
@@ -672,7 +657,7 @@ def close_loading_popup():
     root.focus_force()  # Bring the main window back to focus
 
 # Function to display results
-def display_results(formatted_datetime, AutoDocRef, clinic, tariff_codes):
+def display_results(formatted_datetime, AutoDocRef, clinic, price_codes):
     # Update the entries
     auto_doc_ref_entry.config(state=tk.NORMAL)
     auto_doc_ref_entry.delete(0, tk.END)
@@ -692,15 +677,15 @@ def display_results(formatted_datetime, AutoDocRef, clinic, tariff_codes):
         clinic_entry.insert(0, "N/A")
     clinic_entry.config(state='readonly')
 
-    # Display the tariff codes in the result_text, centered
+    # Display the price codes in the result_text, centered
     result_text.config(state=tk.NORMAL)  # Enable editing temporarily
     result_text.delete('1.0', tk.END)  # Clear previous content
 
     # Configure the 'center' tag before inserting text
     result_text.tag_configure('center', justify='center')
 
-    # Insert the tariff codes and apply the 'center' tag
-    result_text.insert(tk.END, tariff_codes, 'center')
+    # Insert the price codes and apply the 'center' tag
+    result_text.insert(tk.END, price_codes, 'center')
 
     result_text.config(state=tk.DISABLED)  # Disable editing again
 
