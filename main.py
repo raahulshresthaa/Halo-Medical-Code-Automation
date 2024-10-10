@@ -187,12 +187,23 @@ class PdfButtonHandler:
                 os.makedirs(result_logs_folder)
 
             current_datetime = datetime.datetime.now()
-            formatted_date = current_datetime.strftime('%d_%m_%y')  # Format: DD_MM_YY
+            formatted_date = current_datetime.strftime('%Y-%m-%d')  # Format: YYYY-MM-DD
 
-            log_file_name = f"log_{formatted_date}.txt"
-            log_file_path = os.path.join(result_logs_folder, log_file_name)
+            # Create a new folder inside 'result_logs' with the day's date
+            date_folder_path = os.path.join(result_logs_folder, formatted_date)
+            if not os.path.exists(date_folder_path):
+                os.makedirs(date_folder_path)
 
-            with open(log_file_path, 'a', encoding='utf-8') as log_file:
+            # Sanitize the auto_doc_ref to create a valid filename
+            sanitized_auto_doc_ref = ''.join(c for c in auto_doc_ref if c.isalnum() or c in ('_', '-')).strip()
+            if not sanitized_auto_doc_ref:
+                sanitized_auto_doc_ref = 'log'
+
+            # Use the auto_doc_ref as the filename
+            log_file_name = f"{sanitized_auto_doc_ref}.txt"
+            log_file_path = os.path.join(date_folder_path, log_file_name)
+
+            with open(log_file_path, 'w', encoding='utf-8') as log_file:
                 formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
                 log_file.write(f"Date and Time: {formatted_datetime}\n")
