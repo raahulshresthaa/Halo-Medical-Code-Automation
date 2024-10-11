@@ -388,7 +388,7 @@ class PdfButtonHandler:
         else:
             messagebox.showinfo("No PDF Files", "Please drop PDF files only.")
 
-    def check_for_base(self, content):
+    def check_for_base(self, content): # currently does not check for form type 
         if 'base:' not in content.lower():
             self.root.after(0, messagebox.showinfo, "Query No Base", "No base found in the form. Please raise a query.")
 
