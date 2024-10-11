@@ -169,7 +169,7 @@ class PdfButtonHandler:
             self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes)
 
             # Check for base in the price codes
-            self.check_for_base(price_codes)
+            self.check_for_base(content)
 
 
             # Write the price codes, auto doc reference, clinic, and Azure data to the log file
@@ -388,8 +388,8 @@ class PdfButtonHandler:
         else:
             messagebox.showinfo("No PDF Files", "Please drop PDF files only.")
 
-    def check_for_base(self, content): # currently does not check for form type 
-        if 'base:' not in content.lower():
+    def check_for_base(self, data): # currently does not check for form type 
+        if 'base:' not in data.lower():
             self.root.after(0, messagebox.showinfo, "Query No Base", "No base found in the form. Please raise a query.")
 
 # --- Main Application Setup ---
