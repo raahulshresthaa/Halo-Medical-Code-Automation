@@ -15,11 +15,6 @@ The application uses a custom document reader from the **Azure Document Intellig
 - **OpenAI API (gpt_4o_08_05)**: The AI model processes the extracted text, applying custom logic defined in prompt files to price code the data accurately.
 
 ## Features
-
-<p align="center">
-    <img src="images/Screenshot.png" width="800" alt="Screenshot of App">
-</p>
-
 - **Upload PDFs**: Users can upload PDF forms directly into the application, allowing the system to read and process multiple documents seamlessly.
 - **Drag and Drop PDFs**: To increase productivity, users can drag and drop PDF files directly into the interface, speeding up the workflow and reducing time spent navigating file directories.
 - **Theme Switching**: Offers multiple theme options to improve accessibility, allowing users to choose between light and dark themes or other custom styles for better visibility and comfort during long sessions.
