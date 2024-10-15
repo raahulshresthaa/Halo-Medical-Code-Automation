@@ -14,7 +14,7 @@ import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 # Version number
-VERSION = "1.2.0"
+VERSION = "1.3.0 Pre-Release"
 
 # To fix blurriness on some displays
 try:
@@ -168,12 +168,11 @@ class PdfButtonHandler:
             # Update the GUI with the results (must be done in the main thread)
             self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes)
 
-            # Check for base in the price codes
-            self.check_for_base(content)
+            # Check for base in the extracted content and get the query message
+            query_message = self.check_for_base(content)
 
-
-            # Write the price codes, auto doc reference, clinic, and Azure data to the log file
-            self.write_to_log_file(price_codes, AutoDocRef, clinic, content)
+            # Write the price codes, auto doc reference, clinic, Azure data, and query message to the log file
+            self.write_to_log_file(price_codes, AutoDocRef, clinic, content, query_message)
 
         except Exception as e:
             # Show error message in the main thread
@@ -184,7 +183,7 @@ class PdfButtonHandler:
             # Re-enable the upload button
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
-    def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data):
+    def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, query_message=None):
         try:
             result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
             if not os.path.exists(result_logs_folder):
@@ -215,10 +214,15 @@ class PdfButtonHandler:
                 log_file.write(f"Clinic: {clinic}\n\n")
                 log_file.write(f"AZURE EXTRACTED DATA:\n\n{azure_data}\n\n")  # Azure log data
                 log_file.write(f"PRICE CODES:\n\n{price_codes}\n")
+                # Include the query message if it exists
+                if query_message:
+                    log_file.write(f"QUERY MESSAGE:\n{query_message}\n\n")
+                    
                 log_file.write("-" * 50 + "\n")  # Separator between entries
             print(f"Successfully wrote to log file at {log_file_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
+
 
     def parse_extracted_data(self, data_dict):
         """Convert extracted data into a string format suitable for processing."""
@@ -388,9 +392,13 @@ class PdfButtonHandler:
         else:
             messagebox.showinfo("No PDF Files", "Please drop PDF files only.")
 
-    def check_for_base(self, data): # currently does not check for form type 
+    def check_for_base(self, data):
         if 'base:' not in data.lower():
-            self.root.after(0, messagebox.showinfo, "Query No Base", "No base found in the form. Please raise a query.")
+            query_message = "No base found in the form. Please raise a query."
+            self.root.after(0, messagebox.showinfo, "Query No Base", query_message)
+            return query_message
+        else:
+            return None  # No query needed
 
 # --- Main Application Setup ---
 
