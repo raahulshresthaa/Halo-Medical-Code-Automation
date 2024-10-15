@@ -14,7 +14,7 @@ import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 # Version number
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 
 # To fix blurriness on some displays
 try:
@@ -767,7 +767,6 @@ def close_loading_popup():
     root.attributes('-disabled', False)  # Re-enable the main window
     root.focus_force()  # Bring the main window back to focus
 
-# Function to display results
 def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, messages=None):
     # Update the entries
     auto_doc_ref_entry.config(state=tk.NORMAL)
@@ -806,6 +805,9 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, message
         result_text.tag_configure('warning', justify='center', foreground='red', font=('Calibri', 12, 'bold'))
         # Insert messages with the 'warning' tag
         result_text.insert(tk.END, messages, 'warning')
+
+    # Scroll to the end of the text
+    result_text.see(tk.END)
 
     result_text.config(state=tk.DISABLED)  # Disable editing again
 
