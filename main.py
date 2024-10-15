@@ -432,7 +432,7 @@ class PdfButtonHandler:
                 base_value = line[len('base:'):].strip()
             elif line_lower.startswith('top cover material:'):
                 value = line[len('top cover material:'):].strip()
-                if value.lower() == 'spenco':
+                if value.lower() == 'spenco (green)':
                     spenco_selected = True
             elif line_lower.startswith('lining to full:'):
                 value = line[len('lining to full:'):].strip()
