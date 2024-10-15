@@ -165,14 +165,25 @@ class PdfButtonHandler:
             current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-            # Update the GUI with the results (must be done in the main thread)
-            self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes)
-
             # Check for base in the extracted content and get the query message
             query_message = self.check_for_base(content)
 
-            # Write the price codes, auto doc reference, clinic, Azure data, and query message to the log file
-            self.write_to_log_file(price_codes, AutoDocRef, clinic, content, query_message)
+            # Check for special base value and get the warning message
+            warning_message = self.check_special_base(content)
+
+            # Combine query and warning messages
+            messages = []
+            if query_message:
+                messages.append(query_message)
+            if warning_message:
+                messages.append(warning_message)
+            combined_messages = '\n'.join(messages) if messages else None
+
+            # Update the GUI with the results (must be done in the main thread)
+            self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes, combined_messages)
+
+            # Write the price codes, auto doc reference, clinic, Azure data, and messages to the log file
+            self.write_to_log_file(price_codes, AutoDocRef, clinic, content, combined_messages)
 
         except Exception as e:
             # Show error message in the main thread
@@ -183,7 +194,8 @@ class PdfButtonHandler:
             # Re-enable the upload button
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
-    def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, query_message=None):
+
+    def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, messages=None):
         try:
             result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
             if not os.path.exists(result_logs_folder):
@@ -213,15 +225,17 @@ class PdfButtonHandler:
                 log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
                 log_file.write(f"Clinic: {clinic}\n\n")
                 log_file.write(f"AZURE EXTRACTED DATA:\n\n{azure_data}\n\n")  # Azure log data
+
+                # Include any messages (query or warning) if they exist
+                if messages:
+                    log_file.write(f"MESSAGES:\n{messages}\n\n")
+
                 log_file.write(f"PRICE CODES:\n\n{price_codes}\n")
-                # Include the query message if it exists
-                if query_message:
-                    log_file.write(f"QUERY MESSAGE:\n{query_message}\n\n")
-                    
                 log_file.write("-" * 50 + "\n")  # Separator between entries
             print(f"Successfully wrote to log file at {log_file_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
+
 
 
     def parse_extracted_data(self, data_dict):
@@ -399,6 +413,24 @@ class PdfButtonHandler:
             return query_message
         else:
             return None  # No query needed
+        
+    def check_special_base(self, data):
+        # Initialize base_value
+        base_value = ''
+        # Split the data into lines and look for the line that starts with 'base:'
+        for line in data.split('\n'):
+            if line.lower().startswith('base:'):
+                base_value = line[len('base:'):].strip()
+                break  # Stop after finding the base line
+
+        # Check if the base_value is exactly '45/30/80 SH' (case-insensitive)
+        if base_value.strip().lower() == '45/30/80 sh':
+            warning_message = "Base is 45/30/80 SH. Use code b55b."
+            self.root.after(0, messagebox.showwarning, "Special Base Warning", warning_message)
+            return warning_message
+        else:
+            return None  # No warning needed
+
 
 # --- Main Application Setup ---
 
@@ -684,7 +716,7 @@ def close_loading_popup():
     root.focus_force()  # Bring the main window back to focus
 
 # Function to display results
-def display_results(formatted_datetime, AutoDocRef, clinic, price_codes):
+def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, messages=None):
     # Update the entries
     auto_doc_ref_entry.config(state=tk.NORMAL)
     auto_doc_ref_entry.delete(0, tk.END)
@@ -713,6 +745,15 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes):
 
     # Insert the price codes and apply the 'center' tag
     result_text.insert(tk.END, price_codes, 'center')
+
+    # If there are messages, insert them below the price codes
+    if messages:
+        # Add a separator or newline
+        result_text.insert(tk.END, "\n\n")
+        # Configure the 'warning' tag for messages (you can adjust the font or color as needed)
+        result_text.tag_configure('warning', justify='center', foreground='red', font=('Calibri', 12, 'bold'))
+        # Insert messages with the 'warning' tag
+        result_text.insert(tk.END, messages, 'warning')
 
     result_text.config(state=tk.DISABLED)  # Disable editing again
 
