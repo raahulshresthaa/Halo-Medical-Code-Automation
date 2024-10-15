@@ -171,12 +171,17 @@ class PdfButtonHandler:
             # Check for special base value and get the warning message
             warning_message = self.check_special_base(content)
 
-            # Combine query and warning messages
+            # Check for clinic tariff and get the message
+            clinic_tariff_message = self.check_clinic_tariff(content)
+
+            # Combine all messages
             messages = []
             if query_message:
                 messages.append(query_message)
             if warning_message:
                 messages.append(warning_message)
+            if clinic_tariff_message:
+                messages.append(clinic_tariff_message)
             combined_messages = '\n'.join(messages) if messages else None
 
             # Update the GUI with the results (must be done in the main thread)
@@ -445,6 +450,30 @@ class PdfButtonHandler:
             return warning_message
         else:
             return None  # No warning needed
+        
+    def check_clinic_tariff(self, data):
+        # Initialize clinic_value
+        clinic_value = ''
+        # Split the data into lines and look for the line that starts with 'Clinic:'
+        for line in data.split('\n'):
+            if line.lower().startswith('clinic:'):
+                clinic_value = line[len('clinic:'):].strip()
+                break  # Stop after finding the clinic line
+
+        # List of clinics to check
+        clinics_with_tariff = ['Bury CDC', 'East Surrey', 'WS', 'PCH', 'Sudbury', 'Hinchingbrooke']
+
+        # Check the clinic_value and create appropriate message
+        if clinic_value in clinics_with_tariff:
+            message = f"Tariff {clinic_value}"
+            self.root.after(0, messagebox.showinfo, "Clinic Tariff", message)
+            return message
+        elif clinic_value == 'Medway':
+            message = "Tariff Medbns72"
+            self.root.after(0, messagebox.showinfo, "Clinic Tariff", message)
+            return message
+        else:
+            return None  # No message needed
 
 
 # --- Main Application Setup ---
