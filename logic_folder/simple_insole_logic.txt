@@ -16,7 +16,7 @@ Add code: B54a
 If Base = Polypropylene:
 Add code: B54b
 If Base = 50 Shore, 40 Shore, or 65 Shore:
-Add code: B54c
+Add code: B40b
 Note: Remember to apply the Pair Handling rule if applicable.
 If no base add: "Query which base?" below the codes 
 
@@ -85,6 +85,7 @@ Top covers and linings are handled by the same single Code
 if there is a lining add B55a 
 if the top cover is spenco add B55a (ignore other types of top cover)
 if there is both spenco and a lining add b55b 
+if none of the above critera are met dont code this bit
 
 If Pair = Yes, multiply the quantity of base codes and lining codes by 2 (not modifications or additions).
 Ensure that codes are only multiplied where the Pair Handling rule applies.

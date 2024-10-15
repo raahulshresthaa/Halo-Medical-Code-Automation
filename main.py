@@ -415,17 +415,32 @@ class PdfButtonHandler:
             return None  # No query needed
         
     def check_special_base(self, data):
-        # Initialize base_value
+        # Initialize variables
         base_value = ''
-        # Split the data into lines and look for the line that starts with 'base:'
-        for line in data.split('\n'):
-            if line.lower().startswith('base:'):
-                base_value = line[len('base:'):].strip()
-                break  # Stop after finding the base line
+        spenco_selected = False
+        lining_selected = False
 
-        # Check if the base_value is exactly '45/30/80 SH' (case-insensitive)
-        if base_value.strip().lower() == '45/30/80 sh':
-            warning_message = "Base is 45/30/80 SH. Use code b55b."
+        # Split the data into lines and look for the relevant lines
+        for line in data.split('\n'):
+            line_lower = line.lower().strip()
+            if line_lower.startswith('base:'):
+                base_value = line[len('base:'):].strip()
+            elif line_lower.startswith('top cover material:'):
+                value = line[len('top cover material:'):].strip()
+                if value.lower() == 'spenco':
+                    spenco_selected = True
+            elif line_lower.startswith('lining to full:'):
+                value = line[len('lining to full:'):].strip()
+                if value.lower() == 'selected':
+                    lining_selected = True
+
+        # Check if the base_value is '35/20/80 SH' or '45/30/80 SH' (case-insensitive)
+        base_value_lower = base_value.strip().lower()
+        if base_value_lower in ('35/20/80 sh', '45/30/80 sh'):
+            if spenco_selected or lining_selected:
+                warning_message = f"Base is {base_value}. Spenco top cover or Lining to full is selected. Use code B55c."
+            else:
+                warning_message = f"Base is {base_value}. Use code B55b."
             self.root.after(0, messagebox.showwarning, "Special Base Warning", warning_message)
             return warning_message
         else:
