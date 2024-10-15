@@ -299,7 +299,14 @@ class PdfButtonHandler:
             # Determine form_type based on extracted data
             form_type = self.determine_form_type(fields_data)
             if not form_type:
-                raise ValueError("No form type found in the extracted data. Check the type of form you are uploading.")
+                query_message = "No form type found in the extracted data. Please raise a query."
+                self.root.after(0, messagebox.showinfo, "Query", query_message)
+                # Optionally, you can log this message or handle it as needed
+                # Close the loading pop-up
+                self.root.after(0, self.close_loading_popup)
+                # Re-enable the upload button
+                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                return  # Stops further processing
 
             # Sanitize form_type
             form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
@@ -412,13 +419,14 @@ class PdfButtonHandler:
             messagebox.showinfo("No PDF Files", "Please drop PDF files only.")
 
     def check_for_base(self, data):
-        if 'base:' not in data.lower():
-            query_message = "No base found in the form. Please raise a query."
-            self.root.after(0, messagebox.showinfo, "Query No Base", query_message)
+        data_lower = data.lower()
+        if not any(keyword in data_lower for keyword in ['base:', 'carbon fibre:', 'poron:']):
+            query_message = "No base, Carbon Fibre, or Poron found in the form. Please raise a query."
+            self.root.after(0, messagebox.showinfo, "Query", query_message)
             return query_message
         else:
             return None  # No query needed
-        
+
     def check_special_base(self, data):
         # Initialize variables
         base_value = ''
