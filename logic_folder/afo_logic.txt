@@ -1,1 +1,32 @@
 this is an important test just return the following "This is a test, you have successfully selected AFO. The AFO logic sheet still needs to be filled out."
+
+Write your full working out.
+
+AFO Requriments
+If AFO type is:
+Normal the code is D8/U,
+Fixed the code is D1/C
+Crow Boot the code is DNS 1
+AFO/DAFO the code is D1/C x2
+Anterior Shell the code is D12/H
+otherwise do not code
+
+If Hinge Type is:
+Gillette/Tamrack the code is D2/A 
+Appalachian/Metal the code is D2/B
+Double Action the code is D2/D
+Camber Axis the code is D2/D
+
+If there is anything selected for trimline add the code D10/E
+
+PCRO
+
+If Varus pad is selected add the code D8/D 
+If Valgus pad is selected add the code D8/D 
+If Suctentaculum Tali is selected add the code D8/H 
+If Peroneal Notch is selected add the code D8/I 
+If Metatarsal Button is selected add the code B41
+If Neuro Plate is selected add the code D8/A 
+If Toe lift is selected add the code D8/U
+If there are any PCRO values add teh code D8/B 
+
