@@ -30,7 +30,8 @@ from azure.ai.formrecognizer import DocumentAnalysisClient
 # --- PdfButtonHandler Class Definition ---
 
 class PdfButtonHandler:
-    def __init__(self, root, result_text, auto_doc_ref_entry, datetime_entry, clinic_entry, show_loading_popup, close_loading_popup, display_results):
+    def __init__(self, root, result_text, auto_doc_ref_entry, datetime_entry, clinic_entry,
+             show_loading_popup, close_loading_popup, display_results, model_id_var):
         self.root = root
         self.result_text = result_text
         self.auto_doc_ref_entry = auto_doc_ref_entry
@@ -39,6 +40,7 @@ class PdfButtonHandler:
         self.show_loading_popup = show_loading_popup
         self.close_loading_popup = close_loading_popup
         self.display_results = display_results
+        self.model_id_var = model_id_var
 
         self.context_folder_path = os.path.join(os.getcwd(), 'context')
 
@@ -48,15 +50,12 @@ class PdfButtonHandler:
         # Read Azure credentials from files
         self.endpoint = self.read_azure_credential_file('azure_endpoint.txt', 'Azure Endpoint')
         self.key = self.read_azure_credential_file('azure_key.txt', 'Azure Key')
-        self.model_id = self.read_azure_credential_file('azure_model_id.txt', 'Azure Model ID')
 
         # Validate endpoint and key
         if not self.endpoint or not isinstance(self.endpoint, str):
             raise ValueError("Azure endpoint is not set or is not a valid string.")
         if not self.key or not isinstance(self.key, str):
             raise ValueError("Azure key is not set or is not a valid string.")
-        if not self.model_id or not isinstance(self.model_id, str):
-            raise ValueError("Azure model ID is not set or is not a valid string.")
 
         # Initialize Azure Form Recognizer client
         self.document_analysis_client = DocumentAnalysisClient(
@@ -274,9 +273,11 @@ class PdfButtonHandler:
 
     def process_pdf_and_call_api(self, pdf_file_path):
         try:
+            # Get the current model_id
+            model_id = self.model_id_var.get()
             # Analyze the PDF using Azure Form Recognizer
             with open(pdf_file_path, "rb") as pdf_file:
-                poller = self.document_analysis_client.begin_analyze_document(self.model_id, document=pdf_file)
+                poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
                 result = poller.result()
 
             # After reading and analyzing the file, update the loading message
@@ -626,6 +627,34 @@ def change_theme(event):
     style.theme_use(selected_theme)
     save_theme_setting(selected_theme)
 
+# Define the custom font for labels (if not already defined)
+label_font = ('Calibri', 11)
+
+# Define model IDs (replace with your actual model IDs)
+model_ids = {
+    'Insoles': 'insoleFormV5',  # model ids
+    'AFOs': 'AfoReader1'   
+}
+
+# Set up the model_id_var with default value
+model_id_var = tk.StringVar(value='model-id-1')  # Set the default model ID
+
+# Create a frame for the model selection
+model_frame = ttk.Frame(root)
+model_frame.pack(pady=10)
+
+model_label = ttk.Label(model_frame, text='Select Model ID:', font=label_font)
+model_label.pack(side='left', padx=(0, 5))
+
+for model_name, model_id_value in model_ids.items():
+    radio_button = ttk.Radiobutton(
+        model_frame,
+        text=model_name,
+        variable=model_id_var,
+        value=model_id_value
+    )
+    radio_button.pack(side='left', padx=5)
+
 # Load the logo image
 try:
     logo_img = Image.open(logo_file_path)
@@ -822,7 +851,8 @@ pdf_handler = PdfButtonHandler(
     clinic_entry=clinic_entry,
     show_loading_popup=show_loading_popup,
     close_loading_popup=close_loading_popup,
-    display_results=display_results
+    display_results=display_results,
+    model_id_var=model_id_var
 )
 
 # Create the upload PDF button
