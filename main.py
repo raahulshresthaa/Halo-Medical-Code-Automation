@@ -275,6 +275,8 @@ class PdfButtonHandler:
         try:
             # Get the current model_id
             model_id = self.model_id_var.get()
+            print(f"Using model ID: {model_id}")  # Debug print
+
             # Analyze the PDF using Azure Form Recognizer
             with open(pdf_file_path, "rb") as pdf_file:
                 poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
@@ -297,36 +299,45 @@ class PdfButtonHandler:
             AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
             clinic = fields_data.get('Clinic', 'N/A')
 
-            # Determine form_type based on extracted data
-            form_type = self.determine_form_type(fields_data)
-            if not form_type:
-                query_message = "No form type found in the extracted data. Please raise a query."
-                self.root.after(0, messagebox.showinfo, "Query", query_message)
-                # Optionally, you can log this message or handle it as needed
-                # Close the loading pop-up
-                self.root.after(0, self.close_loading_popup)
-                # Re-enable the upload button
-                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-                return  # Stops further processing
+            # Logic file mapping based on model_id and form_type
+            logic_file_name = None
 
-            # Sanitize form_type
-            form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
-            print(f"Form type: {form_type}")
+            if model_id == 'insoleFormV5':
+                # Determine form_type based on extracted data
+                form_type = self.determine_form_type(fields_data)
+                if not form_type:
+                    query_message = "No form type found in the extracted data. Please raise a query."
+                    self.root.after(0, messagebox.showinfo, "Query", query_message)
+                    # Optionally, you can log this message or handle it as needed
+                    # Close the loading pop-up
+                    self.root.after(0, self.close_loading_popup)
+                    # Re-enable the upload button
+                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                    return  # Stops further processing
 
-            # Construct the logic file name and path based on the form type
-            logic_file_mapping = {
-                'tci': 'tci_logic.txt',
-                'simple': 'simple_insole_logic.txt',
-                'cradle': 'tci_logic.txt',  # not currently using cradle_logic.txt because the coding is the same
-                'afo': 'afo_logic.txt',
-                'kafo': 'kafo_logic.txt',
-                'handmold': 'tci_logic.txt'  # not currently using handmold_logic.txt because the coding is the same
-            }
+                # Sanitize form_type
+                form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
+                print(f"Form type: {form_type}")
 
-            logic_file_name = logic_file_mapping.get(form_type)
-            print(f"Logic file name: {logic_file_name}")
-            if not logic_file_name:
-                raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
+                # Construct the logic file name and path based on the form type
+                logic_file_mapping = {
+                    'tci': 'tci_logic.txt',
+                    'simple': 'simple_insole_logic.txt',
+                    'cradle': 'tci_logic.txt',  # Using tci_logic.txt for cradle
+                    'handmold': 'tci_logic.txt'  # Using tci_logic.txt for handmold
+                }
+
+                logic_file_name = logic_file_mapping.get(form_type)
+                print(f"Logic file name: {logic_file_name}")
+                if not logic_file_name:
+                    raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
+
+            elif model_id == 'AfoReader1':
+                logic_file_name = 'afo_logic.txt'
+                print(f"Logic file name: {logic_file_name}")
+
+            else:
+                raise ValueError(f"Unknown model ID '{model_id}'.")
 
             logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
             print(f"Logic file path: {logic_file_path}")
