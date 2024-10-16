@@ -337,7 +337,7 @@ class PdfButtonHandler:
                 if not logic_file_name:
                     raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
 
-            elif model_id == 'AfoReader1':
+            elif model_id == 'AfoReaderV2':
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
