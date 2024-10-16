@@ -1,8 +1,8 @@
-this is an important test just return the following "This is a test, you have successfully selected AFO. The AFO logic sheet still needs to be filled out."
-- note to self need to add pair and right as left
+This is the Logic document for AFO's price coding.
 Write your full working out.
 
 AFO Requriments
+If pair is selected times the following codes by 2 (eg D8/U x2)
 If AFO type is:
 Normal the code is D8/U,
 Fixed the code is D1/C
