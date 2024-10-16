@@ -14,7 +14,7 @@ import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 # Version number
-VERSION = "1.3.0"
+VERSION = "2.0.0 pre release"
 
 # To fix blurriness on some displays
 try:
