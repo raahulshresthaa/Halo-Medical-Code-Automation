@@ -164,13 +164,19 @@ class PdfButtonHandler:
             current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-            # Check for base in the extracted content and get the query message
-            query_message = self.check_for_base(content)
+            # Determine if we should check for base and special base
+            model_id = self.model_id_var.get()
+            if model_id == 'insoleFormV5':
+                # Check for base in the extracted content and get the query message
+                query_message = self.check_for_base(content)
 
-            # Check for special base value and get the warning message
-            warning_message = self.check_special_base(content)
+                # Check for special base value and get the warning message
+                warning_message = self.check_special_base(content)
+            else:
+                query_message = None
+                warning_message = None
 
-            # Check for clinic tariff and get the message
+            # Check for clinic tariff and get the message (applies to all models)
             clinic_tariff_message = self.check_clinic_tariff(content)
 
             # Combine all messages
@@ -197,7 +203,6 @@ class PdfButtonHandler:
             self.root.after(0, self.close_loading_popup)
             # Re-enable the upload button
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-
 
     def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, messages=None):
         try:
@@ -485,11 +490,11 @@ class PdfButtonHandler:
 
         # Check the clinic_value and create appropriate message
         if clinic_value in clinics_with_tariff:
-            message = f"Tariff {clinic_value}"
+            message = f"Tariff: {clinic_value}"
             self.root.after(0, messagebox.showinfo, "Clinic Tariff", message)
             return message
         elif clinic_value == 'Medway':
-            message = "Tariff Medbns72"
+            message = "Tariff: Medbns72"
             self.root.after(0, messagebox.showinfo, "Clinic Tariff", message)
             return message
         else:
