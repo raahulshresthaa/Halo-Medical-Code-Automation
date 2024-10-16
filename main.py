@@ -637,13 +637,13 @@ model_ids = {
 }
 
 # Set up the model_id_var with default value
-model_id_var = tk.StringVar(value='model-id-1')  # Set the default model ID
+model_id_var = tk.StringVar(value='insoleFormV5')  # Set the default model ID
 
 # Create a frame for the model selection
 model_frame = ttk.Frame(root)
 model_frame.pack(pady=10)
 
-model_label = ttk.Label(model_frame, text='Select Model ID:', font=label_font)
+model_label = ttk.Label(model_frame, text='Select Form Type:', font=label_font)
 model_label.pack(side='left', padx=(0, 5))
 
 for model_name, model_id_value in model_ids.items():
