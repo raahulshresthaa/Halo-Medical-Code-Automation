@@ -1,5 +1,5 @@
 this is an important test just return the following "This is a test, you have successfully selected AFO. The AFO logic sheet still needs to be filled out."
-
+- note to self need to add pair and right as left
 Write your full working out.
 
 AFO Requriments
@@ -30,3 +30,37 @@ If Neuro Plate is selected add the code D8/A
 If Toe lift is selected add the code D8/U
 If there are any PCRO values add teh code D8/B 
 
+M&T 
+
+If Carbon ankle Reinforcements is selected add the code D10/B
+If Compcore Ankle Reinforcements is selected add the code D10/A 
+if Walking Surface is selected add the code D10/9
+If there is anything givene for Transfer 1st Choice then add the code D10/1
+
+AFO Lining
+
+if AFO Full is yes then add the code D14/E
+If AFO Calf is yes then add the code D14/D 
+If AFO Full Material or AFO Calf Material is LD Eva or P'Zote add the code D14/D if it is Chamois, Leather or SheepSkin add D14/F and if it is poron leave blank
+
+Pads
+
+If there is any material selected for Arch Pad, Malleoli Pad or Navicular Pad add the code D14/C 
+
+If Slip Pad Calf is yes add the code P15
+If Slip Pad Ankle is yes add the code P15
+If Slip Pad Foot is yes add the code P15
+
+If Material Calf is Plain Velcro add the code P1, if its Blacked add the code P4
+If Material Ankle is Plain Velcro add the code P1, if its Blacked add the code P4
+If Material Foot is Plain Velcro add the code P1, if its Blacked add the code P4
+
+Slotted Heel Strap
+Caluclate for both left and right:
+if strap type is Y Strap add codes, D14/A and P15
+If Strap type is Full as part fo ankle lining add codes D14/A, P15
+If Strap type is Single Slotted Fix then add codes P1, P4, P15 
+
+
+Remember to think outloud step by step.
+Check additional information for potential codes.
