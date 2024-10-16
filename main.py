@@ -735,7 +735,7 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 # Define model IDs (replace with your actual model IDs)
 model_ids = {
     'Insoles': 'insoleFormV5',  # model id's
-    'AFOs': 'AfoReader1'   
+    'AFOs': 'AfoReaderV2'   
 }
 
 # Set up the model_id_var with default value
