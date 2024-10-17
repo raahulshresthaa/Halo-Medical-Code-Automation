@@ -12,6 +12,10 @@ import sys
 # Import TkinterDnD for drag-and-drop functionality
 import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
+import io
+from PyPDF2 import PdfReader, PdfWriter
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
 
 # Version number
 VERSION = "2.0.0 pre release"
@@ -152,7 +156,7 @@ class PdfButtonHandler:
         except Exception as e:
             return f"Error: {str(e)}"
 
-    def process_api_call(self, content, file_context, logic_content, AutoDocRef, clinic):
+    def process_api_call(self, content, file_context, logic_content, AutoDocRef, clinic, pdf_file_path):
         try:
             # Get the price codes by sending the content, logic, and file context to OpenAI
             price_codes = self.get_price_codes_from_content(content, file_context, logic_content)
@@ -194,6 +198,14 @@ class PdfButtonHandler:
 
             # Write the price codes, auto doc reference, clinic, Azure data, and messages to the log file
             self.write_to_log_file(price_codes, AutoDocRef, clinic, content, combined_messages)
+
+            # Generate modified PDF with price codes overlaid
+            try:
+                output_pdf_path = self.get_output_pdf_path(pdf_file_path)
+                self.write_on_pdf(pdf_file_path, output_pdf_path, price_codes)
+                print(f"Modified PDF saved to {output_pdf_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Error generating modified PDF: {str(e)}")
 
         except Exception as e:
             # Show error message in the main thread
@@ -358,7 +370,7 @@ class PdfButtonHandler:
                 raise ValueError(file_context)
 
             # Call the API with the content
-            self.process_api_call(content, file_context, logic_content, AutoDocRef, clinic)
+            self.process_api_call(content, file_context, logic_content, AutoDocRef, clinic, pdf_file_path)
 
         except Exception as e:
             # Show error message in the main thread
@@ -499,6 +511,61 @@ class PdfButtonHandler:
             return message
         else:
             return None  # No message needed
+        
+        #This method creates an overlay PDF in memory with the specified text at the given coordinates
+    def create_overlay(self, text, x, y, pagesize):
+        packet = io.BytesIO()
+        can = canvas.Canvas(packet, pagesize=pagesize)
+        can.setFont("Helvetica", 12)
+        text_object = can.beginText()
+        text_object.setTextOrigin(x, y)
+        lines = text.split('\n')
+        for line in lines:
+            text_object.textLine(line)
+        can.drawText(text_object)
+        can.save()
+        packet.seek(0)
+        return packet
+    
+    #This method overlays the generated text onto each page of the existing PDF and saves it as a new PDF.
+    def write_on_pdf(self, existing_pdf_path, output_pdf_path, text):
+        # Read the existing PDF
+        reader = PdfReader(existing_pdf_path)
+        writer = PdfWriter()
+
+        # Get the page size from the first page
+        page = reader.pages[0]
+        page_width = float(page.mediabox.width())
+        page_height = float(page.mediabox.getHeight())
+        pagesize = (page_width, page_height)
+
+        # Coordinates where to place the text (adjust as needed)
+        x = 50  # from left
+        y = page_height - 100  # from bottom
+
+        # Create overlay PDF with text using ReportLab
+        overlay_pdf = self.create_overlay(text, x, y, pagesize)
+
+        # Read the overlay as a PDF
+        overlay_reader = PdfReader(overlay_pdf)
+        overlay_page = overlay_reader.pages[0]
+
+        # For each page in the existing PDF, merge with overlay
+        for page in reader.pages:
+            # Merge the overlay with the page
+            page.merge_page(overlay_page)
+            writer.add_page(page)
+
+        # Write the output to a new PDF
+        with open(output_pdf_path, "wb") as output_file:
+            writer.write(output_file)
+        
+        #This method generates a new file path for the modified PDF by appending "_modified" to the original filename.
+    def get_output_pdf_path(self, original_pdf_path):
+        # Generate a new path for the output PDF
+        base, ext = os.path.splitext(original_pdf_path)
+        output_pdf_path = base + "_modified" + ext
+        return output_pdf_path
 
 
 # --- Main Application Setup ---
