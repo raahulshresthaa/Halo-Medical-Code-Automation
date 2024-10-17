@@ -39,7 +39,7 @@ If there are any PCRO values add teh code D8/B
 If Carbon ankle Reinforcements is selected add the code D10/B
 If Compcore Ankle Reinforcements is selected add the code D10/A 
 if Walking Surface is selected add the code D10/9
-If there is anything givene for Transfer 1st Choice then add the code D10/1
+If there is anything givene for Transfer 1st Choice then add the code D10/I
 
 *AFO Lining*
 
