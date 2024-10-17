@@ -16,6 +16,7 @@ import io
 from PyPDF2 import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
+import requests
 
 # Version number
 VERSION = "2.0.0 pre release"
@@ -581,6 +582,191 @@ class PdfButtonHandler:
         output_pdf_path = base + "_modified" + ext
         return output_pdf_path
 
+    def authenticate_with_docuware(self):
+        """Authenticate with DocuWare and return a session object."""
+        try:
+            # Read DocuWare credentials
+            self.docuware_username = read_docuware_credential_file('docuware_username.txt', 'DocuWare Username')
+            self.docuware_password = read_docuware_credential_file('docuware_password.txt', 'DocuWare Password')
+            self.docuware_url = read_docuware_credential_file('docuware_url.txt', 'DocuWare URL')
+            self.docuware_organization = read_docuware_credential_file('docuware_organization.txt', 'DocuWare Organization')
+
+            # Create a session
+            self.docuware_session = requests.Session()
+
+            # Authenticate
+            auth_url = f"{self.docuware_url}/DocuWare/Platform/Account/Logon"
+
+            response = self.docuware_session.post(auth_url, data={
+                'UserName': self.docuware_username,
+                'Password': self.docuware_password,
+                'Organization': self.docuware_organization
+            })
+
+            if response.status_code == 200:
+                self.docuware_token = response.headers.get('X-DocuWare-Token')
+                self.docuware_session.headers.update({'X-DocuWare-Token': self.docuware_token})
+                print("Authenticated with DocuWare successfully.")
+            else:
+                raise Exception('Failed to authenticate with DocuWare')
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error authenticating with DocuWare: {str(e)}")
+            sys.exit()
+
+    def retrieve_documents(self):
+        """Retrieve documents from DocuWare matching specified filters."""
+        try:
+            # Replace with your actual file cabinet ID
+            file_cabinet_id = 'your_file_cabinet_id'  # You need to obtain this ID
+
+            search_url = f"{self.docuware_url}/DocuWare/Platform/FileCabinets/{file_cabinet_id}/Query/DialogExpression"
+
+            # Define the filters
+            query = {
+                "Condition": {
+                    "Operation": "And",
+                    "Conditions": [
+                        {
+                            "DBName": "Activity",
+                            "Value": "Code Writer",
+                            "Op": "EQ"
+                        },
+                        {
+                            "DBName": "PDF Form Name",
+                            "Value": "Insoles",
+                            "Op": "EQ"
+                        }
+                    ]
+                }
+            }
+
+            headers = {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+
+            response = self.docuware_session.post(search_url, json=query, headers=headers)
+
+            if response.status_code == 200:
+                search_results = response.json()
+                self.documents_list = search_results['Items']
+                self.current_document_index = 0
+                print(f"Retrieved {len(self.documents_list)} documents from DocuWare.")
+            else:
+                raise Exception('Failed to retrieve documents from DocuWare')
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error retrieving documents from DocuWare: {str(e)}")
+
+    def download_pdf(self, doc_id):
+        """Download a PDF document from DocuWare."""
+        try:
+            file_download_url = f"{self.docuware_url}/DocuWare/Platform/Documents/{doc_id}/FileDownload?targetFileType=Auto"
+
+            pdf_response = self.docuware_session.get(file_download_url)
+            if pdf_response.status_code == 200:
+                pdf_content = pdf_response.content
+                # Save the PDF to a local file
+                pdf_file_path = f"{doc_id}.pdf"
+                with open(pdf_file_path, 'wb') as f:
+                    f.write(pdf_content)
+                return pdf_file_path
+            else:
+                raise Exception(f"Failed to download document {doc_id}")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error downloading PDF: {str(e)}")
+            return None
+
+    def upload_pdf(self, doc_id, original_file_name, modified_pdf_path):
+        """Upload the modified PDF back to DocuWare."""
+        try:
+            # Prepare the upload URL
+            upload_url = f"{self.docuware_url}/DocuWare/Platform/Documents/{doc_id}/Files"
+
+            # Read the modified PDF
+            with open(modified_pdf_path, 'rb') as f:
+                files = {
+                    'file': (f"TEST-{original_file_name}", f, 'application/pdf')
+                }
+                upload_response = self.docuware_session.post(upload_url, files=files)
+
+            if upload_response.status_code == 200:
+                print(f"Document {doc_id} updated successfully in DocuWare.")
+            else:
+                raise Exception(f"Failed to update document {doc_id} in DocuWare")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error uploading PDF to DocuWare: {str(e)}")
+    def code_next_file(self):
+        """Process the next document from the retrieved list."""
+        try:
+            if not hasattr(self, 'documents_list') or not self.documents_list:
+                messagebox.showinfo("Info", "No documents to process. Please retrieve documents first.")
+                return
+
+            if self.current_document_index >= len(self.documents_list):
+                messagebox.showinfo("Info", "All documents have been processed.")
+                return
+
+            # Get the next document
+            document = self.documents_list[self.current_document_index]
+            doc_id = document['Id']
+            original_file_name = document['Title']
+            print(f"Processing document ID: {doc_id}, File Name: {original_file_name}")
+
+            # Download the PDF
+            pdf_file_path = self.download_pdf(doc_id)
+            if not pdf_file_path:
+                self.current_document_index += 1
+                return
+
+            # Disable the button during processing
+            self.code_next_file_button.config(state='disabled')
+
+            # Show the loading pop-up
+            self.show_loading_popup()
+
+            # Process the PDF in a separate thread
+            threading.Thread(target=self.process_pdf_and_call_api_docuware, args=(pdf_file_path, doc_id, original_file_name)).start()
+
+            # Increment the document index
+            self.current_document_index += 1
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error processing next document: {str(e)}")
+            self.code_next_file_button.config(state='normal')  # Re-enable the button
+    def process_pdf_and_call_api_docuware(self, pdf_file_path, doc_id, original_file_name):
+        try:
+            # Process the PDF and get the output path
+            self.process_pdf_and_call_api(pdf_file_path)
+
+            # After processing, upload the modified PDF back to DocuWare
+            output_pdf_path = self.get_output_pdf_path(pdf_file_path)
+            self.upload_pdf(doc_id, original_file_name, output_pdf_path)
+
+            # Clean up the local files
+            os.remove(pdf_file_path)
+            os.remove(output_pdf_path)
+
+        except Exception as e:
+            self.root.after(0, messagebox.showerror, "Error", f"Error processing the PDF file: {str(e)}")
+        finally:
+            # Close the loading pop-up
+            self.root.after(0, self.close_loading_popup)
+            # Re-enable the button
+            self.root.after(0, lambda: self.code_next_file_button.config(state='normal'))
+
+    def initialize_docuware_processing(self):
+        """Authenticate and retrieve documents from DocuWare."""
+        try:
+            self.authenticate_with_docuware()
+            self.retrieve_documents()
+            messagebox.showinfo("Info", "Documents retrieved successfully. Click 'Code Next File' to process.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error initializing DocuWare processing: {str(e)}")
+
 
 # --- Main Application Setup ---
 
@@ -611,6 +797,37 @@ def save_theme_setting(theme):
 
 # Load the selected theme at startup
 selected_theme = load_theme_setting()
+
+def read_docuware_credential_file(filename, credential_name):
+    """Reads and decodes the DocuWare credential from a file."""
+    file_path = os.path.join(os.getcwd(), filename)
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, 'rb') as f:
+                encoded_data = f.read()
+                decoded_data = base64.b64decode(encoded_data).decode('utf-8').strip()
+            if not decoded_data:
+                raise ValueError(f"{credential_name} file is empty.")
+            return decoded_data
+        except Exception as e:
+            messagebox.showerror("Error", f"Error reading {credential_name}: {str(e)}")
+            sys.exit()
+    else:
+        credential = simpledialog.askstring(f"{credential_name} Required", f"Please enter your {credential_name}:")
+        if not credential:
+            messagebox.showerror("Error", f"No {credential_name} entered. The application will exit.")
+            sys.exit()
+        write_docuware_credential_file(filename, credential.strip())
+        return credential.strip()
+
+def write_docuware_credential_file(filename, credential):
+    """Encodes and writes the DocuWare credential to a file."""
+    file_path = os.path.join(os.getcwd(), filename)
+    encoded_data = base64.b64encode(credential.encode('utf-8'))
+    with open(file_path, 'wb') as f:
+        f.write(encoded_data)
+    print(f"{filename} saved to {file_path}")
+
 
 # Function to write the API key in binary (encoded using Base64)
 def write_api_key(api_key):
@@ -951,6 +1168,20 @@ pdf_handler = PdfButtonHandler(
     display_results=display_results,
     model_id_var=model_id_var
 )
+# Create a frame for DocuWare buttons
+docuware_frame = ttk.Frame(root)
+docuware_frame.pack(pady=10)
+
+# Create the Retrieve Documents button
+retrieve_documents_button = ttk.Button(docuware_frame, text="Retrieve Documents", command=pdf_handler.initialize_docuware_processing)
+retrieve_documents_button.pack(side='left', padx=5)
+
+# Create the Code Next File button
+code_next_file_button = ttk.Button(docuware_frame, text="Code Next File", command=pdf_handler.code_next_file)
+code_next_file_button.pack(side='left', padx=5)
+
+# Set the button reference in the handler
+pdf_handler.code_next_file_button = code_next_file_button
 
 # Create the upload PDF button
 upload_pdf_button = ttk.Button(root, text="Upload PDF", command=pdf_handler.upload_pdf_file)
