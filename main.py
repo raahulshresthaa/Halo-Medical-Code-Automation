@@ -643,7 +643,7 @@ class PdfButtonHandler:
                     "Conditions": [
                         {
                             "DBName": "Activity",
-                            "Value": "Code Writer",
+                            "Value": "Admin Code Writer Dept",
                             "Op": "EQ"
                         },
                         {
