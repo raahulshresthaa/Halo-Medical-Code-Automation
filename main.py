@@ -19,7 +19,7 @@ from reportlab.lib.pagesizes import letter
 import requests
 
 # Version number
-VERSION = "2.0.0 pre release"
+VERSION = "2.1.0 docuware test"
 
 # To fix blurriness on some displays
 try:
@@ -603,16 +603,30 @@ class PdfButtonHandler:
                 'Organization': self.docuware_organization
             })
 
+            print(f"Authentication response status code: {response.status_code}")
+            print(f"Authentication response headers: {response.headers}")
+            print(f"Authentication response text: {response.text}")
+
             if response.status_code == 200:
                 self.docuware_token = response.headers.get('X-DocuWare-Token')
+                if not self.docuware_token:
+                    raise Exception('Failed to obtain DocuWare token.')
                 self.docuware_session.headers.update({'X-DocuWare-Token': self.docuware_token})
                 print("Authenticated with DocuWare successfully.")
+            elif response.status_code == 403:
+                # Parse the XML response to extract the error message
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(response.text)
+                namespace = {'s': 'http://dev.docuware.com/schema/public/services'}
+                message_elem = root.find('s:Message', namespace)
+                error_message = message_elem.text if message_elem is not None else 'Forbidden'
+                raise Exception(f'Authentication failed: {error_message}')
             else:
-                raise Exception('Failed to authenticate with DocuWare')
+                raise Exception(f'Failed to authenticate with DocuWare. Status Code: {response.status_code}')
 
         except Exception as e:
-            messagebox.showerror("Error", f"Error authenticating with DocuWare: {str(e)}")
-            sys.exit()
+            messagebox.showerror("Authentication Error", f"Error authenticating with DocuWare: {str(e)}")
+            # Don't exit the application; allow the user to attempt re-authentication or exit gracefully
 
     def retrieve_documents(self):
         """Retrieve documents from DocuWare matching specified filters."""
