@@ -1,7 +1,7 @@
 This is the Logic document for AFO's price coding.
 Write your full working out.
 
-AFO Requriments
+*AFO Requriments*
 If pair is selected times the following codes by 2 (eg D8/U x2)
 If AFO type is:
 Normal the code is D8/U,
@@ -17,9 +17,13 @@ Appalachian/Metal the code is D2/B
 Double Action the code is D2/D
 Camber Axis the code is D2/D
 
+*Cast Angle and Trimline*
+If right as left is selected and only one of left or right is filled out multiply it by 2 (eg D10/E x2)
+
 If there is anything selected for trimline add the code D10/E
 
-PCRO
+*PCRO*
+If right as left is selected and only one of left or right is filled out multiply it by 2 (eg D10/E x2)
 
 If Varus pad is selected add the code D8/D 
 If Valgus pad is selected add the code D8/D 
@@ -30,20 +34,20 @@ If Neuro Plate is selected add the code D8/A
 If Toe lift is selected add the code D8/U
 If there are any PCRO values add teh code D8/B 
 
-M&T 
+*M&T* 
 
 If Carbon ankle Reinforcements is selected add the code D10/B
 If Compcore Ankle Reinforcements is selected add the code D10/A 
 if Walking Surface is selected add the code D10/9
 If there is anything givene for Transfer 1st Choice then add the code D10/1
 
-AFO Lining
+*AFO Lining*
 
 if AFO Full is yes then add the code D14/E
 If AFO Calf is yes then add the code D14/D 
 If AFO Full Material or AFO Calf Material is LD Eva or P'Zote add the code D14/D if it is Chamois, Leather or SheepSkin add D14/F and if it is poron leave blank
 
-Pads
+*Pads*
 
 If there is any material selected for Arch Pad, Malleoli Pad or Navicular Pad add the code D14/C 
 
@@ -55,7 +59,8 @@ If Material Calf is Plain Velcro add the code P1, if its Blacked add the code P4
 If Material Ankle is Plain Velcro add the code P1, if its Blacked add the code P4
 If Material Foot is Plain Velcro add the code P1, if its Blacked add the code P4
 
-Slotted Heel Strap
+*Slotted Heel Strap*
+
 Caluclate for both left and right:
 if strap type is Y Strap add codes, D14/A and P15
 If Strap type is Full as part fo ankle lining add codes D14/A, P15
