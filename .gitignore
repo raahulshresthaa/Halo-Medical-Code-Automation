@@ -12,3 +12,7 @@ azure_model_id.txt
 main.spec
 /build
 /tests
+docuware_organization.txt
+docuware_password.txt
+docuware_url.txt
+docuware_username.txt
