@@ -143,7 +143,7 @@ class PdfButtonHandler:
             response = openai.ChatCompletion.create(
                 model="gpt-4o-2024-08-06",  # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nOnly output the calculated price codes."},
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\n Write your full working out and then write *Final Codes* and output the final codes."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}\n\nRelevant file information:\n{file_context}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
@@ -152,7 +152,18 @@ class PdfButtonHandler:
 
             # Extract the assistant's response (price codes)
             assistant_response = response['choices'][0]['message']['content']
-            return assistant_response
+
+            # Find the position of "*Final Codes*"
+            final_codes_marker = "*Final Codes*"
+            idx = assistant_response.find(final_codes_marker)
+            if idx != -1:
+                # Extract text after "*Final Codes*"
+                price_codes = assistant_response[idx + len(final_codes_marker):].strip()
+                return price_codes
+            else:
+                # If marker not found, handle accordingly (you can raise an error or return the whole response)
+                messagebox.showerror("Error", "The assistant's response does not contain '*Final Codes*'.")
+                return assistant_response  # Or handle as you see fit
         except Exception as e:
             return f"Error: {str(e)}"
 
@@ -516,7 +527,10 @@ class PdfButtonHandler:
     def create_overlay(self, text, x, y, pagesize):
         packet = io.BytesIO()
         can = canvas.Canvas(packet, pagesize=pagesize)
-        can.setFont("Helvetica", 12)
+        # Set the font to Helvetica-Bold and size 12
+        can.setFont("Helvetica-Bold", 12)
+        # Set the text color to blue
+        can.setFillColorRGB(0, 0, 1)  # RGB values for blue
         text_object = can.beginText()
         text_object.setTextOrigin(x, y)
         lines = text.split('\n')
