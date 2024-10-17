@@ -622,14 +622,14 @@ class PdfButtonHandler:
 
             search_url = f"{self.docuware_url}/DocuWare/Platform/FileCabinets/{file_cabinet_id}/Query/DialogExpression"
 
-            # Define the filters
+             # Define the filters
             query = {
                 "Condition": {
                     "Operation": "And",
                     "Conditions": [
                         {
                             "DBName": "Activity",
-                            "Value": "Code Writer",
+                            "Value": "Admin Code Writer Dept",
                             "Op": "EQ"
                         },
                         {
@@ -650,11 +650,18 @@ class PdfButtonHandler:
 
             if response.status_code == 200:
                 search_results = response.json()
-                self.documents_list = search_results['Items']
+                self.documents_list = search_results.get('Items', [])
                 self.current_document_index = 0
                 print(f"Retrieved {len(self.documents_list)} documents from DocuWare.")
             else:
-                raise Exception('Failed to retrieve documents from DocuWare')
+                # Print response details for debugging
+                error_message = f"Failed to retrieve documents from DocuWare. Status Code: {response.status_code}"
+                try:
+                    error_details = response.json()
+                    error_message += f"\nResponse: {error_details}"
+                except ValueError:
+                    error_message += f"\nResponse: {response.text}"
+                raise Exception(error_message)
 
         except Exception as e:
             messagebox.showerror("Error", f"Error retrieving documents from DocuWare: {str(e)}")
@@ -699,6 +706,7 @@ class PdfButtonHandler:
 
         except Exception as e:
             messagebox.showerror("Error", f"Error uploading PDF to DocuWare: {str(e)}")
+
     def code_next_file(self):
         """Process the next document from the retrieved list."""
         try:
