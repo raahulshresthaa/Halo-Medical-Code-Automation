@@ -535,8 +535,8 @@ class PdfButtonHandler:
 
         # Get the page size from the first page
         page = reader.pages[0]
-        page_width = float(page.mediabox.width())
-        page_height = float(page.mediabox.getHeight())
+        page_width = float(page.mediabox.width)
+        page_height = float(page.mediabox.height)
         pagesize = (page_width, page_height)
 
         # Coordinates where to place the text (adjust as needed)
@@ -559,7 +559,7 @@ class PdfButtonHandler:
         # Write the output to a new PDF
         with open(output_pdf_path, "wb") as output_file:
             writer.write(output_file)
-        
+
         #This method generates a new file path for the modified PDF by appending "_modified" to the original filename.
     def get_output_pdf_path(self, original_pdf_path):
         # Generate a new path for the output PDF
