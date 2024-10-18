@@ -139,7 +139,7 @@ class PdfButtonHandler:
             response = openai.ChatCompletion.create(
                 model="gpt-4o-2024-08-06",  # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\n Write your full working out and then write *Final Codes* and output the final codes."},
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\n Write your full working out and then write **Final Codes** and output the final codes."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}\n\nRelevant file information:\n{file_context}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
@@ -836,11 +836,27 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, message
     result_text.config(state=tk.NORMAL)  # Enable editing temporarily
     result_text.delete('1.0', tk.END)  # Clear previous content
 
-    # Configure the 'center' tag before inserting text
+    # Configure tags
     result_text.tag_configure('center', justify='center')
+    result_text.tag_configure('bold', font=('Calibri', 12, 'bold'))
+    result_text.tag_configure('italic', font=('Calibri', 12, 'italic'))
+    # You can adjust font sizes as needed
 
-    # Insert the price codes and apply the 'center' tag
-    result_text.insert(tk.END, price_codes, 'center')
+    # Split the price_codes into lines
+    lines = price_codes.split('\n')
+
+    for line in lines:
+        stripped_line = line.strip()
+        # Check for bold syntax (**text**)
+        if stripped_line.startswith('**') and stripped_line.endswith('**'):
+            content = stripped_line.strip('*')
+            result_text.insert(tk.END, content + '\n', ('center', 'bold'))
+        # Check for italic syntax (*text*)
+        elif stripped_line.startswith('*') and stripped_line.endswith('*'):
+            content = stripped_line.strip('*')
+            result_text.insert(tk.END, content + '\n', ('center', 'italic'))
+        else:
+            result_text.insert(tk.END, line + '\n', 'center')
 
     # If there are messages, insert them below the price codes
     if messages:
