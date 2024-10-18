@@ -139,7 +139,7 @@ class PdfButtonHandler:
             response = openai.ChatCompletion.create(
                 model="gpt-4o-2024-08-06",  # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\n Write your full working out and then write **Final Codes** and output the final codes."},
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\n Write your full working out and then write **Final Codes:** and output the final codes."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}\n\nRelevant file information:\n{file_context}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
@@ -839,7 +839,7 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, message
     # Configure tags
     result_text.tag_configure('center', justify='center')
     result_text.tag_configure('bold', font=('Calibri', 12, 'bold'))
-    result_text.tag_configure('italic', font=('Calibri', 12, 'italic'))
+    result_text.tag_configure('bold', font=('Calibri', 12, 'bold'))
     # You can adjust font sizes as needed
 
     # Split the price_codes into lines
@@ -854,7 +854,7 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, message
         # Check for italic syntax (*text*)
         elif stripped_line.startswith('*') and stripped_line.endswith('*'):
             content = stripped_line.strip('*')
-            result_text.insert(tk.END, content + '\n', ('center', 'italic'))
+            result_text.insert(tk.END, content + '\n', ('center', 'bold'))
         else:
             result_text.insert(tk.END, line + '\n', 'center')
 
