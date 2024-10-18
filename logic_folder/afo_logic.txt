@@ -24,7 +24,7 @@ If right as left is selected and only one of left or right is filled out multipl
 If there is anything selected for trimline add the code D10/E
 
 *PCRO*
-If right as left is selected and only one of left or right is filled out multiply it by 2 (eg D10/E x2)
+If right as left is selected and only one of left or right is filled out multiply it by 2 (eg D8/D x2)
 
 If Varus pad is selected add the code D8/D 
 If Valgus pad is selected add the code D8/D 
