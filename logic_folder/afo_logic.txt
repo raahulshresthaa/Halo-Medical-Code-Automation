@@ -10,7 +10,8 @@ Articulated the code is D1/C and D8/U
 Crow Boot the code is DNS 1
 AFO/DAFO the the code is D1/C x2 and D8/U x2
 Anterior Shell the code is D12/M
-and if there is no afo type specifide the code is D1/C and D8/U
+
+If "AFO Type: " does not exist add the code is D1/C and D8/U as default
 
 If Hinge Type is:
 Gillette/Tamrack the code is D2/A 
