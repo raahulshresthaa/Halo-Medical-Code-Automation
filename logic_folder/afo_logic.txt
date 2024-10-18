@@ -67,6 +67,9 @@ if strap type is Y Strap add codes, D14/A and P15
 If Strap type is Full as part fo ankle lining add codes D14/A, P15
 If Strap type is Single Slotted Fix then add codes P1, P4, P15 
 
+*Additionl information*
+
+Check this additional information for anything saying make multiple and then multiply All of the codes accordingly
+Also check for any codes that might be in the description but check that they are not already mentioned in the the rest of the document before adding them
 
 Remember to think outloud step by step.
-Check additional information for potential codes.
