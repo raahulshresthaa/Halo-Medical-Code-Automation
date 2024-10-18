@@ -4,12 +4,13 @@ Write your full working out.
 *AFO Requriments*
 If pair is selected times the following codes by 2 (eg D8/U x2)
 If AFO type is:
-Normal the code is D8/U,
-Fixed the code is D1/C
+Normal the code is D1/C and D8/U
+Fixed the code is D1/C and D8/U
+Articulated the code is D1/C and D8/U
 Crow Boot the code is DNS 1
-AFO/DAFO the code is D1/C x2
+AFO/DAFO the the code is D1/C x2 and D8/U x2
 Anterior Shell the code is D12/M
-otherwise do not code
+and if there is no afo type specifide the code is D1/C and D8/U
 
 If Hinge Type is:
 Gillette/Tamrack the code is D2/A 
@@ -55,9 +56,9 @@ If Slip Pad Calf is yes add the code P15
 If Slip Pad Ankle is yes add the code P15
 If Slip Pad Foot is yes add the code P15
 
-If Material Calf is Plain Velcro or if its Blacked  add the code P1
-If Material Ankle is Plain Velcro or if its Blacked add the code P1
-If Material Foot is Plain Velcro or if its Blacked add the code P1
+If Material Calf is Plain Velcro add the code P1
+If Material Ankle is Plain Velcro add the code P1
+If Material Foot is Plain Velcro add the code P1
 
 *Slotted Heel Strap*
 
