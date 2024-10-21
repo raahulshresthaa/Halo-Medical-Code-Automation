@@ -53,7 +53,7 @@ If AFO Calf is yes then add the code D14/D
 If AFO Full Material or AFO Calf Material is LD Eva or P'Zote add the code D14/D if it is Chamois, Leather or SheepSkin add D14/G and if it is poron leave blank
 
 *Pads*
-Add the following seperatly:
+Add the following seperatly (eg if slip pad calf and slip pad ankle are selected P15x2, if its also a pair P15x4):
 If there is any material selected for Arch Pad add the code D14/C
 If there is any material selected for Malleoli Pad add the code D14/C
 If there is any material selected for Navicular Pad add the code D14/C
