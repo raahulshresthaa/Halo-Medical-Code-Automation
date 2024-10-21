@@ -1,8 +1,11 @@
 This is the Logic document for AFO's price coding.
 Write your full working out.
 
+*Pair handleing*
+If pair is selected times the all of the codes by 2 (eg D8/U x2)
+
 *AFO Requriments*
-If pair is selected times the following codes by 2 (eg D8/U x2)
+If "AFO Type: " does not exist add the code is D1/C and D8/U as default.
 If AFO type is:
 Normal the code is D1/C and D8/U
 Fixed the code is D1/C and D8/U
@@ -10,8 +13,6 @@ Articulated the code is D1/C and D8/U
 Crow Boot the code is DNS 1
 AFO/DAFO the the code is D1/C x2 and D8/U x2
 Anterior Shell the code is D12/M
-
-If "AFO Type: " does not exist add the code is D1/C and D8/U as default
 
 If Hinge Type is:
 Gillette/Tamrack the code is D2/A 
@@ -53,17 +54,17 @@ If AFO Full Material or AFO Calf Material is LD Eva or P'Zote add the code D14/D
 
 If there is any material selected for Arch Pad, Malleoli Pad or Navicular Pad add the code D14/C 
 
-If Slip Pad Calf is yes add the code P15
-If Slip Pad Ankle is yes add the code P15
-If Slip Pad Foot is yes add the code P15
+If Slip Pad Calf is yes add the code P15 x2
+If Slip Pad Ankle is yes add the code P15 x2
+If Slip Pad Foot is yes add the code P15 x2
 
-If Material Calf is Plain Velcro add the code P1
-If Material Ankle is Plain Velcro add the code P1
-If Material Foot is Plain Velcro add the code P1
+If Material Calf is Plain Velcro add the code P1 x2
+If Material Ankle is Plain Velcro add the code P1 x2
+If Material Foot is Plain Velcro add the code P1 x2
 
 *Slotted Heel Strap*
 
-Caluclate for both left and right:
+Caluclate for both left and right seperatly:
 if strap type is Y Strap add codes, D14/A and P15
 If Strap type is Full as part fo ankle lining add codes D14/A, P15
 If Strap type is Single Slotted Fix then add codes P1, P4, P15 
@@ -73,4 +74,4 @@ If Strap type is Single Slotted Fix then add codes P1, P4, P15
 Check this additional information for anything saying make multiple and then multiply All of the codes accordingly
 Also check for any codes that might be in the description but check that they are not already mentioned in the the rest of the document before adding them
 
-Remember to think outloud step by step.
+Remember to think outloud step by step. and remember pair handleing (eg D10/C x2, P15 x4)
