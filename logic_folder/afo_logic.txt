@@ -14,6 +14,7 @@ Crow Boot the code is DNS 1
 AFO/DAFO the the code is D1/C x2 and D8/U x2
 Anterior Shell the code is D12/M 
 If the afo type is not anterior shell but they have a "Anterior Shell Height:" add the D12/M code aswell
+Remember to use the default if there wasnt any of the above selected
 
 If Hinge Type is:
 Gillette/Tamrack the code is D2/A 
@@ -36,7 +37,7 @@ If Peroneal Notch is selected add the code D8/I
 If Metatarsal Button is selected add the code B41
 If Neuro Plate is selected add the code D8/A 
 If Toe lift is selected add the code D8/U
-If there are any PCRO values add teh code D8/B (eg. PCRO Values Left: 4)
+If there are PCRO values (eg. PCRO Values Left: 4) add teh code D8/B 
 
 *M&T* 
 
@@ -52,9 +53,10 @@ If AFO Calf is yes then add the code D14/D
 If AFO Full Material or AFO Calf Material is LD Eva or P'Zote add the code D14/D if it is Chamois, Leather or SheepSkin add D14/G and if it is poron leave blank
 
 *Pads*
-
-If there is any material selected for Arch Pad, Malleoli Pad or Navicular Pad add the code D14/C x2
 Add the following seperatly:
+If there is any material selected for Arch Pad add the code D14/C
+If there is any material selected for Malleoli Pad add the code D14/C
+If there is any material selected for Navicular Pad add the code D14/C
 If Slip Pad Calf is yes add the code P15
 If Slip Pad Ankle is yes add the code P15
 If Slip Pad Foot is yes add the code P15
