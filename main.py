@@ -337,7 +337,7 @@ class PdfButtonHandler:
                 if not logic_file_name:
                     raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
 
-            elif model_id == 'AfoReaderV3':
+            elif model_id == 'AfoReaderV4':
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
@@ -735,7 +735,7 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 # Define model IDs (replace with your actual model IDs)
 model_ids = {
     'Insoles': 'insoleFormV5',  # model id's
-    'AFOs': 'AfoReaderV3'   
+    'AFOs': 'AfoReaderV4'   
 }
 
 # Set up the model_id_var with default value

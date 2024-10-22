@@ -22,10 +22,10 @@ Appalachian/Metal the code is D2/B
 Double Action the code is D2/D
 Camber Axis the code is D2/D
 
-*Cast Angle and Trimline*
+*Heel Posting*
 If right as left is selected and only one of left or right is filled out multiply it by 2 (eg D10/E x2) do not apply pair handleing to this bit.
 
-If there is anything selected for trimline add the code D10/E
+If there is anything selected for Heel Posting add the code D10/E (this code applies to all types of heel posting you do not need to have multiple codes for multiple heel postings)
 
 *PCRO*
 If right as left is selected and only one of left or right is filled out multiply it by 2 (eg D8/D x2)
@@ -37,7 +37,7 @@ If Peroneal Notch is selected add the code D8/I
 If Metatarsal Button is selected add the code B41
 If Neuro Plate is selected add the code D8/A 
 If Toe lift is selected add the code D8/U
-If there are PCRO values (eg. PCRO Values Left: 4) add teh code D8/B 
+If there are PCRO values (eg. PCRO Values Left: 4) add teh code D8/D 
 
 *M&T* 
 
@@ -55,7 +55,6 @@ If AFO Full Material or AFO Calf Material is LD Eva or P'Zote add the code D14/D
 *Pads*
 Add the following seperatly (eg if slip pad calf and slip pad ankle are selected P15x2, if its also a pair P15x4):
 If there is any material selected for Arch Pad add the code D14/C
-If there is any material selected for Malleoli Pad add the code D14/C
 If there is any material selected for Navicular Pad add the code D14/C
 If Slip Pad Calf is yes add the code P15
 If Slip Pad Ankle is yes add the code P15
