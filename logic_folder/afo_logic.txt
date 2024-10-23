@@ -61,7 +61,7 @@ If Slip Pad Calf is yes add the code P15
 If Slip Pad Ankle is yes add the code P15
 If Slip Pad Foot is yes add the code P15
 
-If Material Calf is Plain Velcro add the code P1
+If Material Calf is Plain Velcro add the code P1 (consider things like Plain velcro Alcantra the same as Plain velcro)
 If Material Ankle is Plain Velcro add the code P1
 If Material Foot is Plain Velcro add the code P1
 
