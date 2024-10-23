@@ -63,6 +63,7 @@ If AFO Full Material or AFO Calf Material is LD Eva or P'Zote add the code D14/D
 *Pads*
 Add the following seperatly  and Apply Pair handleing if its selected (eg if slip pad calf and slip pad ankle are selected P15x2, if its also a pair P15x4):
 If there is any material selected for Arch Pad (eg poron) add the code D14/C (if its a pair - eg if its a pair D14/C x2)
+Remember seperatly
 If there is any material selected for Navicular Pad (eg poron) add the code D14/C (if its a pair - eg if its a pair D14/C x2)
 If Slip Pad Calf is yes add the code P15
 If Slip Pad Ankle is yes add the code P15
@@ -81,7 +82,7 @@ If Strap type is Full as part fo ankle lining add codes D14/A, P15
 If Strap type is Single Slotted Fix then add codes P1, P4, P15 
 
 *Additionl information*
-Check for additional material usage, such as add 3mm or add poron (or add 3mm poron) and add a D/14C code (D14/C x2 if pair handleing is selected)
+Check for additional material usage, such as add 3mm or add poron (or extend poron) and add a D/14C code (D14/C x2 if pair handleing is selected)
 Check this additional information for anything saying make multiple and then multiply All of the codes accordingly
 Also check for any codes that might be in the description but check that they are not already mentioned in the the rest of the document before adding them
 
