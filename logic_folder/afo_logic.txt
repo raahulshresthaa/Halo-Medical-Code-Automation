@@ -27,6 +27,7 @@ Camber Axis the code is D2/D
 If right as left is selected and only one of left or right is filled out multiply it by 2 (eg D10/E x2) do not apply pair handleing to this bit.
 
 If there is anything selected for Heel Posting add the code D10/E (this code applies to all types of heel posting you do not need to have multiple codes for multiple heel postings)
+(and if there is some left ones selected and some right one then add D10/E x2 and ignore if right as left is selected)
 
 *PCRO*
 If right as left is selected and only one of left or right is filled out multiply it by 2 (eg D8/D x2)
