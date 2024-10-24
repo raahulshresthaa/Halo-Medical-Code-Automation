@@ -14,7 +14,7 @@ import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 # Version number
-VERSION = "1.3.0"
+VERSION = "2.0.0-alpha"
 
 # To fix blurriness on some displays
 try:
@@ -30,7 +30,8 @@ from azure.ai.formrecognizer import DocumentAnalysisClient
 # --- PdfButtonHandler Class Definition ---
 
 class PdfButtonHandler:
-    def __init__(self, root, result_text, auto_doc_ref_entry, datetime_entry, clinic_entry, show_loading_popup, close_loading_popup, display_results):
+    def __init__(self, root, result_text, auto_doc_ref_entry, datetime_entry, clinic_entry,
+             show_loading_popup, close_loading_popup, display_results, model_id_var):
         self.root = root
         self.result_text = result_text
         self.auto_doc_ref_entry = auto_doc_ref_entry
@@ -39,6 +40,7 @@ class PdfButtonHandler:
         self.show_loading_popup = show_loading_popup
         self.close_loading_popup = close_loading_popup
         self.display_results = display_results
+        self.model_id_var = model_id_var
 
         self.context_folder_path = os.path.join(os.getcwd(), 'context')
 
@@ -48,15 +50,12 @@ class PdfButtonHandler:
         # Read Azure credentials from files
         self.endpoint = self.read_azure_credential_file('azure_endpoint.txt', 'Azure Endpoint')
         self.key = self.read_azure_credential_file('azure_key.txt', 'Azure Key')
-        self.model_id = self.read_azure_credential_file('azure_model_id.txt', 'Azure Model ID')
 
         # Validate endpoint and key
         if not self.endpoint or not isinstance(self.endpoint, str):
             raise ValueError("Azure endpoint is not set or is not a valid string.")
         if not self.key or not isinstance(self.key, str):
             raise ValueError("Azure key is not set or is not a valid string.")
-        if not self.model_id or not isinstance(self.model_id, str):
-            raise ValueError("Azure model ID is not set or is not a valid string.")
 
         # Initialize Azure Form Recognizer client
         self.document_analysis_client = DocumentAnalysisClient(
@@ -140,7 +139,7 @@ class PdfButtonHandler:
             response = openai.ChatCompletion.create(
                 model="gpt-4o-2024-08-06",  # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nOnly output the calculated price codes."},
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\n Write your full working out and then write **Final Codes:** and output the final codes on a single line."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}\n\nRelevant file information:\n{file_context}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
@@ -165,13 +164,19 @@ class PdfButtonHandler:
             current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-            # Check for base in the extracted content and get the query message
-            query_message = self.check_for_base(content)
+            # Determine if we should check for base and special base
+            model_id = self.model_id_var.get()
+            if model_id == 'insoleFormV5':
+                # Check for base in the extracted content and get the query message
+                query_message = self.check_for_base(content)
 
-            # Check for special base value and get the warning message
-            warning_message = self.check_special_base(content)
+                # Check for special base value and get the warning message
+                warning_message = self.check_special_base(content)
+            else:
+                query_message = None
+                warning_message = None
 
-            # Check for clinic tariff and get the message
+            # Check for clinic tariff and get the message (applies to all models)
             clinic_tariff_message = self.check_clinic_tariff(content)
 
             # Combine all messages
@@ -198,7 +203,6 @@ class PdfButtonHandler:
             self.root.after(0, self.close_loading_popup)
             # Re-enable the upload button
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-
 
     def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, messages=None):
         try:
@@ -274,9 +278,13 @@ class PdfButtonHandler:
 
     def process_pdf_and_call_api(self, pdf_file_path):
         try:
+            # Get the current model_id
+            model_id = self.model_id_var.get()
+            print(f"Using model ID: {model_id}")  # Debug print
+
             # Analyze the PDF using Azure Form Recognizer
             with open(pdf_file_path, "rb") as pdf_file:
-                poller = self.document_analysis_client.begin_analyze_document(self.model_id, document=pdf_file)
+                poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
                 result = poller.result()
 
             # After reading and analyzing the file, update the loading message
@@ -296,36 +304,45 @@ class PdfButtonHandler:
             AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
             clinic = fields_data.get('Clinic', 'N/A')
 
-            # Determine form_type based on extracted data
-            form_type = self.determine_form_type(fields_data)
-            if not form_type:
-                query_message = "No form type found in the extracted data. Please raise a query."
-                self.root.after(0, messagebox.showinfo, "Query", query_message)
-                # Optionally, you can log this message or handle it as needed
-                # Close the loading pop-up
-                self.root.after(0, self.close_loading_popup)
-                # Re-enable the upload button
-                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-                return  # Stops further processing
+            # Logic file mapping based on model_id and form_type
+            logic_file_name = None
 
-            # Sanitize form_type
-            form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
-            print(f"Form type: {form_type}")
+            if model_id == 'insoleFormV5':
+                # Determine form_type based on extracted data
+                form_type = self.determine_form_type(fields_data)
+                if not form_type:
+                    query_message = "No form type found in the extracted data. Please raise a query."
+                    self.root.after(0, messagebox.showinfo, "Query", query_message)
+                    # Optionally, you can log this message or handle it as needed
+                    # Close the loading pop-up
+                    self.root.after(0, self.close_loading_popup)
+                    # Re-enable the upload button
+                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                    return  # Stops further processing
 
-            # Construct the logic file name and path based on the form type
-            logic_file_mapping = {
-                'tci': 'tci_logic.txt',
-                'simple': 'simple_insole_logic.txt',
-                'cradle': 'tci_logic.txt',  # not currently using cradle_logic.txt because the coding is the same
-                'afo': 'afo_logic.txt',
-                'kafo': 'kafo_logic.txt',
-                'handmold': 'tci_logic.txt'  # not currently using handmold_logic.txt because the coding is the same
-            }
+                # Sanitize form_type
+                form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
+                print(f"Form type: {form_type}")
 
-            logic_file_name = logic_file_mapping.get(form_type)
-            print(f"Logic file name: {logic_file_name}")
-            if not logic_file_name:
-                raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
+                # Construct the logic file name and path based on the form type
+                logic_file_mapping = {
+                    'tci': 'tci_logic.txt',
+                    'simple': 'simple_insole_logic.txt',
+                    'cradle': 'tci_logic.txt',  # Using tci_logic.txt for cradle
+                    'handmold': 'tci_logic.txt'  # Using tci_logic.txt for handmold
+                }
+
+                logic_file_name = logic_file_mapping.get(form_type)
+                print(f"Logic file name: {logic_file_name}")
+                if not logic_file_name:
+                    raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
+
+            elif model_id == 'AfoReaderV7':
+                logic_file_name = 'afo_logic.txt'
+                print(f"Logic file name: {logic_file_name}")
+
+            else:
+                raise ValueError(f"Unknown model ID '{model_id}'.")
 
             logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
             print(f"Logic file path: {logic_file_path}")
@@ -473,11 +490,11 @@ class PdfButtonHandler:
 
         # Check the clinic_value and create appropriate message
         if clinic_value in clinics_with_tariff:
-            message = f"Tariff {clinic_value}"
+            message = f"Tariff: {clinic_value}"
             self.root.after(0, messagebox.showinfo, "Clinic Tariff", message)
             return message
         elif clinic_value == 'Medway':
-            message = "Tariff Medbns72"
+            message = "Tariff: Medbns72"
             self.root.after(0, messagebox.showinfo, "Clinic Tariff", message)
             return message
         else:
@@ -626,6 +643,9 @@ def change_theme(event):
     style.theme_use(selected_theme)
     save_theme_setting(selected_theme)
 
+# Define the custom font for labels (if not already defined)
+label_font = ('Calibri', 11)
+
 # Load the logo image
 try:
     logo_img = Image.open(logo_file_path)
@@ -712,6 +732,31 @@ def handle_drop(event):
 # Bind the drop event to the handle_drop function
 result_text.dnd_bind('<<Drop>>', handle_drop)
 
+# Define model IDs (replace with your actual model IDs)
+model_ids = {
+    'Insoles': 'insoleFormV5',  # model id's
+    'AFOs': 'AfoReaderV7'   
+}
+
+# Set up the model_id_var with default value
+model_id_var = tk.StringVar(value='insoleFormV5')  # Set the default model ID
+
+# Create a frame for the model selection
+model_frame = ttk.Frame(root)
+model_frame.pack(pady=10)
+
+model_label = ttk.Label(model_frame, text='Select Form Type:', font=label_font)
+model_label.pack(side='left', padx=(0, 5))
+
+for model_name, model_id_value in model_ids.items():
+    radio_button = ttk.Radiobutton(
+        model_frame,
+        text=model_name,
+        variable=model_id_var,
+        value=model_id_value
+    )
+    radio_button.pack(side='left', padx=5)
+
 # Function to show the loading pop-up with moving dots animation on a new line
 def show_loading_popup():
     global loading_popup, loading_label, dot_index, base_message
@@ -791,11 +836,27 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, message
     result_text.config(state=tk.NORMAL)  # Enable editing temporarily
     result_text.delete('1.0', tk.END)  # Clear previous content
 
-    # Configure the 'center' tag before inserting text
+    # Configure tags
     result_text.tag_configure('center', justify='center')
+    result_text.tag_configure('bold', font=('Calibri', 12, 'bold'))
+    result_text.tag_configure('bold', font=('Calibri', 12, 'bold'))
+    # You can adjust font sizes as needed
 
-    # Insert the price codes and apply the 'center' tag
-    result_text.insert(tk.END, price_codes, 'center')
+    # Split the price_codes into lines
+    lines = price_codes.split('\n')
+
+    for line in lines:
+        stripped_line = line.strip()
+        # Check for bold syntax (**text**)
+        if stripped_line.startswith('**') and stripped_line.endswith('**'):
+            content = stripped_line.strip('*')
+            result_text.insert(tk.END, content + '\n', ('center', 'bold'))
+        # Check for italic syntax (*text*)
+        elif stripped_line.startswith('*') and stripped_line.endswith('*'):
+            content = stripped_line.strip('*')
+            result_text.insert(tk.END, content + '\n', ('center', 'bold'))
+        else:
+            result_text.insert(tk.END, line + '\n', 'center')
 
     # If there are messages, insert them below the price codes
     if messages:
@@ -822,7 +883,8 @@ pdf_handler = PdfButtonHandler(
     clinic_entry=clinic_entry,
     show_loading_popup=show_loading_popup,
     close_loading_popup=close_loading_popup,
-    display_results=display_results
+    display_results=display_results,
+    model_id_var=model_id_var
 )
 
 # Create the upload PDF button
