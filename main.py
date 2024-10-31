@@ -547,6 +547,18 @@ class PdfButtonHandler:
         if content_dict.get('fastening', '') == 'BOA':
             passed_codes.append('Twist Fasten')
 
+        if content_dict.get('lining material', '') == 'White Sheepskin':
+            passed_codes.append('A18A')
+
+        if content_dict.get('sole material', '') == 'Commando':
+            passed_codes.append('A6')
+
+        if content_dict.get('stiffeners left materials', '') in ('Grey Poron', 'Pink Poron', 'Foam'):
+            passed_codes.append('A15')
+
+        if content_dict.get('stiffeners right materials', '') in ('Grey Poron', 'Pink Poron', 'Foam'):
+            passed_codes.append('A15')
+            
         # Return the passed codes as a string
         if passed_codes:
             return ', '.join(passed_codes)
