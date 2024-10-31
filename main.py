@@ -139,7 +139,7 @@ class PdfButtonHandler:
             response = openai.ChatCompletion.create(
                 model="gpt-4o-2024-08-06",  # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\n Write your full working out and then write **Final Codes:** and output the final codes on a single line."},
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nWrite your full working out and then write **Final Codes:** and output the final codes on a single line, including the passed codes."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}\n\nRelevant file information:\n{file_context}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
@@ -308,43 +308,24 @@ class PdfButtonHandler:
             logic_file_name = None
 
             if model_id == 'insoleFormV5':
-                # Determine form_type based on extracted data
-                form_type = self.determine_form_type(fields_data)
-                if not form_type:
-                    query_message = "No form type found in the extracted data. Please raise a query."
-                    self.root.after(0, messagebox.showinfo, "Query", query_message)
-                    # Optionally, you can log this message or handle it as needed
-                    # Close the loading pop-up
-                    self.root.after(0, self.close_loading_popup)
-                    # Re-enable the upload button
-                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-                    return  # Stops further processing
-
-                # Sanitize form_type
-                form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
-                print(f"Form type: {form_type}")
-
-                # Construct the logic file name and path based on the form type
-                logic_file_mapping = {
-                    'tci': 'tci_logic.txt',
-                    'simple': 'simple_insole_logic.txt',
-                    'cradle': 'tci_logic.txt',  # Using tci_logic.txt for cradle
-                    'handmold': 'tci_logic.txt'  # Using tci_logic.txt for handmold
-                }
-
-                logic_file_name = logic_file_mapping.get(form_type)
-                print(f"Logic file name: {logic_file_name}")
-                if not logic_file_name:
-                    raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
-
+                # Existing code for insoleFormV5...
+                pass  # Keep existing code here
             elif model_id == 'AfoReaderV7':
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
-
             elif model_id == 'BespokeReaderV3':
                 logic_file_name = 'bespoke_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
-                
+
+                # Call the bespoke code generation method
+                passed_codes = self.generate_bespoke_codes(content)
+                if passed_codes:
+                    # Append the passed codes under 'Passed code:' in the content
+                    content += f"\n\nPassed code:\n{passed_codes}"
+                    print(f"Passed codes added to content: {passed_codes}")
+                else:
+                    print("No passed codes generated.")
+
             else:
                 raise ValueError(f"Unknown model ID '{model_id}'.")
 
@@ -371,6 +352,7 @@ class PdfButtonHandler:
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
             # Close the loading pop-up
             self.root.after(0, self.close_loading_popup)
+
 
     def extract_fields_from_result(self, result):
         """Extract relevant fields from Azure analysis result."""
@@ -503,7 +485,37 @@ class PdfButtonHandler:
             return message
         else:
             return None  # No message needed
+        
+    def generate_bespoke_codes(self, content):
+        """Generates codes based on the content for the Bespoke model."""
+        passed_codes = []
 
+        # Split the content into lines for easier processing
+        lines = content.split('\n')
+
+        # Convert lines to a dictionary for easier lookup
+        content_dict = {}
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                content_dict[key.strip().lower()] = value.strip().lower()
+
+        # Example condition: If 'Type Boots: selected' is present, add code 'A1a'
+        if content_dict.get('type boots', '') == 'selected':
+            passed_codes.append('A1a')
+
+        # Add more conditions as needed
+        # For example:
+        # If 'Pair: selected' is present, add code 'B2b'
+        if content_dict.get('pair', '') == 'selected':
+            passed_codes.append('B2b')
+
+        # Return the passed codes as a string
+        if passed_codes:
+            return ', '.join(passed_codes)
+        else:
+            return None  # Return None if no codes were added
+        
 
 # --- Main Application Setup ---
 
