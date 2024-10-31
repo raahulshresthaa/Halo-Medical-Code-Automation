@@ -42,8 +42,6 @@ class PdfButtonHandler:
         self.display_results = display_results
         self.model_id_var = model_id_var
 
-        self.context_folder_path = os.path.join(os.getcwd(), 'context')
-
         # Reference to the upload PDF button (will be set later)
         self.upload_pdf_button = None
 
@@ -108,39 +106,14 @@ class PdfButtonHandler:
         except Exception as e:
             return f"Error reading the logic file '{logic_file_path}': {str(e)}"
 
-    def read_files_for_context(self):
-        file_contents = []
-        try:
-            # Check if the context folder exists
-            if not os.path.exists(self.context_folder_path):
-                return "Error: 'context' folder not found."
-
-            # Iterate over all files in the 'context' folder
-            for file_name in os.listdir(self.context_folder_path):
-                file_path = os.path.join(self.context_folder_path, file_name)
-
-                # Only process text files
-                if file_name.endswith(".txt"):
-                    try:
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            content = f.read()
-                            file_contents.append(f"File: {file_name}\n{content}")
-                    except Exception as e:
-                        file_contents.append(f"Error reading {file_name}: {str(e)}")
-
-            return "\n\n".join(file_contents) if file_contents else "No valid files found in the 'context' folder."
-
-        except Exception as e:
-            return f"Error reading context files: {str(e)}"
-
-    def get_price_codes_from_content(self, content, file_context, logic_content):
+    def get_price_codes_from_content(self, content, logic_content):
         try:
             # Send the content, logic, and file context to the assistant
             response = openai.ChatCompletion.create(
                 model="gpt-4o-2024-08-06",  # Use the appropriate model
                 messages=[
                     {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nWrite your full working out and then write **Final Codes:** and output the final codes on a single line, including the passed codes."},
-                    {"role": "user", "content": f"Here is the content to process:\n{content}\n\nRelevant file information:\n{file_context}"}
+                    {"role": "user", "content": f"Here is the content to process:\n{content}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
                 temperature=0.1  # Adjust as needed
@@ -152,10 +125,10 @@ class PdfButtonHandler:
         except Exception as e:
             return f"Error: {str(e)}"
 
-    def process_api_call(self, content, file_context, logic_content, AutoDocRef, clinic):
+    def process_api_call(self, content, logic_content, AutoDocRef, clinic):
         try:
             # Get the price codes by sending the content, logic, and file context to OpenAI
-            price_codes = self.get_price_codes_from_content(content, file_context, logic_content)
+            price_codes = self.get_price_codes_from_content(content, logic_content)
 
             # Debug print to check the content of price_codes
             print(f"Price codes received: {price_codes}")
@@ -308,11 +281,39 @@ class PdfButtonHandler:
             logic_file_name = None
 
             if model_id == 'insoleFormV5':
-                # Existing code for insoleFormV5...
-                pass  # Keep existing code here
+                # Determine form_type based on extracted data
+                form_type = self.determine_form_type(fields_data)
+                if not form_type:
+                    query_message = "No form type found in the extracted data. Please raise a query."
+                    self.root.after(0, messagebox.showinfo, "Query", query_message)
+                    # Optionally, you can log this message or handle it as needed
+                    # Close the loading pop-up
+                    self.root.after(0, self.close_loading_popup)
+                    # Re-enable the upload button
+                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                    return  # Stops further processing
+
+                # Sanitize form_type
+                form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
+                print(f"Form type: {form_type}")
+
+                # Construct the logic file name based on the form type
+                logic_file_mapping = {
+                    'tci': 'tci_logic.txt',
+                    'simple': 'simple_insole_logic.txt',
+                    'cradle': 'tci_logic.txt',   # Using tci_logic.txt for cradle
+                    'handmold': 'tci_logic.txt'  # Using tci_logic.txt for handmold
+                }
+
+                logic_file_name = logic_file_mapping.get(form_type)
+                print(f"Logic file name: {logic_file_name}")
+                if not logic_file_name:
+                    raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
+
             elif model_id == 'AfoReaderV7':
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
+
             elif model_id == 'BespokeReaderV3':
                 logic_file_name = 'bespoke_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
@@ -337,13 +338,8 @@ class PdfButtonHandler:
             if "Error" in logic_content:
                 raise ValueError(logic_content)
 
-            # Read context files
-            file_context = self.read_files_for_context()
-            if "Error" in file_context:
-                raise ValueError(file_context)
-
             # Call the API with the content
-            self.process_api_call(content, file_context, logic_content, AutoDocRef, clinic)
+            self.process_api_call(content, logic_content, AutoDocRef, clinic)
 
         except Exception as e:
             # Show error message in the main thread
@@ -352,7 +348,6 @@ class PdfButtonHandler:
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
             # Close the loading pop-up
             self.root.after(0, self.close_loading_popup)
-
 
     def extract_fields_from_result(self, result):
         """Extract relevant fields from Azure analysis result."""
