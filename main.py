@@ -341,6 +341,10 @@ class PdfButtonHandler:
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
+            elif model_id == 'BespokeReaderV3':
+                logic_file_name = 'bespoke_logic.txt'
+                print(f"Logic file name: {logic_file_name}")
+                
             else:
                 raise ValueError(f"Unknown model ID '{model_id}'.")
 
@@ -735,7 +739,8 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 # Define model IDs (replace with your actual model IDs)
 model_ids = {
     'Insoles': 'insoleFormV5',  # model id's
-    'AFOs': 'AfoReaderV7'   
+    'AFOs': 'AfoReaderV7',  
+    'Bespoke': 'BespokeReaderV3'
 }
 
 # Set up the model_id_var with default value
