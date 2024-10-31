@@ -544,6 +544,9 @@ class PdfButtonHandler:
         if content_dict.get('sole additions right stick on soles', '') == 'selected':
             passed_codes.append('A25')
 
+        if content_dict.get('fastening', '') == 'BOA':
+            passed_codes.append('Twist Fasten')
+
         # Return the passed codes as a string
         if passed_codes:
             return ', '.join(passed_codes)
