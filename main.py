@@ -14,7 +14,7 @@ import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 # Version number
-VERSION = "2.0.0-alpha"
+VERSION = "3.0.0-dev"
 
 # To fix blurriness on some displays
 try:
@@ -558,7 +558,7 @@ class PdfButtonHandler:
 
         if content_dict.get('stiffeners right materials', '') in ('Grey Poron', 'Pink Poron', 'Foam'):
             passed_codes.append('A15')
-            
+
         # Return the passed codes as a string
         if passed_codes:
             return ', '.join(passed_codes)
