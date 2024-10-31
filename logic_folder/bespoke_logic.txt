@@ -1,1 +1,1 @@
-just repeat the the list of stuff after saying "Bespoke logic selected successfully"
+just repeat the the list of passed codes after saying "Bespoke logic selected successfully"
