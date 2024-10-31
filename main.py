@@ -502,13 +502,52 @@ class PdfButtonHandler:
 
         # Example condition: If 'Type Boots: selected' is present, add code 'A1a'
         if content_dict.get('type boots', '') == 'selected':
-            passed_codes.append('A1a')
+            passed_codes.append('A1A')
+
+        if content_dict.get('type bootee', '') == 'selected':
+            passed_codes.append('A1A')
 
         # Add more conditions as needed
         # For example:
         # If 'Pair: selected' is present, add code 'B2b'
-        if content_dict.get('pair', '') == 'selected':
-            passed_codes.append('B2b')
+        if content_dict.get('type shoes', '') == 'selected':
+            passed_codes.append('A1B')
+
+        if content_dict.get('type sports', '') == 'selected':
+            passed_codes.append('A1B')
+
+        if content_dict.get('pop cast', '') == 'selected':
+            passed_codes.append('A1K')
+
+        if content_dict.get('sole stiffeners left carbon fibre', '') == 'selected':
+            passed_codes.append('A20')
+
+        if content_dict.get('sole stiffeners right carbon fibre', '') == 'selected':
+            passed_codes.append('A20')
+
+        if content_dict.get('sole stiffeners left steel', '') == 'selected':
+            passed_codes.append('A22')
+
+        if content_dict.get('sole stiffeners right steel', '') == 'selected':
+            passed_codes.append('A22')
+
+        if content_dict.get('sole additions left toe tips', '') == 'selected':
+            passed_codes.append('A23')
+
+        if content_dict.get('sole additions right toe tips', '') == 'selected':
+            passed_codes.append('A23')
+
+        if content_dict.get('sole additions left toe caps', '') == 'selected':
+            passed_codes.append('A24')
+            
+        if content_dict.get('sole additions right toe caps', '') == 'selected':
+            passed_codes.append('A24')
+
+        if content_dict.get('sole additions left stick on soles', '') == 'selected':
+            passed_codes.append('A25')
+
+        if content_dict.get('sole additions right stick on soles', '') == 'selected':
+            passed_codes.append('A25')
 
         # Return the passed codes as a string
         if passed_codes:
