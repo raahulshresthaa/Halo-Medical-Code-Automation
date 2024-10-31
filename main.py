@@ -559,6 +559,27 @@ class PdfButtonHandler:
         if content_dict.get('stiffeners right materials', '') in ('grey poron', 'pink poron', 'foam'):
             passed_codes.append('A15')
 
+        if content_dict.get('sockets left type', '') in ('5/6 round socket', '1/4inc round socket', 'small rectangular', 'large rectangular', 'rizzoli'):
+            passed_codes.append('A37A')
+
+        if content_dict.get('sockets right type', '') in ('5/6 round socket', '1/4inc round socket', 'small rectangular', 'large rectangular', 'rizzoli'):
+            passed_codes.append('A37A')
+
+        if content_dict.get('sockets left type', '') in ('5/16 with backstop', '1/4 with backstop'):
+            passed_codes.append('A37B')
+
+        if content_dict.get('sockets right type', '') in ('5/16 with backstop', '1/4 with backstop'):
+            passed_codes.append('A37B')
+
+        if content_dict.get('elongations left type', '') in ('full', 'half'):
+            passed_codes.append('A31')
+
+        if content_dict.get('rocker left type', '') in ('plr', 'standard', 'two point'):
+            passed_codes.append('A19')
+
+        if content_dict.get('rocker right type', '') in ('plr', 'standard', 'two point'):
+            passed_codes.append('A19')
+
         # Return the passed codes as a string
         if passed_codes:
             return ', '.join(passed_codes)
