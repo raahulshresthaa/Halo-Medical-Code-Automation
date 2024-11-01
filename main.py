@@ -507,12 +507,30 @@ class PdfButtonHandler:
         # You can add more insole types if needed
 
         # Check 'Left Cut out and Additions' and assign codes based on insole_type
-        if content_dict.get('left cut out and additions', '') == 'selected':
-            if insole_type == 'tci':
-                passed_codes.append('BNS45')
-            elif insole_type == 'cradle':
+        if content_dict.get('left medial rearfoot posting', '') == 'selected':
+            if insole_type == 'cradle':
                 passed_codes.append('A45')
             else:
+                passed_codes.append('B56')
+
+        if content_dict.get('left lateral rearfoot posting', '') == 'selected':
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B56')
+
+        if content_dict.get('right medial rearfoot posting', '') == 'selected':
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B56')
+
+        if content_dict.get('right lateral rearfoot posting', '') == 'selected':
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B56')
+                
                 # Handle other insole types or default behavior
                 pass  # Placeholder for other insole types
 
