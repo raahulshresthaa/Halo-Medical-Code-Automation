@@ -531,6 +531,13 @@ class PdfButtonHandler:
             else:
                 passed_codes.append('B56')
 
+        # Insole modelling section
+        if content_dict.get('left 1st addition') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B41')
+
                 # Handle other insole types or default behavior
                 pass  # Placeholder for other insole types
 
@@ -616,7 +623,7 @@ class PdfButtonHandler:
         if content_dict.get('rocker right type', '') in ('plr', 'standard', 'two point'):
             passed_codes.append('A19')
 
-        # Insole coding section 
+        # Insole coding section - MATHS!
 
         x = 0
         if insole_type == 'simple':
