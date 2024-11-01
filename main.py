@@ -495,7 +495,10 @@ class PdfButtonHandler:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
-           # Determine insole type
+        # Debugging: Print content_dict keys
+        print(f"Content Dictionary Keys: {list(content_dict.keys())}")
+
+        # Determine insole type
         insole_type = None
         if content_dict.get('insole type tci', '') == 'selected':
             insole_type = 'tci'
@@ -503,8 +506,8 @@ class PdfButtonHandler:
             insole_type = 'cradle'
         # You can add more insole types if needed
 
-            # Check 'Left cut out and addition' and assign codes based on insole_type
-        if content_dict.get('left cut out and addition', '') == 'selected':
+        # Check 'Left Cut out and Additions' and assign codes based on insole_type
+        if content_dict.get('left cut out and additions', '') == 'selected':
             if insole_type == 'tci':
                 passed_codes.append('BNS45')
             elif insole_type == 'cradle':
@@ -513,16 +516,13 @@ class PdfButtonHandler:
                 # Handle other insole types or default behavior
                 pass  # Placeholder for other insole types
 
-        # Example condition: If 'Type Boots: selected' is present, add code 'A1a'
+        # Existing conditions (Ensure keys match content_dict)
         if content_dict.get('type boots', '') == 'selected':
             passed_codes.append('A1A')
 
         if content_dict.get('type bootee', '') == 'selected':
             passed_codes.append('A1A')
 
-        # Add more conditions as needed
-        # For example:
-        # If 'Pair: selected' is present, add code 'B2b'
         if content_dict.get('type shoes', '') == 'selected':
             passed_codes.append('A1B')
 
