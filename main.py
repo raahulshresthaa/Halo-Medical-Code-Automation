@@ -530,7 +530,7 @@ class PdfButtonHandler:
                 passed_codes.append('A45')
             else:
                 passed_codes.append('B56')
-                
+
                 # Handle other insole types or default behavior
                 pass  # Placeholder for other insole types
 
@@ -615,6 +615,40 @@ class PdfButtonHandler:
 
         if content_dict.get('rocker right type', '') in ('plr', 'standard', 'two point'):
             passed_codes.append('A19')
+
+        # Insole coding section 
+
+        x = 0
+        if insole_type == 'simple':
+            x -= 1
+        if content_dict.get('lining to shell', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to sulcus', '') == 'selected':
+            x += 1
+        if content_dict.get('lining full', '') == 'selected':
+            x += 1
+        if content_dict.get('insole top cover material', '') == 'spenco (green)':
+            x += 1
+        if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
+            x += 1
+
+        if x >= 2:
+            if insole_type == 'cradle':
+                passed_codes.append('A44C')
+            else:
+                passed_codes.append('B55C')
+        
+        if x == 1:
+            if insole_type == 'cradle':
+                passed_codes.append('A44B')
+            else:
+                passed_codes.append('B55B')
+
+        if x == 0:
+            if insole_type == 'cradle':
+                passed_codes.append('A44A')
+            else:
+                passed_codes.append('B55A')
 
         # Return the passed codes as a string
         if passed_codes:
