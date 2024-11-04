@@ -506,7 +506,7 @@ class PdfButtonHandler:
             insole_type = 'cradle'
         # You can add more insole types if needed
 
-        # Check 'Left Cut out and Additions' and assign codes based on insole_type
+        # Check 'Left Cut out and Additions' and assign codes based on insole_type ??? to do  are these postings
         if content_dict.get('left medial rearfoot posting', '') == 'selected':
             if insole_type == 'cradle':
                 passed_codes.append('A45')
@@ -531,7 +531,8 @@ class PdfButtonHandler:
             else:
                 passed_codes.append('B56')
 
-        # Insole modelling section - to do
+        # Additions
+
         if content_dict.get('left 1st addition', '') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
             if insole_type == 'cradle':
                 passed_codes.append('A45')
@@ -557,7 +558,7 @@ class PdfButtonHandler:
                 passed_codes.append('B56')
 
         if content_dict.get('left 1st addition', '') in ('neurological footplate'):
-            passed_codes.append('D8A') # to do need to finish the rest of the codes for 1st addition ect
+            passed_codes.append('D8A')
 
         if content_dict.get('left 1st addition', '') in ('recess', 'hole & plug'):
             passed_codes.append('BNS45') 
@@ -580,6 +581,9 @@ class PdfButtonHandler:
             else:
                 passed_codes.append('B51')
 
+        #end of left 1st additons code
+
+        #note i will have to repeate the left 1st additons code for , the 2nd, 3rd and 4th addtions for both left and right, right 1st additions is shown below
         if content_dict.get('right 1st addition', '') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
             if insole_type == 'cradle':
                 passed_codes.append('A45')
