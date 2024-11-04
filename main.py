@@ -532,34 +532,34 @@ class PdfButtonHandler:
                 passed_codes.append('B56')
 
         # Insole modelling section - to do
-        if content_dict.get('left 1st addition') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
+        if content_dict.get('left 1st addition', '') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
             if insole_type == 'cradle':
                 passed_codes.append('A45')
             else:
                 passed_codes.append('B41')
 
-        if content_dict.get('left 1st addition') in ('morton\'s extension', 'reverse morton\'s extension', 'poron forefoot'):
+        if content_dict.get('left 1st addition', '') in ('morton\'s extension', 'reverse morton\'s extension', 'poron forefoot'):
             if insole_type == 'cradle':
                 passed_codes.append('A45')
             else:
                 passed_codes.append('B56')
 
-        if content_dict.get('left 1st addition') in ('kinetic wedge', 'heel raise'):
+        if content_dict.get('left 1st addition', '') in ('kinetic wedge', 'heel raise'):
             if insole_type == 'cradle':
                 passed_codes.append('A45')
             else:
                 passed_codes.append('B43')
 
-        if content_dict.get('left 1st addition') in ('morton\'s extension', 'reverse morton\'s extension', 'poron forefoot'):
+        if content_dict.get('left 1st addition', '') in ('morton\'s extension', 'reverse morton\'s extension', 'poron forefoot'):
             if insole_type == 'cradle':
                 passed_codes.append('A45')
             else:
                 passed_codes.append('B56')
 
-        if content_dict.get('left 1st addition') in ('neurological footplate'):
+        if content_dict.get('left 1st addition', '') in ('neurological footplate'):
             passed_codes.append('D8A') # to do need to finish the rest of the codes for 1st addition ect
 
-        if content_dict.get('right 1st addition') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
+        if content_dict.get('right 1st addition', '') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
             if insole_type == 'cradle':
                 passed_codes.append('A45')
             else:
