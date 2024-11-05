@@ -1,2 +1,2 @@
 Start by saying "Bespoke logic selected successfully"
-Then just repeat the the list of passed codes unless If pair was selected t add x2 to the codes eg "code x2"
+Then just repeat the the list of passed codes on a single line do not change anything
