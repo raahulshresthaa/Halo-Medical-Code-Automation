@@ -736,6 +736,204 @@ class PdfButtonHandler:
 
                 #left 3rd addition
 
+        if content_dict.get('left 3rd addition', '') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B41')
+
+        if content_dict.get('left 3rd addition', '') in ('morton\'s extension', 'reverse morton\'s extension', 'poron forefoot'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B56')
+
+        if content_dict.get('left 3rd addition', '') in ('kinetic wedge', 'heel raise'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B43')
+
+        if content_dict.get('left 3rd addition', '') in ('morton\'s extension', 'reverse morton\'s extension', 'poron forefoot'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B56')
+
+        if content_dict.get('left 3rd addition', '') in ('neurological footplate'):
+            passed_codes.append('D8A')
+
+        if content_dict.get('left 3rd addition', '') in ('recess', 'hole & plug'):
+            passed_codes.append('BNS45') 
+
+        if content_dict.get('left 3rd addition', '') in ('rigid 1st extension'):
+            if insole_type == 'cradle':
+                passed_codes.append('A20')
+            else:
+                passed_codes.append('B20')
+
+        if content_dict.get('left 3rd addition', '') in ('partial toe block'):
+            if insole_type == 'cradle':
+                passed_codes.append('A46')
+            else:
+                passed_codes.append('B50')
+
+        if content_dict.get('left 3rd addition', '') in ('full toe block'):
+            if insole_type == 'cradle':
+                passed_codes.append('A47')
+            else:
+                passed_codes.append('B51')
+
+        # right 3rd addition
+
+        if content_dict.get('right 3rd addition', '') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B41')
+
+        if content_dict.get('right 3rd addition', '') in ('morton\'s extension', 'reverse morton\'s extension', 'poron forefoot'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B56')
+
+        if content_dict.get('right 3rd addition', '') in ('kinetic wedge', 'heel raise'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B43')
+
+        if content_dict.get('right 3rd addition', '') in ('morton\'s extension', 'reverse morton\'s extension', 'poron forefoot'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B56')
+
+        if content_dict.get('right 3rd addition', '') in ('neurological footplate'):
+            passed_codes.append('D8A')
+
+        if content_dict.get('right 3rd addition', '') in ('recess', 'hole & plug'):
+            passed_codes.append('BNS45') 
+
+        if content_dict.get('right 3rd addition', '') in ('rigid 1st extension'):
+            if insole_type == 'cradle':
+                passed_codes.append('A20')
+            else:
+                passed_codes.append('B20')
+
+        if content_dict.get('right 3rd addition', '') in ('partial toe block'):
+            if insole_type == 'cradle':
+                passed_codes.append('A46')
+            else:
+                passed_codes.append('B50')
+
+        if content_dict.get('right 3rd addition', '') in ('full toe block'):
+            if insole_type == 'cradle':
+                passed_codes.append('A47')
+            else:
+                passed_codes.append('B51')
+
+        # left 4th addition
+
+        if content_dict.get('left 4th addition', '') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B41')
+
+        if content_dict.get('left 4th addition', '') in ('morton\'s extension', 'reverse morton\'s extension', 'poron forefoot'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B56')
+
+        if content_dict.get('left 4th addition', '') in ('kinetic wedge', 'heel raise'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B43')
+
+        if content_dict.get('left 4th addition', '') in ('morton\'s extension', 'reverse morton\'s extension', 'poron forefoot'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B56')
+
+        if content_dict.get('left 4th addition', '') in ('neurological footplate'):
+            passed_codes.append('D8A')
+
+        if content_dict.get('left 4th addition', '') in ('recess', 'hole & plug'):
+            passed_codes.append('BNS45') 
+
+        if content_dict.get('left 4th addition', '') in ('rigid 1st extension'):
+            if insole_type == 'cradle':
+                passed_codes.append('A20')
+            else:
+                passed_codes.append('B20')
+
+        if content_dict.get('left 4th addition', '') in ('partial toe block'):
+            if insole_type == 'cradle':
+                passed_codes.append('A46')
+            else:
+                passed_codes.append('B50')
+
+        if content_dict.get('left 4th addition', '') in ('full toe block'):
+            if insole_type == 'cradle':
+                passed_codes.append('A47')
+            else:
+                passed_codes.append('B51')
+
+        # right 4th addition
+
+        if content_dict.get('right 4th addition', '') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B41')
+
+        if content_dict.get('right 4th addition', '') in ('morton\'s extension', 'reverse morton\'s extension', 'poron forefoot'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B56')
+
+        if content_dict.get('right 4th addition', '') in ('kinetic wedge', 'heel raise'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B43')
+
+        if content_dict.get('right 4th addition', '') in ('morton\'s extension', 'reverse morton\'s extension', 'poron forefoot'):
+            if insole_type == 'cradle':
+                passed_codes.append('A45')
+            else:
+                passed_codes.append('B56')
+
+        if content_dict.get('right 4th addition', '') in ('neurological footplate'):
+            passed_codes.append('D8A')
+
+        if content_dict.get('right 4th addition', '') in ('recess', 'hole & plug'):
+            passed_codes.append('BNS45') 
+
+        if content_dict.get('right 4th addition', '') in ('rigid 1st extension'):
+            if insole_type == 'cradle':
+                passed_codes.append('A20')
+            else:
+                passed_codes.append('B20')
+
+        if content_dict.get('right 4th addition', '') in ('partial toe block'):
+            if insole_type == 'cradle':
+                passed_codes.append('A46')
+            else:
+                passed_codes.append('B50')
+
+        if content_dict.get('right 4th addition', '') in ('full toe block'):
+            if insole_type == 'cradle':
+                passed_codes.append('A47')
+            else:
+                passed_codes.append('B51')
+
         # Existing conditions (Ensure keys match content_dict)
         if content_dict.get('type boots', '') == 'selected':
             passed_codes.append('A1A')
