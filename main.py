@@ -12,6 +12,7 @@ import sys
 # Import TkinterDnD for drag-and-drop functionality
 import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
+from collections import defaultdict
 
 # Version number
 VERSION = "3.0.0-dev"
@@ -481,9 +482,11 @@ class PdfButtonHandler:
         else:
             return None  # No message needed
         
+
+
     def generate_bespoke_codes(self, content):
-        """Generates codes based on the content for the Bespoke model."""
-        passed_codes = set()  # Use a set to avoid duplicate codes
+        """Generates codes based on the content for the Bespoke model, counting duplicates."""
+        passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
         # Split the content into lines for easier processing
         lines = content.split('\n')
@@ -545,26 +548,26 @@ class PdfButtonHandler:
                 # Check which mapping the addition_value belongs to
                 if addition_value in addition_code_mapping['A45_B41']:
                     code = 'A45' if insole_type == 'cradle' else 'B41'
-                    passed_codes.add(code)
+                    passed_codes[code] += 1
                 elif addition_value in addition_code_mapping['A45_B56']:
                     code = 'A45' if insole_type == 'cradle' else 'B56'
-                    passed_codes.add(code)
+                    passed_codes[code] += 1
                 elif addition_value in addition_code_mapping['A45_B43']:
                     code = 'A45' if insole_type == 'cradle' else 'B43'
-                    passed_codes.add(code)
+                    passed_codes[code] += 1
                 elif addition_value in addition_code_mapping['D8A']:
-                    passed_codes.add('D8A')
+                    passed_codes['D8A'] += 1
                 elif addition_value in addition_code_mapping['BNS45']:
-                    passed_codes.add('BNS45')
+                    passed_codes['BNS45'] += 1
                 elif addition_value in addition_code_mapping['A20_B20']:
                     code = 'A20' if insole_type == 'cradle' else 'B20'
-                    passed_codes.add(code)
+                    passed_codes[code] += 1
                 elif addition_value in addition_code_mapping['A46_B50']:
                     code = 'A46' if insole_type == 'cradle' else 'B50'
-                    passed_codes.add(code)
+                    passed_codes[code] += 1
                 elif addition_value in addition_code_mapping['A47_B51']:
                     code = 'A47' if insole_type == 'cradle' else 'B51'
-                    passed_codes.add(code)
+                    passed_codes[code] += 1
                 else:
                     # Handle unexpected addition values if necessary
                     print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
@@ -580,7 +583,7 @@ class PdfButtonHandler:
 
         for key, code in type_code_mapping.items():
             if content_dict.get(key, '') == 'selected':
-                passed_codes.add(code)
+                passed_codes[code] += 1
 
         # Sole Stiffeners Checks
         stiffener_keys = {
@@ -592,7 +595,7 @@ class PdfButtonHandler:
 
         for key, code in stiffener_keys.items():
             if content_dict.get(key, '') == 'selected':
-                passed_codes.add(code)
+                passed_codes[code] += 1
 
         # Sole Additions Checks
         sole_addition_keys = {
@@ -606,17 +609,17 @@ class PdfButtonHandler:
 
         for key, code in sole_addition_keys.items():
             if content_dict.get(key, '') == 'selected':
-                passed_codes.add(code)
+                passed_codes[code] += 1
 
         # Other Conditions
         if content_dict.get('fastening', '') == 'boa':
-            passed_codes.add('Twist Fasten')
+            passed_codes['Twist Fasten'] += 1
 
         if content_dict.get('lining material', '') == 'white sheepskin':
-            passed_codes.add('A18A')
+            passed_codes['A18A'] += 1
 
         if content_dict.get('sole material', '') == 'commando':
-            passed_codes.add('A6')
+            passed_codes['A6'] += 1
 
         # Stiffeners Materials Checks
         stiffeners_materials = {
@@ -626,7 +629,7 @@ class PdfButtonHandler:
 
         for key, code in stiffeners_materials.items():
             if content_dict.get(key, '') in ('grey poron', 'pink poron', 'foam'):
-                passed_codes.add(code)
+                passed_codes[code] += 1
 
         # Sockets Type Checks
         sockets_type_a = {
@@ -638,7 +641,7 @@ class PdfButtonHandler:
             if content_dict.get(key, '') in (
                 '5/6 round socket', '1/4inc round socket', 'small rectangular', 'large rectangular', 'rizzoli'
             ):
-                passed_codes.add(code)
+                passed_codes[code] += 1
 
         sockets_type_b = {
             'sockets left type': 'A37B',
@@ -647,20 +650,20 @@ class PdfButtonHandler:
 
         for key, code in sockets_type_b.items():
             if content_dict.get(key, '') in ('5/16 with backstop', '1/4 with backstop'):
-                passed_codes.add(code)
+                passed_codes[code] += 1
 
         # Elongations Checks
         elongations_keys = ['elongations left type', 'elongations right type']
         for key in elongations_keys:
             if content_dict.get(key, '') in ('full', 'half'):
-                passed_codes.add('A31')
+                passed_codes['A31'] += 1
                 break  # Assuming only one code is needed
 
         # Rocker Type Checks
         rocker_keys = ['rocker left type', 'rocker right type']
         for key in rocker_keys:
             if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
-                passed_codes.add('A19')
+                passed_codes['A19'] += 1
                 break  # Assuming only one code is needed
 
         # Insole coding section - MATHS!
@@ -681,20 +684,27 @@ class PdfButtonHandler:
 
         if x >= 2:
             code = 'A44C' if insole_type == 'cradle' else 'B55C'
-            passed_codes.add(code)
+            passed_codes[code] += 1
         elif x == 1:
             code = 'A44B' if insole_type == 'cradle' else 'B55B'
-            passed_codes.add(code)
+            passed_codes[code] += 1
         else:  # x <= 0
             code = 'A44A' if insole_type == 'cradle' else 'B55A'
-            passed_codes.add(code)
+            passed_codes[code] += 1
 
-        # Return the passed codes as a string, removing duplicates and sorting
-        if passed_codes:
-            return ', '.join(sorted(passed_codes))
+        # Format the passed codes with counts
+        formatted_passed_codes = []
+        for code, count in passed_codes.items():
+            if count > 1:
+                formatted_passed_codes.append(f"{code} x{count}")
+            else:
+                formatted_passed_codes.append(code)
+
+        # Return the passed codes as a string, sorted for consistency
+        if formatted_passed_codes:
+            return ', '.join(sorted(formatted_passed_codes))
         else:
             return None  # Return None if no codes were added
-        
 
 # --- Main Application Setup ---
 
