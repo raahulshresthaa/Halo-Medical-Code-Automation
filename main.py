@@ -509,6 +509,9 @@ class PdfButtonHandler:
             insole_type = 'cradle'
         # You can add more insole types if needed
 
+        # Get the base value
+        base = content_dict.get('base', '').lower()
+
         # Define the list of addition positions (left and right, 1st to 4th)
         addition_positions = [
             'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
@@ -723,6 +726,23 @@ class PdfButtonHandler:
         else:  # x <= 0
             code = 'A44A' if insole_type == 'cradle' else 'B55A'
             passed_codes[code] += 1
+
+        # New logic for Insole Form Base
+        # If type is cradle and if base is 40 shore, 50 shore, 65 shore, 35/20/80 sh or 45/30/80 sh then code for A10
+        # Else (for cradle type), add code B54C
+        if insole_type == 'cradle':
+            if base in ('40 shore', '50 shore', '65 shore', '35/20/80 sh', '45/30/80 sh'):
+                passed_codes['A10'] += 1
+            else:
+                passed_codes['B54C'] += 1
+
+        # If 'base poron' is selected then add code B40B
+        if content_dict.get('base poron', '') == 'selected':
+            passed_codes['B40B'] += 1
+
+        # If 'base carbon fibre' is selected then add code B54A
+        if content_dict.get('base carbon fibre', '') == 'selected':
+            passed_codes['B54A'] += 1
 
         # Format the passed codes with counts
         formatted_passed_codes = []
