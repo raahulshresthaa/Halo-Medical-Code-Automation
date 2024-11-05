@@ -482,7 +482,6 @@ class PdfButtonHandler:
         else:
             return None  # No message needed
         
-
     def generate_bespoke_codes(self, content):
         """Generates codes based on the content for the Bespoke model, counting duplicates."""
         from collections import defaultdict
@@ -580,6 +579,24 @@ class PdfButtonHandler:
                 else:
                     # Handle unexpected addition values if necessary
                     print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
+
+        # --- New logic for Insole Postings ---
+        posting_keys = [
+            'left medial rearfoot posting',
+            'left lateral rearfoot posting',
+            'right medial rearfoot posting',
+            'right lateral rearfoot posting',
+            'left medial forefoot posting',
+            'left lateral forefoot posting',
+            'right medial forefoot posting',
+            'right lateral forefoot posting',
+        ]
+
+        for key in posting_keys:
+            if content_dict.get(key, '') == 'selected':
+                code = 'A45' if insole_type == 'cradle' else 'B45'
+                passed_codes[code] += 1
+        # --- End of Insole Postings logic ---
 
         # Existing conditions (Ensure keys match content_dict)
         type_code_mapping = {
