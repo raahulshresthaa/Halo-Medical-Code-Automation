@@ -671,7 +671,7 @@ class PdfButtonHandler:
 
         for key, code in sockets_type_a.items():
             if content_dict.get(key, '') in (
-                '5/6 round socket', '1/4inc round socket', 'small rectangular', 'large rectangular', 'rizzoli'
+                '5/16 round socket', '1/4inc round socket', 'small rectangular', 'large rectangular', 'rizzoli'
             ):
                 passed_codes[code] += 1
 
