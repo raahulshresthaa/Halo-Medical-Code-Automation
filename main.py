@@ -581,7 +581,6 @@ class PdfButtonHandler:
             else:
                 passed_codes.append('B51')
 
-        #end of left 1st additons code 
         # right 1st addition
 
         if content_dict.get('right 1st addition', '') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
@@ -633,7 +632,9 @@ class PdfButtonHandler:
                 passed_codes.append('B51')
 
                 # Handle other insole types or default behavior
-                pass  # left 2nd addition
+                pass  
+            
+            # left 2nd addition
 
         if content_dict.get('left 2nd addition', '') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
             if insole_type == 'cradle':
@@ -685,7 +686,8 @@ class PdfButtonHandler:
 
                 # Handle other insole types or default behavior
                 pass
-                # right 2nd addition 
+                # right 2nd addition
+             
         if content_dict.get('right 2nd addition', '') in ('valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad', 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'):
             if insole_type == 'cradle':
                 passed_codes.append('A45')
@@ -933,6 +935,8 @@ class PdfButtonHandler:
                 passed_codes.append('A47')
             else:
                 passed_codes.append('B51')
+
+        # End of additions 
 
         # Existing conditions (Ensure keys match content_dict)
         if content_dict.get('type boots', '') == 'selected':
