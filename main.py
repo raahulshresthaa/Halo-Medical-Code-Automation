@@ -483,9 +483,9 @@ class PdfButtonHandler:
             return None  # No message needed
         
 
-
     def generate_bespoke_codes(self, content):
         """Generates codes based on the content for the Bespoke model, counting duplicates."""
+        from collections import defaultdict
         passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
         # Split the content into lines for easier processing
@@ -630,6 +630,38 @@ class PdfButtonHandler:
         for key, code in stiffeners_materials.items():
             if content_dict.get(key, '') in ('grey poron', 'pink poron', 'foam'):
                 passed_codes[code] += 1
+
+        # Stiffeners Checks
+
+        # Left side
+        left_a16_count = 0
+        if content_dict.get('stiffeners left medial', '') == 'selected':
+            left_a16_count += 1
+        if content_dict.get('stiffeners left lateral', '') == 'selected':
+            left_a16_count += 1
+
+        if content_dict.get('stiffeners left type', '') in ('elongated', 'high'):
+            if left_a16_count > 1:
+                left_a16_count = 1  # Cap at 1
+
+        # Add to passed_codes
+        if left_a16_count > 0:
+            passed_codes['A16'] += left_a16_count
+
+        # Right side
+        right_a16_count = 0
+        if content_dict.get('stiffeners right medial', '') == 'selected':
+            right_a16_count += 1
+        if content_dict.get('stiffeners right lateral', '') == 'selected':
+            right_a16_count += 1
+
+        if content_dict.get('stiffeners right type', '') in ('elongated', 'high'):
+            if right_a16_count > 1:
+                right_a16_count = 1  # Cap at 1
+
+        # Add to passed_codes
+        if right_a16_count > 0:
+            passed_codes['A16'] += right_a16_count
 
         # Sockets Type Checks
         sockets_type_a = {
