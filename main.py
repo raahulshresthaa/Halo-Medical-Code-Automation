@@ -507,10 +507,16 @@ class PdfButtonHandler:
             insole_type = 'tci'
         elif content_dict.get('insole type cradle', '') == 'selected':
             insole_type = 'cradle'
+        elif content_dict.get('insole type simple', '') == 'selected':
+            insole_type = 'simple'
+        elif content_dict.get('insole type handmould', '') == 'selected':
+            insole_type = 'handmould'
         # You can add more insole types if needed
 
         # Get the base value
-        base = content_dict.get('base', '').lower()
+        base = content_dict.get('base', '').strip().lower()
+        normalized_base = base.replace(' ', '').lower()
+        print(f"Base value: '{base}'")  # For debugging
 
         # Define the list of addition positions (left and right, 1st to 4th)
         addition_positions = [
@@ -728,13 +734,16 @@ class PdfButtonHandler:
             passed_codes[code] += 1
 
         # New logic for Insole Form Base
-        # If type is cradle and if base is 40 shore, 50 shore, 65 shore, 35/20/80 sh or 45/30/80 sh then code for A10
-        # Else (for cradle type), add code B54C
+
+        # Normalize the base value
+        normalized_base = base.replace(' ', '').lower()
+        shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
+
         if insole_type == 'cradle':
-            if base in ('40 shore', '50 shore', '65 shore', '35/20/80 sh', '45/30/80 sh'):
+            if normalized_base in shore_bases:
                 passed_codes['A10'] += 1
-            else:
-                passed_codes['B54C'] += 1
+        elif insole_type in ('tci', 'simple', 'handmould'):
+            passed_codes['B54C'] += 1
 
         # If 'base poron' is selected then add code B40B
         if content_dict.get('base poron', '') == 'selected':
