@@ -866,13 +866,22 @@ class PdfButtonHandler:
             passed_codes['B54A'] += 1
 
         # --- New logic for Pair Handling ---
+        # General codes to double if 'pair' is selected
         if content_dict.get('pair', '') == 'selected':
-            codes_to_double = [
-                'A1K', 'A18A', 'Twist Fasten', 'A6',
+            codes_to_double_general = [
+                'A1K', 'A18A', 'Twist Fasten', 'A6'
+            ]
+            for code in codes_to_double_general:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
+
+        # Insole codes to double if 'insole pair' is selected
+        if content_dict.get('insole pair', '') == 'selected':
+            codes_to_double_insole = [
                 'A10', 'B54C', 'B40B', 'B54A',  # Insole form base codes
                 'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'  # Insole covering codes (maths)
             ]
-            for code in codes_to_double:
+            for code in codes_to_double_insole:
                 if code in passed_codes:
                     passed_codes[code] *= 2
         # --- End of Pair Handling ---
