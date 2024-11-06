@@ -219,8 +219,6 @@ class PdfButtonHandler:
         except Exception as e:
             messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
 
-
-
     def parse_extracted_data(self, data_dict):
         """Convert extracted data into a string format suitable for processing."""
         lines = []
@@ -723,6 +721,28 @@ class PdfButtonHandler:
             if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
                 passed_codes['A19'] += 1
                 break  # Assuming only one code is needed
+
+        # --- New logic for Straps Checks ---
+        sides = ['left', 'right']
+        for side in sides:
+            strap_type_key = f'straps {side} type'
+            strap_double_decker_key = f'straps {side} double decker'
+
+            strap_type = content_dict.get(strap_type_key, '')
+            strap_double_decker = content_dict.get(strap_double_decker_key, '')
+
+            # Check for double decker straps
+            if strap_double_decker == 'selected':
+                if strap_type in ('t strap', 'y strap'):
+                    passed_codes['A39'] += 1
+            else:
+                if strap_type in ('t strap', 'y strap'):
+                    passed_codes['A38'] += 1
+
+            # Check for spur retaining strap or heel retaining strap
+            if strap_type in ('spur retaining strap', 'heel retaining strap'):
+                passed_codes['A40'] += 1
+        # --- End of Straps Checks ---
 
         # Insole coding section - MATHS!
 
