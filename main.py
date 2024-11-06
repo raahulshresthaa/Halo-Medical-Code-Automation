@@ -708,7 +708,34 @@ class PdfButtonHandler:
             if content_dict.get(key, '') in ('5/16 with backstop', '1/4 with backstop'):
                 passed_codes[code] += 1
 
+        # --- New logic for Wedges Checks ---
+        # Wedges Heel keys mapping to 'A31'
+        wedges_heel_keys = [
+            'wedges left heel medial',
+            'wedges left heel lateral',
+            'wedges right heel medial',
+            'wedges right heel lateral',
+        ]
+
+        for key in wedges_heel_keys:
+            if content_dict.get(key, '') == 'selected':
+                passed_codes['A31'] += 1
+
+        # Wedges Sole keys mapping to 'A19'
+        wedges_sole_keys = [
+            'wedges left sole medial',
+            'wedges left sole lateral',
+            'wedges right sole medial',
+            'wedges right sole lateral',
+        ]
+
+        for key in wedges_sole_keys:
+            if content_dict.get(key, '') == 'selected':
+                passed_codes['A19'] += 1
+        # --- End of Wedges Checks ---
+
         # Elongations Checks
+        # Note: Adjusted to avoid double-counting with wedges
         elongations_keys = ['elongations left type', 'elongations right type']
         for key in elongations_keys:
             if content_dict.get(key, '') in ('full', 'half'):
