@@ -734,6 +734,32 @@ class PdfButtonHandler:
                 passed_codes['A19'] += 1
         # --- End of Wedges Checks ---
 
+        # --- New logic for Floated Checks ---
+        # Floated Heel keys mapping to 'A31'
+        floated_heel_keys = [
+            'floated left heel medial',
+            'floated left heel lateral',
+            'floated right heel medial',
+            'floated right heel lateral',
+        ]
+
+        for key in floated_heel_keys:
+            if content_dict.get(key, '') == 'selected':
+                passed_codes['A31'] += 1
+
+        # Floated Sole keys mapping to 'A26'
+        floated_sole_keys = [
+            'floated left sole medial',
+            'floated left sole lateral',
+            'floated right sole medial',
+            'floated right sole lateral',
+        ]
+
+        for key in floated_sole_keys:
+            if content_dict.get(key, '') == 'selected':
+                passed_codes['A26'] += 1
+        # --- End of Floated Checks ---
+
         # Elongations Checks
         # Note: Adjusted to avoid double-counting with wedges
         elongations_keys = ['elongations left type', 'elongations right type']
