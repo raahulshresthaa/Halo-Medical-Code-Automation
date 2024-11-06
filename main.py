@@ -760,6 +760,28 @@ class PdfButtonHandler:
                 passed_codes['A26'] += 1
         # --- End of Floated Checks ---
 
+        # --- New logic for Raises Checks ---
+        sides = ['left', 'right']
+        for side in sides:
+            raise_inside_key = f'raise {side} inside'
+            raise_outside_key = f'raise {side} outside'
+            raise_material_key = f'raise {side} material'
+
+            raise_material = content_dict.get(raise_material_key, '')
+
+            # Check for raise inside
+            if content_dict.get(raise_inside_key, '') == 'selected':
+                if raise_material in ('ld eva', 'lightweight p/zote (non-covered)', 'lightweight p/zote (covered)', 'cork'):
+                    passed_codes['A8'] += 1
+
+            # Check for raise outside
+            if content_dict.get(raise_outside_key, '') == 'selected':
+                if raise_material == 'ld eva':
+                    passed_codes['A13A'] += 1
+                elif raise_material in ('lightweight p/zote (non-covered)', 'lightweight p/zote (covered)'):
+                    passed_codes['A12A'] += 1
+        # --- End of Raises Checks ---
+
         # Elongations Checks
         # Note: Adjusted to avoid double-counting with wedges
         elongations_keys = ['elongations left type', 'elongations right type']
