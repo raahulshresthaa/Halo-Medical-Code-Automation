@@ -425,37 +425,81 @@ class PdfButtonHandler:
             return None  # No query needed
 
     def check_special_base(self, data):
+        """Checks the special base codes based on the insole coding maths logic."""
         # Initialize variables
+        x = 0
+        insole_type = ''
         base_value = ''
         spenco_selected = False
-        lining_selected = False
+        lining_to_shell_selected = False
+        lining_to_sulcus_selected = False
+        lining_full_selected = False
 
         # Split the data into lines and look for the relevant lines
         for line in data.split('\n'):
             line_lower = line.lower().strip()
-            if line_lower.startswith('base:'):
-                base_value = line[len('base:'):].strip()
+            if line_lower.startswith('insole type'):
+                if 'simple' in line_lower and 'selected' in line_lower:
+                    insole_type = 'simple'
+            elif line_lower.startswith('simple:'):
+                value = line_lower[len('simple:'):].strip()
+                if value == 'selected':
+                    insole_type = 'simple'
+            elif line_lower.startswith('lining to shell:'):
+                value = line_lower[len('lining to shell:'):].strip()
+                if value == 'selected':
+                    lining_to_shell_selected = True
+            elif line_lower.startswith('lining to sulcus:'):
+                value = line_lower[len('lining to sulcus:'):].strip()
+                if value == 'selected':
+                    lining_to_sulcus_selected = True
+            elif line_lower.startswith('lining full:'):
+                value = line_lower[len('lining full:'):].strip()
+                if value == 'selected':
+                    lining_full_selected = True
             elif line_lower.startswith('top cover material:'):
-                value = line[len('top cover material:'):].strip()
-                if value.lower() == 'spenco (green)':
+                value = line_lower[len('top cover material:'):].strip()
+                if value == 'spenco (green)':
                     spenco_selected = True
-            elif line_lower.startswith('lining to full:'):
-                value = line[len('lining to full:'):].strip()
-                if value.lower() == 'selected':
-                    lining_selected = True
+            elif line_lower.startswith('base:'):
+                base_value = line_lower[len('base:'):].strip().lower()
 
-        # Check if the base_value is '35/20/80 SH' or '45/30/80 SH' (case-insensitive)
-        base_value_lower = base_value.strip().lower()
-        if base_value_lower in ('35/20/80 sh', '45/30/80 sh'):
-            if spenco_selected or lining_selected:
-                warning_message = f"Base is {base_value}. Spenco top cover or Lining to full is selected. Use code B55c."
-            else:
-                warning_message = f"Base is {base_value}. Use code B55b."
-            self.root.after(0, messagebox.showwarning, "Special Base Warning", warning_message)
-            return warning_message
-        else:
-            return None  # No warning needed
+        # Apply the maths logic
+        if insole_type == 'simple':
+            x -= 1
+        if lining_to_shell_selected:
+            x += 1
+        if lining_to_sulcus_selected:
+            x += 1
+        if lining_full_selected:
+            x += 1
+        if spenco_selected:
+            x += 1
+        if base_value in ('35/20/80 sh', '45/30/80 sh'):
+            x += 1
+
+        # Print x in the terminal for debugging
+        print(f"x = {x}")
         
+        # Determine the code based on the value of x
+        if x >= 2:
+            code = 'B55C'
+        elif x == 1:
+            code = 'B55B'
+        elif x == 0:
+            code = 'B55A'
+        else:
+            # x is less than 0; no warning message
+            return None
+
+        # Generate the warning message
+        warning_message = f"Based on the provided selections, use code {code}."
+        
+        # Display the warning message (assuming self.root is defined)
+        self.root.after(0, messagebox.showwarning, "Special Base Warning", warning_message)
+
+        return warning_message
+
     def check_clinic_tariff(self, data):
         # Initialize clinic_value
         clinic_value = ''
@@ -466,7 +510,7 @@ class PdfButtonHandler:
                 break  # Stop after finding the clinic line
 
         # List of clinics to check
-        clinics_with_tariff = ['Bury CDC', 'East Surrey', 'WS', 'PCH', 'Sudbury', 'Hinchingbrooke']
+        clinics_with_tariff = ['Bury CDC', 'East Surrey', 'WS', 'PCH', 'Sudbury', 'Hinchingbrooke', 'East surrey']
 
         # Check the clinic_value and create appropriate message
         if clinic_value in clinics_with_tariff:
