@@ -15,7 +15,7 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 from collections import defaultdict
 
 # Version number
-VERSION = "3.0.0-alpha"
+VERSION = "4.0.0-dev"
 
 # To fix blurriness on some displays
 try:
@@ -319,6 +319,19 @@ class PdfButtonHandler:
 
                 # Call the bespoke code generation method
                 passed_codes = self.generate_bespoke_codes(content)
+                if passed_codes:
+                    # Append the passed codes under 'Passed code:' in the content
+                    content += f"\n\nPassed code:\n{passed_codes}"
+                    print(f"Passed codes added to content: {passed_codes}")
+                else:
+                    print("No passed codes generated.")
+
+            elif model_id == 'ModularReaderV1':
+                logic_file_name = 'modular_logic.txt'
+                print(f"Logic file name: {logic_file_name}")
+
+                # Call the modular code generation method
+                passed_codes = self.generate_modular_codes(content)
                 if passed_codes:
                     # Append the passed codes under 'Passed code:' in the content
                     content += f"\n\nPassed code:\n{passed_codes}"
@@ -973,6 +986,98 @@ class PdfButtonHandler:
         else:
             return None  # Return None if no codes were added
 
+    def generate_modular_codes(self, content):
+        """Generates insole codes based on the content for the Modular model."""
+        from collections import defaultdict
+        passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
+
+        # Split the content into lines for easier processing
+        lines = content.split('\n')
+
+        # Convert lines to a dictionary for easier lookup with lowercase keys and values
+        content_dict = {}
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                content_dict[key.strip().lower()] = value.strip().lower()
+
+        # Determine insole type
+        insole_type = None
+        if content_dict.get('insole type tci', '') == 'selected':
+            insole_type = 'tci'
+        elif content_dict.get('insole type cradle', '') == 'selected':
+            insole_type = 'cradle'
+        elif content_dict.get('insole type simple', '') == 'selected':
+            insole_type = 'simple'
+        elif content_dict.get('insole type handmould', '') == 'selected':
+            insole_type = 'handmould'
+        # You can add more insole types if needed
+
+        # Get the base value
+        base = content_dict.get('base', '').strip().lower()
+        normalized_base = base.replace(' ', '').lower()
+        print(f"Base value: '{base}'")  # For debugging
+
+        # --- Insole coding section - MATHS! ---
+
+        x = 0
+        if insole_type == 'simple':
+            x -= 1
+        if content_dict.get('lining to shell', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to sulcus', '') == 'selected':
+            x += 1
+        if content_dict.get('lining full', '') == 'selected':
+            x += 1
+        if content_dict.get('insole top cover material', '') == 'spenco (green)':
+            x += 1
+        if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
+            x += 1
+
+        if x >= 2:
+            code = 'A44C' if insole_type == 'cradle' else 'B55C'
+            passed_codes[code] += 1
+        elif x == 1:
+            code = 'A44B' if insole_type == 'cradle' else 'B55B'
+            passed_codes[code] += 1
+        else:  # x <= 0
+            code = 'A44A' if insole_type == 'cradle' else 'B55A'
+            passed_codes[code] += 1
+
+        # New logic for Insole Form Base
+
+        # Normalize the base value
+        normalized_base = base.replace(' ', '').lower()
+        shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
+
+        if insole_type == 'cradle':
+            if normalized_base in shore_bases:
+                passed_codes['A10'] += 1
+        elif insole_type in ('tci', 'simple', 'handmould'):
+            passed_codes['B54C'] += 1
+
+        # If 'base poron' is selected then add code B40B
+        if content_dict.get('base poron', '') == 'selected':
+            passed_codes['B40B'] += 1
+
+        # If 'base carbon fibre' is selected then add code B54A
+        if content_dict.get('base carbon fibre', '') == 'selected':
+            passed_codes['B54A'] += 1
+
+        # Format the passed codes with counts
+        formatted_passed_codes = []
+        for code, count in passed_codes.items():
+            if count > 1:
+                formatted_passed_codes.append(f"{code} x{count}")
+            else:
+                formatted_passed_codes.append(code)
+
+        # Return the passed codes as a string
+        if formatted_passed_codes:
+            return ', '.join(formatted_passed_codes)
+        else:
+            return None  # Return None if no codes were added
+
 # --- Main Application Setup ---
 
 # Define the list of available themes
@@ -1208,7 +1313,8 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 model_ids = {
     'Insoles': 'insoleFormV5',  # model id's
     'AFOs': 'AfoReaderV7',  
-    'Bespoke': 'BespokeReaderV3'
+    'Bespoke': 'BespokeReaderV3',
+    'Modular': 'ModularReaderV1'  # New entry for Modular
 }
 
 # Set up the model_id_var with default value
