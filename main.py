@@ -603,7 +603,7 @@ class PdfButtonHandler:
             'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
             'truro', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'sneaker',
             'greenock', 'olympic', 'melton', 'hendon', 'stirling', 'exeter', 'chester',
-            'kelso', 'dover', 'shelwyck', 'mowbray'
+            'kelso', 'dover', 'shelwyck', 'mowbray', 'shelby'
         ):
             passed_codes['A1B'] += 1
         elif style in (
