@@ -12,9 +12,10 @@ import sys
 # Import TkinterDnD for drag-and-drop functionality
 import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
+from collections import defaultdict
 
 # Version number
-VERSION = "2.0.0-alpha"
+VERSION = "3.0.0-alpha"
 
 # To fix blurriness on some displays
 try:
@@ -41,8 +42,6 @@ class PdfButtonHandler:
         self.close_loading_popup = close_loading_popup
         self.display_results = display_results
         self.model_id_var = model_id_var
-
-        self.context_folder_path = os.path.join(os.getcwd(), 'context')
 
         # Reference to the upload PDF button (will be set later)
         self.upload_pdf_button = None
@@ -108,39 +107,14 @@ class PdfButtonHandler:
         except Exception as e:
             return f"Error reading the logic file '{logic_file_path}': {str(e)}"
 
-    def read_files_for_context(self):
-        file_contents = []
-        try:
-            # Check if the context folder exists
-            if not os.path.exists(self.context_folder_path):
-                return "Error: 'context' folder not found."
-
-            # Iterate over all files in the 'context' folder
-            for file_name in os.listdir(self.context_folder_path):
-                file_path = os.path.join(self.context_folder_path, file_name)
-
-                # Only process text files
-                if file_name.endswith(".txt"):
-                    try:
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            content = f.read()
-                            file_contents.append(f"File: {file_name}\n{content}")
-                    except Exception as e:
-                        file_contents.append(f"Error reading {file_name}: {str(e)}")
-
-            return "\n\n".join(file_contents) if file_contents else "No valid files found in the 'context' folder."
-
-        except Exception as e:
-            return f"Error reading context files: {str(e)}"
-
-    def get_price_codes_from_content(self, content, file_context, logic_content):
+    def get_price_codes_from_content(self, content, logic_content):
         try:
             # Send the content, logic, and file context to the assistant
             response = openai.ChatCompletion.create(
                 model="gpt-4o-2024-08-06",  # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\n Write your full working out and then write **Final Codes:** and output the final codes on a single line."},
-                    {"role": "user", "content": f"Here is the content to process:\n{content}\n\nRelevant file information:\n{file_context}"}
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nWrite your full working out and then write **Final Codes:** and output the final codes on a single line, including the passed codes."},
+                    {"role": "user", "content": f"Here is the content to process:\n{content}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
                 temperature=0.1  # Adjust as needed
@@ -152,10 +126,10 @@ class PdfButtonHandler:
         except Exception as e:
             return f"Error: {str(e)}"
 
-    def process_api_call(self, content, file_context, logic_content, AutoDocRef, clinic):
+    def process_api_call(self, content, logic_content, AutoDocRef, clinic):
         try:
             # Get the price codes by sending the content, logic, and file context to OpenAI
-            price_codes = self.get_price_codes_from_content(content, file_context, logic_content)
+            price_codes = self.get_price_codes_from_content(content, logic_content)
 
             # Debug print to check the content of price_codes
             print(f"Price codes received: {price_codes}")
@@ -245,8 +219,6 @@ class PdfButtonHandler:
         except Exception as e:
             messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
 
-
-
     def parse_extracted_data(self, data_dict):
         """Convert extracted data into a string format suitable for processing."""
         lines = []
@@ -324,11 +296,11 @@ class PdfButtonHandler:
                 form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
                 print(f"Form type: {form_type}")
 
-                # Construct the logic file name and path based on the form type
+                # Construct the logic file name based on the form type
                 logic_file_mapping = {
                     'tci': 'tci_logic.txt',
                     'simple': 'simple_insole_logic.txt',
-                    'cradle': 'tci_logic.txt',  # Using tci_logic.txt for cradle
+                    'cradle': 'tci_logic.txt',   # Using tci_logic.txt for cradle
                     'handmold': 'tci_logic.txt'  # Using tci_logic.txt for handmold
                 }
 
@@ -341,6 +313,19 @@ class PdfButtonHandler:
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
+            elif model_id == 'BespokeReaderV3':
+                logic_file_name = 'bespoke_logic.txt'
+                print(f"Logic file name: {logic_file_name}")
+
+                # Call the bespoke code generation method
+                passed_codes = self.generate_bespoke_codes(content)
+                if passed_codes:
+                    # Append the passed codes under 'Passed code:' in the content
+                    content += f"\n\nPassed code:\n{passed_codes}"
+                    print(f"Passed codes added to content: {passed_codes}")
+                else:
+                    print("No passed codes generated.")
+
             else:
                 raise ValueError(f"Unknown model ID '{model_id}'.")
 
@@ -352,13 +337,8 @@ class PdfButtonHandler:
             if "Error" in logic_content:
                 raise ValueError(logic_content)
 
-            # Read context files
-            file_context = self.read_files_for_context()
-            if "Error" in file_context:
-                raise ValueError(file_context)
-
             # Call the API with the content
-            self.process_api_call(content, file_context, logic_content, AutoDocRef, clinic)
+            self.process_api_call(content, logic_content, AutoDocRef, clinic)
 
         except Exception as e:
             # Show error message in the main thread
@@ -445,37 +425,81 @@ class PdfButtonHandler:
             return None  # No query needed
 
     def check_special_base(self, data):
+        """Checks the special base codes based on the insole coding maths logic."""
         # Initialize variables
+        x = 0
+        insole_type = ''
         base_value = ''
         spenco_selected = False
-        lining_selected = False
+        lining_to_shell_selected = False
+        lining_to_sulcus_selected = False
+        lining_full_selected = False
 
         # Split the data into lines and look for the relevant lines
         for line in data.split('\n'):
             line_lower = line.lower().strip()
-            if line_lower.startswith('base:'):
-                base_value = line[len('base:'):].strip()
+            if line_lower.startswith('insole type'):
+                if 'simple' in line_lower and 'selected' in line_lower:
+                    insole_type = 'simple'
+            elif line_lower.startswith('simple:'):
+                value = line_lower[len('simple:'):].strip()
+                if value == 'selected':
+                    insole_type = 'simple'
+            elif line_lower.startswith('lining to shell:'):
+                value = line_lower[len('lining to shell:'):].strip()
+                if value == 'selected':
+                    lining_to_shell_selected = True
+            elif line_lower.startswith('lining to sulcus:'):
+                value = line_lower[len('lining to sulcus:'):].strip()
+                if value == 'selected':
+                    lining_to_sulcus_selected = True
+            elif line_lower.startswith('lining full:'):
+                value = line_lower[len('lining full:'):].strip()
+                if value == 'selected':
+                    lining_full_selected = True
             elif line_lower.startswith('top cover material:'):
-                value = line[len('top cover material:'):].strip()
-                if value.lower() == 'spenco (green)':
+                value = line_lower[len('top cover material:'):].strip()
+                if value == 'spenco (green)':
                     spenco_selected = True
-            elif line_lower.startswith('lining to full:'):
-                value = line[len('lining to full:'):].strip()
-                if value.lower() == 'selected':
-                    lining_selected = True
+            elif line_lower.startswith('base:'):
+                base_value = line_lower[len('base:'):].strip().lower()
 
-        # Check if the base_value is '35/20/80 SH' or '45/30/80 SH' (case-insensitive)
-        base_value_lower = base_value.strip().lower()
-        if base_value_lower in ('35/20/80 sh', '45/30/80 sh'):
-            if spenco_selected or lining_selected:
-                warning_message = f"Base is {base_value}. Spenco top cover or Lining to full is selected. Use code B55c."
-            else:
-                warning_message = f"Base is {base_value}. Use code B55b."
-            self.root.after(0, messagebox.showwarning, "Special Base Warning", warning_message)
-            return warning_message
-        else:
-            return None  # No warning needed
+        # Apply the maths logic
+        if insole_type == 'simple':
+            x -= 1
+        if lining_to_shell_selected:
+            x += 1
+        if lining_to_sulcus_selected:
+            x += 1
+        if lining_full_selected:
+            x += 1
+        if spenco_selected:
+            x += 1
+        if base_value in ('35/20/80 sh', '45/30/80 sh'):
+            x += 1
+
+        # Print x in the terminal for debugging
+        print(f"x = {x}")
         
+        # Determine the code based on the value of x
+        if x >= 2:
+            code = 'B55C'
+        elif x == 1:
+            code = 'B55B'
+        elif x == 0:
+            code = 'B55A'
+        else:
+            # x is less than 0; no warning message
+            return None
+
+        # Generate the warning message
+        warning_message = f"Based on the provided selections, use code {code}."
+        
+        # Display the warning message (assuming self.root is defined)
+        self.root.after(0, messagebox.showwarning, "Special Base Warning", warning_message)
+
+        return warning_message
+
     def check_clinic_tariff(self, data):
         # Initialize clinic_value
         clinic_value = ''
@@ -486,7 +510,7 @@ class PdfButtonHandler:
                 break  # Stop after finding the clinic line
 
         # List of clinics to check
-        clinics_with_tariff = ['Bury CDC', 'East Surrey', 'WS', 'PCH', 'Sudbury', 'Hinchingbrooke']
+        clinics_with_tariff = ['Bury CDC', 'East Surrey', 'WS', 'PCH', 'Sudbury', 'Hinchingbrooke', 'East surrey']
 
         # Check the clinic_value and create appropriate message
         if clinic_value in clinics_with_tariff:
@@ -499,7 +523,455 @@ class PdfButtonHandler:
             return message
         else:
             return None  # No message needed
+        
+    def generate_bespoke_codes(self, content):
+        """Generates codes based on the content for the Bespoke model, counting duplicates."""
+        from collections import defaultdict
+        passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
+        # Split the content into lines for easier processing
+        lines = content.split('\n')
+
+        # Convert lines to a dictionary for easier lookup with lowercase keys and values
+        content_dict = {}
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                content_dict[key.strip().lower()] = value.strip().lower()
+
+        # Debugging: Print content_dict keys
+        print(f"Content Dictionary Keys: {list(content_dict.keys())}")
+
+        # --- Start of Style-based Codes ---
+        # Assign 'A1A' or 'A1B' based on 'style' or 'type' selections
+        style = content_dict.get('style', '').lower()
+
+        a1b_styles = {
+            'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
+            'truro', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'sneaker',
+            'greenock', 'olympic', 'melton', 'hendon', 'stirling', 'exeter', 'chester',
+            'kelso', 'dover', 'shelwyck', 'mowbray', 'shelby'
+        }
+
+        a1a_styles = {
+            'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
+            'dundee', 'brigg', 'elgin', 'highland'
+        }
+
+        if style in a1b_styles:
+            passed_codes['A1B'] += 1
+        elif style in a1a_styles:
+            passed_codes['A1A'] += 1
+
+        # Add logic for 'pop cast'
+        if content_dict.get('pop cast', '') == 'selected':
+            passed_codes['A1K'] += 1
+
+        # Backup logic for 'A1A' and 'A1B' based on 'type' selections
+        # Only apply if 'A1A' or 'A1B' has not been added yet
+        if 'A1A' not in passed_codes and 'A1B' not in passed_codes:
+            type_code_mapping = {
+                'type boots': 'A1A',
+                'type bootee': 'A1A',
+                'type shoes': 'A1B',
+                'type sports': 'A1B',
+            }
+
+            for key, code in type_code_mapping.items():
+                if content_dict.get(key, '') == 'selected':
+                    passed_codes[code] += 1
+
+        # Default to 'A1A' if neither 'A1A' nor 'A1B' is in passed_codes
+        if 'A1A' not in passed_codes and 'A1B' not in passed_codes:
+            passed_codes['A1A'] += 1
+        # --- End of Style-based Codes ---
+
+        # Determine insole type
+        insole_type = None
+        if content_dict.get('insole type tci', '') == 'selected':
+            insole_type = 'tci'
+        elif content_dict.get('insole type cradle', '') == 'selected':
+            insole_type = 'cradle'
+        elif content_dict.get('insole type simple', '') == 'selected':
+            insole_type = 'simple'
+        elif content_dict.get('insole type handmould', '') == 'selected':
+            insole_type = 'handmould'
+        # You can add more insole types if needed
+
+        # Get the base value
+        base = content_dict.get('base', '').strip().lower()
+        normalized_base = base.replace(' ', '').lower()
+        print(f"Base value: '{base}'")  # For debugging
+
+        # Define the list of addition positions (left and right, 1st to 4th)
+        addition_positions = [
+            'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
+            'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition'
+        ]
+
+        # Define the mappings from addition values to codes
+        addition_code_mapping = {
+            # Additions mapping to A45 or B41
+            'A45_B41': {
+                'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
+                'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
+                'sulcus crest', 'arch fill'
+            },
+            # Additions mapping to A45 or B56
+            'A45_B56': {
+                "morton's extension", "reverse morton's extension", 'poron forefoot'
+            },
+            # Additions mapping to A45 or B43
+            'A45_B43': {'kinetic wedge', 'heel raise'},
+            # Additions mapping to D8A
+            'D8A': {'neurological footplate'},
+            # Additions mapping to BNS45
+            'BNS45': {'recess', 'hole & plug'},
+            # Additions mapping to A20 or B20
+            'A20_B20': {'rigid 1st extension'},
+            # Additions mapping to A46 or B50
+            'A46_B50': {'partial toe block'},
+            # Additions mapping to A47 or B51
+            'A47_B51': {'full toe block'}
+        }
+
+        # Iterate over each addition position and apply the appropriate codes
+        for key in addition_positions:
+            addition_value = content_dict.get(key, '')
+            if addition_value:
+                # Check which mapping the addition_value belongs to
+                if addition_value in addition_code_mapping['A45_B41']:
+                    code = 'A45' if insole_type == 'cradle' else 'B41'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A45_B56']:
+                    code = 'A45' if insole_type == 'cradle' else 'B56'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A45_B43']:
+                    code = 'A45' if insole_type == 'cradle' else 'B43'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['D8A']:
+                    passed_codes['D8A'] += 1
+                elif addition_value in addition_code_mapping['BNS45']:
+                    passed_codes['BNS45'] += 1
+                elif addition_value in addition_code_mapping['A20_B20']:
+                    code = 'A20' if insole_type == 'cradle' else 'B20'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A46_B50']:
+                    code = 'A46' if insole_type == 'cradle' else 'B50'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A47_B51']:
+                    code = 'A47' if insole_type == 'cradle' else 'B51'
+                    passed_codes[code] += 1
+                else:
+                    # Handle unexpected addition values if necessary
+                    print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
+
+        # --- New logic for Insole Postings ---
+        posting_keys = [
+            'left medial rearfoot posting',
+            'left lateral rearfoot posting',
+            'right medial rearfoot posting',
+            'right lateral rearfoot posting',
+            'left medial forefoot posting',
+            'left lateral forefoot posting',
+            'right medial forefoot posting',
+            'right lateral forefoot posting',
+        ]
+
+        for key in posting_keys:
+            if content_dict.get(key, '') == 'selected':
+                code = 'A45' if insole_type == 'cradle' else 'B56'
+                passed_codes[code] += 1
+        # --- End of Insole Postings logic ---
+
+        # Sole Stiffeners Checks
+        stiffener_keys = {
+            'sole stiffeners left carbon fibre': 'A20',
+            'sole stiffeners right carbon fibre': 'A20',
+            'sole stiffeners left steel': 'A22',
+            'sole stiffeners right steel': 'A22'
+        }
+
+        for key, code in stiffener_keys.items():
+            if content_dict.get(key, '') == 'selected':
+                passed_codes[code] += 1
+
+        # Sole Additions Checks
+        sole_addition_keys = {
+            'sole additions left toe tips': 'A23',
+            'sole additions right toe tips': 'A23',
+            'sole additions left toe caps': 'A24',
+            'sole additions right toe caps': 'A24',
+            'sole additions left stick on soles': 'A25',
+            'sole additions right stick on soles': 'A25'
+        }
+
+        for key, code in sole_addition_keys.items():
+            if content_dict.get(key, '') == 'selected':
+                passed_codes[code] += 1
+
+        # Other Conditions
+        if content_dict.get('fastening', '') == 'boa':
+            passed_codes['Twist Fasten'] += 1
+
+        if content_dict.get('lining material', '') == 'white sheepskin':
+            passed_codes['A18A'] += 1
+
+        if content_dict.get('sole material', '') == 'commando':
+            passed_codes['A6'] += 1
+
+        # Stiffeners Materials Checks
+        stiffeners_materials = {
+            'stiffeners left materials': 'A15',
+            'stiffeners right materials': 'A15'
+        }
+
+        for key, code in stiffeners_materials.items():
+            if content_dict.get(key, '') in ('grey poron', 'pink poron', 'foam'):
+                passed_codes[code] += 1
+
+        # Stiffeners Checks
+
+        # Left side
+        left_a16_count = 0
+        if content_dict.get('stiffeners left medial', '') == 'selected':
+            left_a16_count += 1
+        if content_dict.get('stiffeners left lateral', '') == 'selected':
+            left_a16_count += 1
+
+        if content_dict.get('stiffeners left type', '') in ('elongated', 'high'):
+            if left_a16_count > 1:
+                left_a16_count = 1  # Cap at 1
+
+        # Add to passed_codes
+        if left_a16_count > 0:
+            passed_codes['A16'] += left_a16_count
+
+        # Right side
+        right_a16_count = 0
+        if content_dict.get('stiffeners right medial', '') == 'selected':
+            right_a16_count += 1
+        if content_dict.get('stiffeners right lateral', '') == 'selected':
+            right_a16_count += 1
+
+        if content_dict.get('stiffeners right type', '') in ('elongated', 'high'):
+            if right_a16_count > 1:
+                right_a16_count = 1  # Cap at 1
+
+        # Add to passed_codes
+        if right_a16_count > 0:
+            passed_codes['A16'] += right_a16_count
+
+        # Sockets Type Checks
+        sockets_type_a = {
+            'sockets left type': 'A37A',
+            'sockets right type': 'A37A'
+        }
+
+        for key, code in sockets_type_a.items():
+            if content_dict.get(key, '') in (
+                '5/16 round socket', '1/4inc round socket', 'small rectangular', 'large rectangular', 'rizzoli'
+            ):
+                passed_codes[code] += 1
+
+        sockets_type_b = {
+            'sockets left type': 'A37B',
+            'sockets right type': 'A37B'
+        }
+
+        for key, code in sockets_type_b.items():
+            if content_dict.get(key, '') in ('5/16 with backstop', '1/4 with backstop'):
+                passed_codes[code] += 1
+
+        # --- New logic for Wedges Checks ---
+        # Wedges Heel keys mapping to 'A31'
+        wedges_heel_keys = [
+            'wedges left heel medial',
+            'wedges left heel lateral',
+            'wedges right heel medial',
+            'wedges right heel lateral',
+        ]
+
+        for key in wedges_heel_keys:
+            if content_dict.get(key, '') == 'selected':
+                passed_codes['A31'] += 1
+
+        # Wedges Sole keys mapping to 'A19'
+        wedges_sole_keys = [
+            'wedges left sole medial',
+            'wedges left sole lateral',
+            'wedges right sole medial',
+            'wedges right sole lateral',
+        ]
+
+        for key in wedges_sole_keys:
+            if content_dict.get(key, '') == 'selected':
+                passed_codes['A19'] += 1
+        # --- End of Wedges Checks ---
+
+        # --- New logic for Floated Checks ---
+        # Floated Heel keys mapping to 'A31'
+        floated_heel_keys = [
+            'floated left heel medial',
+            'floated left heel lateral',
+            'floated right heel medial',
+            'floated right heel lateral',
+        ]
+
+        for key in floated_heel_keys:
+            if content_dict.get(key, '') == 'selected':
+                passed_codes['A31'] += 1
+
+        # Floated Sole keys mapping to 'A26'
+        floated_sole_keys = [
+            'floated left sole medial',
+            'floated left sole lateral',
+            'floated right sole medial',
+            'floated right sole lateral',
+        ]
+
+        for key in floated_sole_keys:
+            if content_dict.get(key, '') == 'selected':
+                passed_codes['A26'] += 1
+        # --- End of Floated Checks ---
+
+        # --- New logic for Raises Checks ---
+        sides = ['left', 'right']
+        for side in sides:
+            raise_inside_key = f'raise {side} inside'
+            raise_outside_key = f'raise {side} outside'
+            raise_material_key = f'raise {side} material'
+
+            raise_material = content_dict.get(raise_material_key, '')
+
+            # Check for raise inside
+            if content_dict.get(raise_inside_key, '') == 'selected':
+                if raise_material in ('ld eva', 'lightweight p/zote (non-covered)', 'lightweight p/zote (covered)', 'cork'):
+                    passed_codes['A8'] += 1
+
+            # Check for raise outside
+            if content_dict.get(raise_outside_key, '') == 'selected':
+                if raise_material == 'ld eva':
+                    passed_codes['A13A'] += 1
+                elif raise_material in ('lightweight p/zote (non-covered)', 'lightweight p/zote (covered)'):
+                    passed_codes['A12A'] += 1
+        # --- End of Raises Checks ---
+
+        # Elongations Checks
+        # Note: Adjusted to avoid double-counting with wedges
+        elongations_keys = ['elongations left type', 'elongations right type']
+        for key in elongations_keys:
+            if content_dict.get(key, '') in ('full', 'half'):
+                passed_codes['A31'] += 1
+
+        # Rocker Type Checks
+        rocker_keys = ['rocker left type', 'rocker right type']
+        for key in rocker_keys:
+            if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
+                passed_codes['A19'] += 1
+
+        # --- New logic for Straps Checks ---
+        sides = ['left', 'right']
+        for side in sides:
+            strap_type_key = f'straps {side} type'
+            strap_double_decker_key = f'straps {side} double decker'
+
+            strap_type = content_dict.get(strap_type_key, '')
+            strap_double_decker = content_dict.get(strap_double_decker_key, '')
+
+            # Check for double decker straps
+            if strap_double_decker == 'selected':
+                if strap_type in ('t strap', 'y strap'):
+                    passed_codes['A39'] += 1
+            else:
+                if strap_type in ('t strap', 'y strap'):
+                    passed_codes['A38'] += 1
+
+            # Check for spur retaining strap or heel retaining strap
+            if strap_type in ('spur retaining strap', 'heel retaining strap'):
+                passed_codes['A40'] += 1
+        # --- End of Straps Checks ---
+
+        # Insole coding section - MATHS!
+
+        x = 0
+        if insole_type == 'simple':
+            x -= 1
+        if content_dict.get('lining to shell', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to sulcus', '') == 'selected':
+            x += 1
+        if content_dict.get('lining full', '') == 'selected':
+            x += 1
+        if content_dict.get('insole top cover material', '') == 'spenco (green)':
+            x += 1
+        if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
+            x += 1
+
+        if x >= 2:
+            code = 'A44C' if insole_type == 'cradle' else 'B55C'
+            passed_codes[code] += 1
+        elif x == 1:
+            code = 'A44B' if insole_type == 'cradle' else 'B55B'
+            passed_codes[code] += 1
+        else:  # x <= 0
+            code = 'A44A' if insole_type == 'cradle' else 'B55A'
+            passed_codes[code] += 1
+
+        # New logic for Insole Form Base
+
+        # Normalize the base value
+        normalized_base = base.replace(' ', '').lower()
+        shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
+
+        if insole_type == 'cradle':
+            if normalized_base in shore_bases:
+                passed_codes['A10'] += 1
+        elif insole_type in ('tci', 'simple', 'handmould'):
+            passed_codes['B54C'] += 1
+
+        # If 'base poron' is selected then add code B40B
+        if content_dict.get('base poron', '') == 'selected':
+            passed_codes['B40B'] += 1
+
+        # If 'base carbon fibre' is selected then add code B54A
+        if content_dict.get('base carbon fibre', '') == 'selected':
+            passed_codes['B54A'] += 1
+
+        # --- New logic for Pair Handling ---
+        # General codes to double if 'pair' is selected
+        if content_dict.get('pair', '') == 'selected':
+            codes_to_double_general = [
+                'A1K', 'A18A', 'Twist Fasten', 'A6'
+            ]
+            for code in codes_to_double_general:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
+
+        # Insole codes to double if 'insole pair' is selected
+        if content_dict.get('insole pair', '') == 'selected':
+            codes_to_double_insole = [
+                'A10', 'B54C', 'B40B', 'B54A',  # Insole form base codes
+                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'  # Insole covering codes (maths)
+            ]
+            for code in codes_to_double_insole:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
+        # --- End of Pair Handling ---
+
+        # Format the passed codes with counts
+        formatted_passed_codes = []
+        for code, count in passed_codes.items():
+            if count > 1:
+                formatted_passed_codes.append(f"{code} x{count}")
+            else:
+                formatted_passed_codes.append(code)
+
+        # Return the passed codes as a string
+        if formatted_passed_codes:
+            return ', '.join(formatted_passed_codes)
+        else:
+            return None  # Return None if no codes were added
 
 # --- Main Application Setup ---
 
@@ -735,7 +1207,8 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 # Define model IDs (replace with your actual model IDs)
 model_ids = {
     'Insoles': 'insoleFormV5',  # model id's
-    'AFOs': 'AfoReaderV7'   
+    'AFOs': 'AfoReaderV7',  
+    'Bespoke': 'BespokeReaderV3'
 }
 
 # Set up the model_id_var with default value
