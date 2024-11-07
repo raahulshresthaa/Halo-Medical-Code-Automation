@@ -1018,6 +1018,87 @@ class PdfButtonHandler:
         normalized_base = base.replace(' ', '').lower()
         print(f"Base value: '{base}'")  # For debugging
 
+        # Define the list of addition positions (left and right, 1st to 4th)
+        addition_positions = [
+            'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
+            'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition'
+        ]
+
+        # Define the mappings from addition values to codes
+        addition_code_mapping = {
+            # Additions mapping to A45 or B41
+            'A45_B41': {
+                'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
+                'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
+                'sulcus crest', 'arch fill'
+            },
+            # Additions mapping to A45 or B56
+            'A45_B56': {
+                "morton's extension", "reverse morton's extension", 'poron forefoot'
+            },
+            # Additions mapping to A45 or B43
+            'A45_B43': {'kinetic wedge', 'heel raise'},
+            # Additions mapping to D8A
+            'D8A': {'neurological footplate'},
+            # Additions mapping to BNS45
+            'BNS45': {'recess', 'hole & plug'},
+            # Additions mapping to A20 or B20
+            'A20_B20': {'rigid 1st extension'},
+            # Additions mapping to A46 or B50
+            'A46_B50': {'partial toe block'},
+            # Additions mapping to A47 or B51
+            'A47_B51': {'full toe block'}
+        }
+
+        # Iterate over each addition position and apply the appropriate codes
+        for key in addition_positions:
+            addition_value = content_dict.get(key, '')
+            if addition_value:
+                # Check which mapping the addition_value belongs to
+                if addition_value in addition_code_mapping['A45_B41']:
+                    code = 'A45' if insole_type == 'cradle' else 'B41'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A45_B56']:
+                    code = 'A45' if insole_type == 'cradle' else 'B56'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A45_B43']:
+                    code = 'A45' if insole_type == 'cradle' else 'B43'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['D8A']:
+                    passed_codes['D8A'] += 1
+                elif addition_value in addition_code_mapping['BNS45']:
+                    passed_codes['BNS45'] += 1
+                elif addition_value in addition_code_mapping['A20_B20']:
+                    code = 'A20' if insole_type == 'cradle' else 'B20'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A46_B50']:
+                    code = 'A46' if insole_type == 'cradle' else 'B50'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A47_B51']:
+                    code = 'A47' if insole_type == 'cradle' else 'B51'
+                    passed_codes[code] += 1
+                else:
+                    # Handle unexpected addition values if necessary
+                    print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
+
+        # --- New logic for Insole Postings ---
+        posting_keys = [
+            'left medial rearfoot posting',
+            'left lateral rearfoot posting',
+            'right medial rearfoot posting',
+            'right lateral rearfoot posting',
+            'left medial forefoot posting',
+            'left lateral forefoot posting',
+            'right medial forefoot posting',
+            'right lateral forefoot posting',
+        ]
+
+        for key in posting_keys:
+            if content_dict.get(key, '') == 'selected':
+                code = 'A45' if insole_type == 'cradle' else 'B56'
+                passed_codes[code] += 1
+        # --- End of Insole Postings logic ---
+
         # --- Insole coding section - MATHS! ---
 
         x = 0
