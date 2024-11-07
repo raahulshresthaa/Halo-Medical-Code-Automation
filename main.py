@@ -596,18 +596,22 @@ class PdfButtonHandler:
                 passed_codes[code] += 1
         # --- End of Insole Postings logic ---
 
-        # Existing conditions (Ensure keys match content_dict)
-        type_code_mapping = {
-            'type boots': 'A1A',
-            'type bootee': 'A1A',
-            'type shoes': 'A1B',
-            'type sports': 'A1B',
-            'pop cast': 'A1K'
-        }
-
-        for key, code in type_code_mapping.items():
-            if content_dict.get(key, '') == 'selected':
-                passed_codes[code] += 1
+        # --- New logic for Style-based Codes ---
+        # Replace the existing conditions for 'A1A' and 'A1B' with style checks
+        style = content_dict.get('style', '')
+        if style in (
+            'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
+            'truro', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'sneaker',
+            'greenock', 'olympic', 'melton', 'hendon', 'stirling', 'exeter', 'chester',
+            'kelso', 'dover', 'shelwyck', 'mowbray'
+        ):
+            passed_codes['A1B'] += 1
+        elif style in (
+            'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
+            'dundee', 'brigg', 'elgin', 'highland', ''
+        ):
+            passed_codes['A1A'] += 1
+        # --- End of Style-based Codes ---
 
         # Sole Stiffeners Checks
         stiffener_keys = {
@@ -794,7 +798,7 @@ class PdfButtonHandler:
         for key in rocker_keys:
             if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
                 passed_codes['A19'] += 1
-                
+
         # --- New logic for Straps Checks ---
         sides = ['left', 'right']
         for side in sides:
