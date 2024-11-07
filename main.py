@@ -592,7 +592,7 @@ class PdfButtonHandler:
 
         for key in posting_keys:
             if content_dict.get(key, '') == 'selected':
-                code = 'A45' if insole_type == 'cradle' else 'B45'
+                code = 'A45' if insole_type == 'cradle' else 'B56'
                 passed_codes[code] += 1
         # --- End of Insole Postings logic ---
 
@@ -788,15 +788,13 @@ class PdfButtonHandler:
         for key in elongations_keys:
             if content_dict.get(key, '') in ('full', 'half'):
                 passed_codes['A31'] += 1
-                break  # Assuming only one code is needed
 
         # Rocker Type Checks
         rocker_keys = ['rocker left type', 'rocker right type']
         for key in rocker_keys:
             if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
                 passed_codes['A19'] += 1
-                break  # Assuming only one code is needed
-
+                
         # --- New logic for Straps Checks ---
         sides = ['left', 'right']
         for side in sides:
