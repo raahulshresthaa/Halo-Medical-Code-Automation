@@ -898,7 +898,7 @@ class PdfButtonHandler:
         # General codes to double if 'pair' is selected
         if content_dict.get('pair', '') == 'selected':
             codes_to_double_general = [
-                'A18A', 'Twist Fasten', 'A6'
+                'A1K', 'A18A', 'Twist Fasten', 'A6'
             ]
             for code in codes_to_double_general:
                 if code in passed_codes:
