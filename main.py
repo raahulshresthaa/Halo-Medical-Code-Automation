@@ -498,6 +498,50 @@ class PdfButtonHandler:
         # Debugging: Print content_dict keys
         print(f"Content Dictionary Keys: {list(content_dict.keys())}")
 
+        # --- Start of Style-based Codes ---
+        # Assign 'A1A' or 'A1B' based on 'style' or 'type' selections
+        style = content_dict.get('style', '').lower()
+
+        a1b_styles = {
+            'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
+            'truro', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'sneaker',
+            'greenock', 'olympic', 'melton', 'hendon', 'stirling', 'exeter', 'chester',
+            'kelso', 'dover', 'shelwyck', 'mowbray', 'shelby'
+        }
+
+        a1a_styles = {
+            'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
+            'dundee', 'brigg', 'elgin', 'highland'
+        }
+
+        if style in a1b_styles:
+            passed_codes['A1B'] += 1
+        elif style in a1a_styles:
+            passed_codes['A1A'] += 1
+
+        # Add logic for 'pop cast'
+        if content_dict.get('pop cast', '') == 'selected':
+            passed_codes['A1K'] += 1
+
+        # Backup logic for 'A1A' and 'A1B' based on 'type' selections
+        # Only apply if 'A1A' or 'A1B' has not been added yet
+        if 'A1A' not in passed_codes and 'A1B' not in passed_codes:
+            type_code_mapping = {
+                'type boots': 'A1A',
+                'type bootee': 'A1A',
+                'type shoes': 'A1B',
+                'type sports': 'A1B',
+            }
+
+            for key, code in type_code_mapping.items():
+                if content_dict.get(key, '') == 'selected':
+                    passed_codes[code] += 1
+
+        # Default to 'A1A' if neither 'A1A' nor 'A1B' is in passed_codes
+        if 'A1A' not in passed_codes and 'A1B' not in passed_codes:
+            passed_codes['A1A'] += 1
+        # --- End of Style-based Codes ---
+
         # Determine insole type
         insole_type = None
         if content_dict.get('insole type tci', '') == 'selected':
@@ -596,28 +640,6 @@ class PdfButtonHandler:
                 passed_codes[code] += 1
         # --- End of Insole Postings logic ---
 
-        # --- New logic for Style-based Codes ---
-        # Replace the existing conditions for 'A1A' and 'A1B' with style checks
-        style = content_dict.get('style', '')
-        if style in (
-            'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
-            'truro', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'sneaker',
-            'greenock', 'olympic', 'melton', 'hendon', 'stirling', 'exeter', 'chester',
-            'kelso', 'dover', 'shelwyck', 'mowbray', 'shelby'
-        ):
-            passed_codes['A1B'] += 1
-        elif style in (
-            'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
-            'dundee', 'brigg', 'elgin', 'highland', ''
-        ):
-            passed_codes['A1A'] += 1
-        # --- End of Style-based Codes ---
-
-        # --- Add logic for 'pop cast' ---
-        if content_dict.get('pop cast', '') == 'selected':
-            passed_codes['A1K'] += 1
-        # --- End of 'pop cast' logic ---
-        
         # Sole Stiffeners Checks
         stiffener_keys = {
             'sole stiffeners left carbon fibre': 'A20',
@@ -901,9 +923,9 @@ class PdfButtonHandler:
             else:
                 formatted_passed_codes.append(code)
 
-        # Return the passed codes as a string, sorted for consistency
+        # Return the passed codes as a string
         if formatted_passed_codes:
-            return ', '.join(sorted(formatted_passed_codes))
+            return ', '.join(formatted_passed_codes)
         else:
             return None  # Return None if no codes were added
 
