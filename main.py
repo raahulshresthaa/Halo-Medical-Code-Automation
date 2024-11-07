@@ -613,6 +613,11 @@ class PdfButtonHandler:
             passed_codes['A1A'] += 1
         # --- End of Style-based Codes ---
 
+        # --- Add logic for 'pop cast' ---
+        if content_dict.get('pop cast', '') == 'selected':
+            passed_codes['A1K'] += 1
+        # --- End of 'pop cast' logic ---
+        
         # Sole Stiffeners Checks
         stiffener_keys = {
             'sole stiffeners left carbon fibre': 'A20',
@@ -871,7 +876,7 @@ class PdfButtonHandler:
         # General codes to double if 'pair' is selected
         if content_dict.get('pair', '') == 'selected':
             codes_to_double_general = [
-                'A1K', 'A18A', 'Twist Fasten', 'A6'
+                'A18A', 'Twist Fasten', 'A6'
             ]
             for code in codes_to_double_general:
                 if code in passed_codes:
