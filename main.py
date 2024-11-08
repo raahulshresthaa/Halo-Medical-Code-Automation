@@ -1395,7 +1395,7 @@ model_ids = {
     'Insoles': 'insoleFormV5',  # model id's
     'AFOs': 'AfoReaderV7',  
     'Bespoke': 'BespokeReaderV3',
-    'Modular': 'ModularReaderV1'  # New entry for Modular
+    'Modular': 'ModularReaderV2'  # New entry for Modular
 }
 
 # Set up the model_id_var with default value
