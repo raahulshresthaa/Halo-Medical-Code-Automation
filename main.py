@@ -144,11 +144,8 @@ class PdfButtonHandler:
                 # Check for base in the extracted content and get the query message
                 query_message = self.check_for_base(content)
 
-                # Check for special base value and get the warning message
-                warning_message = self.check_special_base(content)
             else:
                 query_message = None
-                warning_message = None
 
             # Check for clinic tariff and get the message (applies to all models)
             clinic_tariff_message = self.check_clinic_tariff(content)
@@ -157,8 +154,6 @@ class PdfButtonHandler:
             messages = []
             if query_message:
                 messages.append(query_message)
-            if warning_message:
-                messages.append(warning_message)
             if clinic_tariff_message:
                 messages.append(clinic_tariff_message)
             combined_messages = '\n'.join(messages) if messages else None
@@ -309,6 +304,16 @@ class PdfButtonHandler:
                 if not logic_file_name:
                     raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
 
+                # Insert the new code here
+                # Call the insole code generation method
+                passed_codes = self.generate_insole_codes(content)
+                if passed_codes:
+                    # Append the passed codes under 'Passed code:' in the content
+                    content += f"\n\nPassed code:\n{passed_codes}"
+                    print(f"Passed codes added to content: {passed_codes}")
+                else:
+                    print("No passed codes generated.")
+
             elif model_id == 'AfoReaderV7':
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
@@ -423,82 +428,6 @@ class PdfButtonHandler:
             return query_message
         else:
             return None  # No query needed
-
-    def check_special_base(self, data):
-        """Checks the special base codes based on the insole coding maths logic."""
-        # Initialize variables
-        x = 0
-        insole_type = ''
-        base_value = ''
-        spenco_selected = False
-        lining_to_shell_selected = False
-        lining_to_sulcus_selected = False
-        lining_full_selected = False
-
-        # Split the data into lines and look for the relevant lines
-        for line in data.split('\n'):
-            line_lower = line.lower().strip()
-            if line_lower.startswith('insole type'):
-                if 'simple' in line_lower and 'selected' in line_lower:
-                    insole_type = 'simple'
-            elif line_lower.startswith('simple:'):
-                value = line_lower[len('simple:'):].strip()
-                if value == 'selected':
-                    insole_type = 'simple'
-            elif line_lower.startswith('lining to shell:'):
-                value = line_lower[len('lining to shell:'):].strip()
-                if value == 'selected':
-                    lining_to_shell_selected = True
-            elif line_lower.startswith('lining to sulcus:'):
-                value = line_lower[len('lining to sulcus:'):].strip()
-                if value == 'selected':
-                    lining_to_sulcus_selected = True
-            elif line_lower.startswith('lining full:'):
-                value = line_lower[len('lining full:'):].strip()
-                if value == 'selected':
-                    lining_full_selected = True
-            elif line_lower.startswith('top cover material:'):
-                value = line_lower[len('top cover material:'):].strip()
-                if value == 'spenco (green)':
-                    spenco_selected = True
-            elif line_lower.startswith('base:'):
-                base_value = line_lower[len('base:'):].strip().lower()
-
-        # Apply the maths logic
-        if insole_type == 'simple':
-            x -= 1
-        if lining_to_shell_selected:
-            x += 1
-        if lining_to_sulcus_selected:
-            x += 1
-        if lining_full_selected:
-            x += 1
-        if spenco_selected:
-            x += 1
-        if base_value in ('35/20/80 sh', '45/30/80 sh'):
-            x += 1
-
-        # Print x in the terminal for debugging
-        print(f"x = {x}")
-        
-        # Determine the code based on the value of x
-        if x >= 2:
-            code = 'B55C'
-        elif x == 1:
-            code = 'B55B'
-        elif x == 0:
-            code = 'B55A'
-        else:
-            # x is less than 0; no warning message
-            return None
-
-        # Generate the warning message
-        warning_message = f"Based on the provided selections, use code {code}."
-        
-        # Display the warning message (assuming self.root is defined)
-        self.root.after(0, messagebox.showwarning, "Special Base Warning", warning_message)
-
-        return warning_message
 
     def check_clinic_tariff(self, data):
         # Initialize clinic_value
@@ -950,6 +879,110 @@ class PdfButtonHandler:
 
         # Insole codes to double if 'insole pair' is selected
         if content_dict.get('insole pair', '') == 'selected':
+            codes_to_double_insole = [
+                'A10', 'B54C', 'B40B', 'B54A',  # Insole form base codes
+                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'  # Insole covering codes (maths)
+            ]
+            for code in codes_to_double_insole:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
+        # --- End of Pair Handling ---
+
+        # Format the passed codes with counts
+        formatted_passed_codes = []
+        for code, count in passed_codes.items():
+            if count > 1:
+                formatted_passed_codes.append(f"{code} x{count}")
+            else:
+                formatted_passed_codes.append(code)
+
+        # Return the passed codes as a string
+        if formatted_passed_codes:
+            return ', '.join(formatted_passed_codes)
+        else:
+            return None  # Return None if no codes were added
+
+    def generate_insole_codes(self, content):
+        """Generates insole codes based on the content."""
+        from collections import defaultdict
+        passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
+
+        # Split the content into lines for easier processing
+        lines = content.split('\n')
+
+        # Convert lines to a dictionary for easier lookup with lowercase keys and values
+        content_dict = {}
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                content_dict[key.strip().lower()] = value.strip().lower()
+
+        # Determine insole type
+        insole_type = None
+        if content_dict.get('insole type tci', '') == 'selected':
+            insole_type = 'tci'
+        elif content_dict.get('insole type cradle', '') == 'selected':
+            insole_type = 'cradle'
+        elif content_dict.get('insole type simple', '') == 'selected':
+            insole_type = 'simple'
+        elif content_dict.get('insole type handmould', '') == 'selected':
+            insole_type = 'handmould'
+        # You can add more insole types if needed
+
+        # Get the base value
+        base = content_dict.get('base', '').strip().lower()
+        normalized_base = base.replace(' ', '').lower()
+        print(f"Base value: '{base}'")  # For debugging
+
+        # --- Insole coding section - MATHS! ---
+
+        x = 0
+        if insole_type == 'simple':
+            x -= 1
+        if content_dict.get('lining to shell', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to sulcus', '') == 'selected':
+            x += 1
+        if content_dict.get('lining full', '') == 'selected':
+            x += 1
+        if content_dict.get('insole top cover material', '') == 'spenco (green)':
+            x += 1
+        if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
+            x += 1
+
+        if x >= 2:
+            code = 'A44C' if insole_type == 'cradle' else 'B55C'
+            passed_codes[code] += 1
+        elif x == 1:
+            code = 'A44B' if insole_type == 'cradle' else 'B55B'
+            passed_codes[code] += 1
+        else:  # x <= 0
+            code = 'A44A' if insole_type == 'cradle' else 'B55A'
+            passed_codes[code] += 1
+
+        # New logic for Insole Form Base
+
+        # Normalize the base value
+        normalized_base = base.replace(' ', '').lower()
+        shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
+
+        if insole_type == 'cradle':
+            if normalized_base in shore_bases:
+                passed_codes['A10'] += 1
+        elif insole_type in ('tci', 'simple', 'handmould'):
+            passed_codes['B54C'] += 1
+
+        # If 'base poron' is selected then add code B40B
+        if content_dict.get('base poron', '') == 'selected':
+            passed_codes['B40B'] += 1
+
+        # If 'base carbon fibre' is selected then add code B54A
+        if content_dict.get('base carbon fibre', '') == 'selected':
+            passed_codes['B54A'] += 1
+
+        # --- New logic for Pair Handling ---
+        # Insole codes to double if 'insole pair' is selected
+        if content_dict.get('pair', '') == 'selected':
             codes_to_double_insole = [
                 'A10', 'B54C', 'B40B', 'B54A',  # Insole form base codes
                 'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'  # Insole covering codes (maths)
