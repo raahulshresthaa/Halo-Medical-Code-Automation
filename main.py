@@ -595,6 +595,27 @@ class PdfButtonHandler:
                     # Handle unexpected addition values if necessary
                     print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
 
+        # --- New logic for Foot Modifications adding BNS45 ---
+
+        # List of foot modifications that map to BNS45
+        foot_modifications = [
+            'cut out and additions',
+            '1st met head',
+            '1st met ray',
+            '5th met ray',
+            'navicular sweet spot',
+            'fascial accommodation',
+            'heel flange'
+        ]
+
+        # Check for each foot modification for both left and right foot
+        sides = ['left', 'right']
+        for side in sides:
+            for mod in foot_modifications:
+                key = f"{side} {mod}"
+                if content_dict.get(key, '') == 'selected':
+                    passed_codes['BNS45'] += 1
+
         # --- New logic for Insole Postings ---
         posting_keys = [
             'left medial rearfoot posting',
@@ -919,13 +940,13 @@ class PdfButtonHandler:
 
         # Determine insole type
         insole_type = None
-        if content_dict.get('insole type tci', '') == 'selected':
+        if content_dict.get('tci test', '') == 'selected':
             insole_type = 'tci'
-        elif content_dict.get('insole type cradle', '') == 'selected':
+        elif content_dict.get('cradle', '') == 'selected':
             insole_type = 'cradle'
-        elif content_dict.get('insole type simple', '') == 'selected':
+        elif content_dict.get('simple', '') == 'selected':
             insole_type = 'simple'
-        elif content_dict.get('insole type handmould', '') == 'selected':
+        elif content_dict.get('hand mould', '') == 'selected':
             insole_type = 'handmould'
         # You can add more insole types if needed
 
@@ -943,9 +964,9 @@ class PdfButtonHandler:
             x += 1
         if content_dict.get('lining to sulcus', '') == 'selected':
             x += 1
-        if content_dict.get('lining full', '') == 'selected':
+        if content_dict.get('lining to full', '') == 'selected':
             x += 1
-        if content_dict.get('insole top cover material', '') == 'spenco (green)':
+        if content_dict.get('top cover material', '') == 'spenco (green)':
             x += 1
         if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
             x += 1
@@ -973,18 +994,18 @@ class PdfButtonHandler:
             passed_codes['B54C'] += 1
 
         # If 'base poron' is selected then add code B40B
-        if content_dict.get('base poron', '') == 'selected':
+        if content_dict.get('poron', '') == 'selected':
             passed_codes['B40B'] += 1
 
         # If 'base carbon fibre' is selected then add code B54A
-        if content_dict.get('base carbon fibre', '') == 'selected':
+        if content_dict.get('carbon fibre', '') == 'selected':
             passed_codes['B54A'] += 1
 
         # --- New logic for Additions ---
         # Define the list of addition positions (left and right, 1st to 4th)
         addition_positions = [
-            'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
-            'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition'
+            '1st addition left', '2nd addition left', '3rd addition left', '4th addition left',
+            '1st addition right', '2nd addition right', '3rd addition right', '4th addition right'
         ]
 
         # Define the mappings from addition values to codes
@@ -1044,16 +1065,37 @@ class PdfButtonHandler:
                     # Handle unexpected addition values if necessary
                     print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
 
+        # --- New logic for Foot Modifications adding BNS45 ---
+
+        # List of foot modifications that map to BNS45
+        foot_modifications = [
+            'cut out and additions',
+            '1st met head',
+            '1st met ray',
+            '5th met ray',
+            'navicular sweet spot',
+            'fascial accommodation',
+            'heel flange'
+        ]
+
+        # Check for each foot modification for both left and right foot
+        sides = ['left', 'right']
+        for side in sides:
+            for mod in foot_modifications:
+                key = f"{side} {mod}"
+                if content_dict.get(key, '') == 'selected':
+                    passed_codes['BNS45'] += 1
+
         # --- New logic for Insole Postings ---
         posting_keys = [
-            'left medial rearfoot posting',
-            'left lateral rearfoot posting',
-            'right medial rearfoot posting',
-            'right lateral rearfoot posting',
-            'left medial forefoot posting',
-            'left lateral forefoot posting',
-            'right medial forefoot posting',
-            'right lateral forefoot posting',
+            'left medial rearfoot',
+            'left lateral rearfoot',
+            'right medial rearfoot',
+            'right lateral rearfoot',
+            'left medial forefoot',
+            'left lateral forefoot',
+            'right medial forefoot',
+            'right lateral forefoot',
         ]
 
         for key in posting_keys:
