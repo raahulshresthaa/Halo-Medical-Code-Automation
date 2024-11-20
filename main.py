@@ -940,10 +940,8 @@ class PdfButtonHandler:
 
         # Determine insole type
         insole_type = None
-        if content_dict.get('tci test', '') == 'selected':
+        if content_dict.get('tci test', '') == 'selected' or content_dict.get('cradle', '') == 'selected':
             insole_type = 'tci'
-        elif content_dict.get('cradle', '') == 'selected':
-            insole_type = 'cradle'
         elif content_dict.get('simple', '') == 'selected':
             insole_type = 'simple'
         elif content_dict.get('hand mould', '') == 'selected':
@@ -972,13 +970,13 @@ class PdfButtonHandler:
             x += 1
 
         if x >= 2:
-            code = 'A44C' if insole_type == 'cradle' else 'B55C'
+            code = 'B55C'
             passed_codes[code] += 1
         elif x == 1:
-            code = 'A44B' if insole_type == 'cradle' else 'B55B'
+            code = 'B55B'
             passed_codes[code] += 1
         else:  # x <= 0
-            code = 'A44A' if insole_type == 'cradle' else 'B55A'
+            code = 'B55A'
             passed_codes[code] += 1
 
         # New logic for Insole Form Base
@@ -987,21 +985,19 @@ class PdfButtonHandler:
         normalized_base = base.replace(' ', '').lower()
         shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
 
-        if insole_type == 'cradle':
-            if normalized_base in shore_bases:
-                passed_codes['A10'] += 1
-        elif insole_type in ('tci', 'simple', 'handmould'):
+        if insole_type in ('tci', 'handmould'):
             passed_codes['B54C'] += 1
+        # No base code added for 'simple' insole type
 
-        # If 'base poron' is selected then add code B40B
+        # If 'poron' is selected then add code B40B
         if content_dict.get('poron', '') == 'selected':
             passed_codes['B40B'] += 1
 
-        # If 'base carbon fibre' is selected then add code B54A
+        # If 'carbon fibre' is selected then add code B54A
         if content_dict.get('carbon fibre', '') == 'selected':
             passed_codes['B54A'] += 1
 
-        # --- New logic for Additions ---
+        # --- Additions ---
         # Define the list of addition positions (left and right, 1st to 4th)
         addition_positions = [
             '1st addition left', '2nd addition left', '3rd addition left', '4th addition left',
@@ -1010,28 +1006,28 @@ class PdfButtonHandler:
 
         # Define the mappings from addition values to codes
         addition_code_mapping = {
-            # Additions mapping to A45 or B41
-            'A45_B41': {
+            # Additions mapping to B41
+            'B41': {
                 'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
                 'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
                 'sulcus crest', 'arch fill'
             },
-            # Additions mapping to A45 or B56
-            'A45_B56': {
+            # Additions mapping to B56
+            'B56': {
                 "morton's extension", "reverse morton's extension", 'poron forefoot'
             },
-            # Additions mapping to A45 or B43
-            'A45_B43': {'kinetic wedge', 'heel raise'},
+            # Additions mapping to B43
+            'B43': {'kinetic wedge', 'heel raise'},
             # Additions mapping to D8A
             'D8A': {'neurological footplate'},
             # Additions mapping to BNS45
             'BNS45': {'recess', 'hole & plug'},
-            # Additions mapping to A20 or B20
-            'A20_B20': {'rigid 1st extension'},
-            # Additions mapping to A46 or B50
-            'A46_B50': {'partial toe block'},
-            # Additions mapping to A47 or B51
-            'A47_B51': {'full toe block'}
+            # Additions mapping to B20
+            'B20': {'rigid 1st extension'},
+            # Additions mapping to B50
+            'B50': {'partial toe block'},
+            # Additions mapping to B51
+            'B51': {'full toe block'}
         }
 
         # Iterate over each addition position and apply the appropriate codes
@@ -1039,33 +1035,15 @@ class PdfButtonHandler:
             addition_value = content_dict.get(key, '')
             if addition_value:
                 # Check which mapping the addition_value belongs to
-                if addition_value in addition_code_mapping['A45_B41']:
-                    code = 'A45' if insole_type == 'cradle' else 'B41'
-                    passed_codes[code] += 1
-                elif addition_value in addition_code_mapping['A45_B56']:
-                    code = 'A45' if insole_type == 'cradle' else 'B56'
-                    passed_codes[code] += 1
-                elif addition_value in addition_code_mapping['A45_B43']:
-                    code = 'A45' if insole_type == 'cradle' else 'B43'
-                    passed_codes[code] += 1
-                elif addition_value in addition_code_mapping['D8A']:
-                    passed_codes['D8A'] += 1
-                elif addition_value in addition_code_mapping['BNS45']:
-                    passed_codes['BNS45'] += 1
-                elif addition_value in addition_code_mapping['A20_B20']:
-                    code = 'A20' if insole_type == 'cradle' else 'B20'
-                    passed_codes[code] += 1
-                elif addition_value in addition_code_mapping['A46_B50']:
-                    code = 'A46' if insole_type == 'cradle' else 'B50'
-                    passed_codes[code] += 1
-                elif addition_value in addition_code_mapping['A47_B51']:
-                    code = 'A47' if insole_type == 'cradle' else 'B51'
-                    passed_codes[code] += 1
+                for code, additions in addition_code_mapping.items():
+                    if addition_value in additions:
+                        passed_codes[code] += 1
+                        break
                 else:
                     # Handle unexpected addition values if necessary
                     print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
 
-        # --- New logic for Foot Modifications adding BNS45 ---
+        # --- Foot Modifications adding BNS45 ---
 
         # List of foot modifications that map to BNS45
         foot_modifications = [
@@ -1086,7 +1064,7 @@ class PdfButtonHandler:
                 if content_dict.get(key, '') == 'selected':
                     passed_codes['BNS45'] += 1
 
-        # --- New logic for Insole Postings ---
+        # --- Insole Postings ---
         posting_keys = [
             'left medial rearfoot',
             'left lateral rearfoot',
@@ -1100,17 +1078,15 @@ class PdfButtonHandler:
 
         for key in posting_keys:
             if content_dict.get(key, '') == 'selected':
-                code = 'A45' if insole_type == 'cradle' else 'B56'
-                passed_codes[code] += 1
+                passed_codes['B56'] += 1
         # --- End of Insole Postings logic ---
 
-        # --- New logic for Pair Handling ---
-        # Insole codes to double if 'insole pair' is selected
+        # --- Pair Handling ---
+        # Insole codes to double if 'pair' or 'insole pair' is selected
         if content_dict.get('pair', '') == 'selected' or content_dict.get('insole pair', '') == 'selected':
             codes_to_double_insole = [
-                'A10', 'B54C', 'B40B', 'B54A',  # Insole form base codes
-                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C',  # Insole covering codes (maths)
-                'A45', 'B41', 'B56', 'B43', 'D8A', 'BNS45', 'A20', 'B20', 'A46', 'B50', 'A47', 'B51',  # Additions and postings
+                'B54C', 'B40B', 'B54A',  # Insole form base codes
+                'B55A', 'B55B', 'B55C',  # Insole covering codes (maths)
             ]
             for code in codes_to_double_insole:
                 if code in passed_codes:
