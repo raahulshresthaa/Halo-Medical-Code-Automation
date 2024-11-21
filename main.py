@@ -1286,7 +1286,7 @@ class PdfButtonHandler:
         # General codes to double if 'pair' is selected
         if content_dict.get('pair', '') == 'selected':
             codes_to_double_general = [
-                'modular shoes', 'modular boots', 'twist fasten', 'modular sports','BNS62'
+                'twist fasten', 'BNS62'
             ]
             for code in codes_to_double_general:
                 if code in passed_codes:
