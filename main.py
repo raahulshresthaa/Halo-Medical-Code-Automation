@@ -15,7 +15,8 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 from collections import defaultdict
 
 # Version number
-VERSION = "3.1.0"
+VERSION = "4.0.0-alpha"
+
 
 # To fix blurriness on some displays
 try:
@@ -331,6 +332,19 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
+            elif model_id == 'ModularReaderV6':
+                logic_file_name = 'modular_logic.txt'
+                print(f"Logic file name: {logic_file_name}")
+
+                # Call the modular code generation method
+                passed_codes = self.generate_modular_codes(content)
+                if passed_codes:
+                    # Append the passed codes under 'Passed code:' in the content
+                    content += f"\n\nPassed code:\n{passed_codes}"
+                    print(f"Passed codes added to content: {passed_codes}")
+                else:
+                    print("No passed codes generated.")
+
             else:
                 raise ValueError(f"Unknown model ID '{model_id}'.")
 
@@ -452,7 +466,7 @@ class PdfButtonHandler:
             return message
         else:
             return None  # No message needed
-        
+
     def generate_bespoke_codes(self, content):
         """Generates codes based on the content for the Bespoke model, counting duplicates."""
         from collections import defaultdict
@@ -1107,6 +1121,338 @@ class PdfButtonHandler:
         else:
             return None  # Return None if no codes were added
 
+    def generate_modular_codes(self, content):
+        """Generates insole codes based on the content for the Modular model."""
+        from collections import defaultdict
+        passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
+
+        # Split the content into lines for easier processing
+        lines = content.split('\n')
+
+        # Convert lines to a dictionary for easier lookup with lowercase keys and values
+        content_dict = {}
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                content_dict[key.strip().lower()] = value.strip().lower()
+
+        # --- New logic for Last Type Checks ---
+        if content_dict.get('last type', '').strip().lower() == 'wide extra deep':
+            count = 1
+            if content_dict.get('pair', '') == 'selected':
+                count = 2
+            passed_codes['6mm'] += count
+        # --- End of Last Type Checks ---
+
+        # --- New logic for Insole Allowance Checks ---
+        allowance_codes = {'3mm', '6mm', '9mm', '12mm'}
+        pattern_allowances = {'9mm', '12mm'}
+
+        for key in ['left insole allowance', 'right insole allowance']:
+            value = content_dict.get(key, '').strip().lower()
+            if value in allowance_codes:
+                passed_codes[value] += 1
+                if value in pattern_allowances:
+                    passed_codes['Pattern'] += 1
+        # --- End of Insole Allowance Checks ---
+
+        # --- New logic for Sole and Style Checks ---
+        sole_value = content_dict.get('sole', '')
+        style_value = content_dict.get('style', '')
+
+        if sole_value in ('(lcr) lightweight commando sole', 'resin commando sole'):
+            if style_value not in ('highland', 'rockingham', 'rockcliffe'):
+                passed_codes['BNS62'] += 1
+        # --- End of Sole and Style Checks ---
+
+        # --- New logic for Style-based Codes ---
+        if content_dict.get('shoes', '') == 'selected':
+            passed_codes['modular shoes'] += 1
+        if content_dict.get('boots', '') == 'selected':
+            passed_codes['modular boots'] += 1
+        if content_dict.get('trainers', '') == 'selected':
+            passed_codes['modular sports'] += 1
+        if content_dict.get('boa', '') == 'selected':
+            passed_codes['twist fasten'] += 1
+        # --- End of Style-based Codes ---
+        if content_dict.get('velcro', '') == 'selected':
+            passed_codes['velcro'] += 1
+        # --- New logic for Straps Checks ---
+        sides = ['left', 'right']
+        for side in sides:
+            strap_type_key = f'{side} strap type'
+            double_decker_key = f'{side} double decker'
+
+            strap_type = content_dict.get(strap_type_key, '')
+            double_decker = content_dict.get(double_decker_key, '')
+
+            if double_decker == 'yes':
+                # If double decker is 'yes', add code 'B34' regardless of strap type
+                passed_codes['B34'] += 1
+            else:
+                if strap_type in ('t strap', 'y strap'):
+                    passed_codes['B33'] += 1
+                elif strap_type in ('spur retaining strap', 'heel retaining strap'):
+                    passed_codes['B8'] += 1
+        # --- End of Straps Checks ---
+
+        # --- New logic for Sockets Type Checks ---
+        socket_keys = ['left socket type', 'right socket type']
+        for key in socket_keys:
+            value = content_dict.get(key, '')
+            if value in ('5/16 round', '1/4 round', 'small rectangular', 'large rectangular', 'rizzoli'):
+                passed_codes['B30'] += 1
+            elif value in ("5/16 with b'stop", "1/4 with b'stop"):
+                passed_codes['B31'] += 1
+
+        # --- New logic for elongation Type adding B17 ---
+        rocker_keys = ['left elongation type', 'right elongation type']
+        for key in rocker_keys:
+            if content_dict.get(key, '') in ('full elongated heel', 'half elongated heel'):
+                passed_codes['B25'] += 1
+
+        # --- New logic for Rocker Type adding B17 ---
+        rocker_keys = ['left rocker type', 'right rocker type']
+        for key in rocker_keys:
+            if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
+                passed_codes['B17'] += 1
+
+        # --- Updated logic for Wedges ---
+        wedges_keys = [
+            'left wedges heel lateral',
+            'left wedges heel medial',
+            'right wedges heel medial',
+            'right wedges heel lateral',
+            'left wedges sole lateral',
+            'left wedges sole medial',
+            'right wedges sole medial',
+            'right wedges sole lateral'
+        ]
+
+        for key in wedges_keys:
+            if content_dict.get(key, '') == 'selected':
+                if 'heel' in key:
+                    passed_codes['B25'] += 1  # Heel wedge code
+                elif 'sole' in key:
+                    passed_codes['B18'] += 1  # Sole wedge code
+        # --- End of Wedges logic ---
+
+        # --- Updated logic for Floated ---
+        floated_keys = [
+            'right floated heel lateral',
+            'right floated heel medial',
+            'left floated heel medial',
+            'left floated heel lateral',
+            'left floated sole lateral',
+            'left floated sole medial',
+            'right floated sole lateral',
+            'right floated sole medial'
+        ]
+
+        for key in floated_keys:
+            if content_dict.get(key, '') == 'selected':
+                if 'heel' in key:
+                    passed_codes['B25'] += 1  # Floated heel code
+                elif 'sole' in key:
+                    passed_codes['B19'] += 1  # Floated sole code
+        # --- End of Floated logic ---
+
+        # Determine insole type
+        insole_type = None
+        if content_dict.get('insole type tci', '') == 'selected':
+            insole_type = 'tci'
+        elif content_dict.get('insole type cradle', '') == 'selected':
+            insole_type = 'cradle'
+        elif content_dict.get('insole type simple', '') == 'selected':
+            insole_type = 'simple'
+        elif content_dict.get('insole type handmould', '') == 'selected':
+            insole_type = 'handmould'
+        # You can add more insole types if needed
+
+        # Get the base value
+        base = content_dict.get('base', '').strip().lower()
+        normalized_base = base.replace(' ', '').lower()
+        print(f"Base value: '{base}'")  # For debugging
+        # Normalize the base value
+        normalized_base = base.replace(' ', '').lower()
+        shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
+
+        if insole_type == 'cradle':
+            if normalized_base in shore_bases:
+                passed_codes['A10'] += 1
+        elif insole_type in ('tci', 'simple', 'handmould'):
+            passed_codes['B54C'] += 1
+
+        # If 'base poron' is selected then add code B40B
+        if content_dict.get('base poron', '') == 'selected':
+            passed_codes['B40B'] += 1
+
+        # If 'base carbon fibre' is selected then add code B54A
+        if content_dict.get('base carbon fibre', '') == 'selected':
+            passed_codes['B54A'] += 1
+
+        # --- New logic for Pair Handling ---
+        # List of foot modifications that map to BNS45
+        foot_modifications = [
+            'cut out and additions',
+            '1st met head',
+            '1st met ray',
+            '5th met ray',
+            'navicular sweet spot',
+            'fascial accommodation',
+            'heel flange'
+        ]
+        # Check for each foot modification for both left and right foot
+        sides = ['left', 'right']
+        for side in sides:
+            for mod in foot_modifications:
+                key = f"{side} {mod}"
+                if content_dict.get(key, '') == 'selected':
+                    passed_codes['BNS45'] += 1
+
+        # Define the list of addition positions (left and right, 1st to 4th)
+        addition_positions = [
+            'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
+            'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition'
+        ]
+
+        # Define the mappings from addition values to codes
+        addition_code_mapping = {
+            # Additions mapping to A45 or B41
+            'A45_B41': {
+                'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
+                'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
+                'sulcus crest', 'arch fill'
+            },
+            # Additions mapping to A45 or B56
+            'A45_B56': {
+                "morton's extension", "reverse morton's extension", 'poron forefoot'
+            },
+            # Additions mapping to A45 or B43
+            'A45_B43': {'kinetic wedge', 'heel raise'},
+            # Additions mapping to D8A
+            'D8A': {'neurological footplate'},
+            # Additions mapping to BNS45
+            'BNS45': {'recess', 'hole & plug'},
+            # Additions mapping to A20 or B20
+            'A20_B20': {'rigid 1st extension'},
+            # Additions mapping to A46 or B50
+            'A46_B50': {'partial toe block'},
+            # Additions mapping to A47 or B51
+            'A47_B51': {'full toe block'}
+        }
+
+        # Iterate over each addition position and apply the appropriate codes
+        for key in addition_positions:
+            addition_value = content_dict.get(key, '')
+            if addition_value:
+                # Check which mapping the addition_value belongs to
+                if addition_value in addition_code_mapping['A45_B41']:
+                    code = 'A45' if insole_type == 'cradle' else 'B41'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A45_B56']:
+                    code = 'A45' if insole_type == 'cradle' else 'B56'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A45_B43']:
+                    code = 'A45' if insole_type == 'cradle' else 'B43'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['D8A']:
+                    passed_codes['D8A'] += 1
+                elif addition_value in addition_code_mapping['BNS45']:
+                    passed_codes['BNS45'] += 1
+                elif addition_value in addition_code_mapping['A20_B20']:
+                    code = 'A20' if insole_type == 'cradle' else 'B20'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A46_B50']:
+                    code = 'A46' if insole_type == 'cradle' else 'B50'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A47_B51']:
+                    code = 'A47' if insole_type == 'cradle' else 'B51'
+                    passed_codes[code] += 1
+                else:
+                    # Handle unexpected addition values if necessary
+                    print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
+
+        # --- New logic for Insole Postings ---
+        posting_keys = [
+            'left medial rearfoot posting',
+            'left lateral rearfoot posting',
+            'right medial rearfoot posting',
+            'right lateral rearfoot posting',
+            'left medial forefoot posting',
+            'left lateral forefoot posting',
+            'right medial forefoot posting',
+            'right lateral forefoot posting',
+        ]
+
+        for key in posting_keys:
+            if content_dict.get(key, '') == 'selected':
+                code = 'A45' if insole_type == 'cradle' else 'B56'
+                passed_codes[code] += 1
+        # --- End of Insole Postings logic ---
+
+        # --- Insole coding section - MATHS! ---
+
+        x = 0
+        if insole_type == 'simple':
+            x -= 1
+        if content_dict.get('lining to shell', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to sulcus', '') == 'selected':
+            x += 1
+        if content_dict.get('lining full', '') == 'selected':
+            x += 1
+        if content_dict.get('insole top cover material', '') == 'spenco (green)':
+            x += 1
+        if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
+            x += 1
+
+        if x >= 2:
+            code = 'A44C' if insole_type == 'cradle' else 'B55C'
+            passed_codes[code] += 1
+        elif x == 1:
+            code = 'A44B' if insole_type == 'cradle' else 'B55B'
+            passed_codes[code] += 1
+        else:  # x <= 0
+            code = 'A44A' if insole_type == 'cradle' else 'B55A'
+            passed_codes[code] += 1
+
+        # New logic for Insole Form Base
+
+        # General codes to double if 'pair' is selected
+        if content_dict.get('pair', '') == 'selected':
+            codes_to_double_general = [
+                'twist fasten', 'BNS62', 'velcro'
+            ]
+            for code in codes_to_double_general:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
+
+        # Insole codes to double if 'insole pair' is selected
+        if content_dict.get('insole pair', '') == 'selected':
+            codes_to_double_insole = [
+                'A10', 'B54C', 'B40B', 'B54A',  # Insole form base codes
+                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'  # Insole covering codes (maths)
+            ]
+            for code in codes_to_double_insole:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
+        # --- End of Pair Handling ---
+
+        # Format the passed codes with counts
+        formatted_passed_codes = []
+        for code, count in passed_codes.items():
+            if count > 1:
+                formatted_passed_codes.append(f"{code} x{count}")
+            else:
+                formatted_passed_codes.append(code)
+
+        # Return the passed codes as a string
+        if formatted_passed_codes:
+            return ', '.join(formatted_passed_codes)
+        else:
+            return None  # Return None if no codes were added
+
 # --- Main Application Setup ---
 
 # Define the list of available themes
@@ -1342,7 +1688,8 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 model_ids = {
     'Insoles': 'insoleFormV5',  # model id's
     'AFOs': 'AfoReaderV7',  
-    'Bespoke': 'BespokeReaderV3'
+    'Bespoke': 'BespokeReaderV3',
+    'Modular': 'ModularReaderV6'  # New entry for Modular
 }
 
 # Set up the model_id_var with default value
