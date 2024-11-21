@@ -1001,6 +1001,14 @@ class PdfButtonHandler:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
+        # --- New logic for Last Type Checks ---
+        if content_dict.get('last type', '').strip().lower() == 'wide extra deep':
+            count = 1
+            if content_dict.get('pair', '') == 'selected':
+                count = 2
+            passed_codes['6mm'] += count
+        # --- End of Last Type Checks ---
+
         # --- New logic for Insole Allowance Checks ---
         allowance_codes = {'3mm', '6mm', '9mm', '12mm'}
         pattern_allowances = {'9mm', '12mm'}
