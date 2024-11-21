@@ -1081,24 +1081,27 @@ class PdfButtonHandler:
             if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
                 passed_codes['B17'] += 1
 
-        # --- New logic for Wedges adding B25 ---
+        # --- Updated logic for Wedges ---
         wedges_keys = [
             'left wedges heel lateral',
-            'left wedges sole lateral',
             'left wedges heel medial',
-            'left wedges sole medial',
             'right wedges heel medial',
-            'right wedges sole medial',
             'right wedges heel lateral',
+            'left wedges sole lateral',
+            'left wedges sole medial',
+            'right wedges sole medial',
             'right wedges sole lateral'
         ]
 
         for key in wedges_keys:
             if content_dict.get(key, '') == 'selected':
-                passed_codes['B25'] += 1
+                if 'heel' in key:
+                    passed_codes['B25'] += 1  # Heel wedge code
+                elif 'sole' in key:
+                    passed_codes['B18'] += 1  # Sole wedge code
         # --- End of Wedges logic ---
 
-        # --- New logic for Floated adding B18 ---
+        # --- Updated logic for Floated ---
         floated_keys = [
             'right floated heel lateral',
             'right floated heel medial',
@@ -1112,7 +1115,10 @@ class PdfButtonHandler:
 
         for key in floated_keys:
             if content_dict.get(key, '') == 'selected':
-                passed_codes['B18'] += 1
+                if 'heel' in key:
+                    passed_codes['B25'] += 1  # Floated heel code
+                elif 'sole' in key:
+                    passed_codes['B19'] += 1  # Floated sole code
         # --- End of Floated logic ---
 
         # Determine insole type
