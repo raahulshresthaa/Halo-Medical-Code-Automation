@@ -1,2 +1,6 @@
 Start by saying "Modular logic selected successfully"
-Then just repeat the the list of passed codes on a single line do not change anything
+Then just repeat the the list of passed codes on a single line 
+The velcro code is 'velcro'
+If velcro code is passed and any of the following styles are selected then multiply the velcro by 2: Selby, Chelsea, Vienna, Truro, Lineham, Hove, Plymouth, Drayton, Sneaker, Olympic, Melton, Rockingham, Dover, Shelwyck, Mowbray, Rockliffe, Dundee,
+And if it is any of these following styles multiply by 3: Bumper, Whitby, Perth, Elgin
+ie if you have velcro x2, and have to multiply by 2 then it would be velcro x4

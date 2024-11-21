@@ -1040,7 +1040,8 @@ class PdfButtonHandler:
         if content_dict.get('boa', '') == 'selected':
             passed_codes['twist fasten'] += 1
         # --- End of Style-based Codes ---
-
+        if content_dict.get('velcro', '') == 'selected':
+            passed_codes['velcro'] += 1
         # --- New logic for Straps Checks ---
         sides = ['left', 'right']
         for side in sides:
@@ -1286,7 +1287,7 @@ class PdfButtonHandler:
         # General codes to double if 'pair' is selected
         if content_dict.get('pair', '') == 'selected':
             codes_to_double_general = [
-                'twist fasten', 'BNS62'
+                'twist fasten', 'BNS62', 'velcro'
             ]
             for code in codes_to_double_general:
                 if code in passed_codes:
