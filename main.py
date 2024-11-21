@@ -326,7 +326,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'ModularReaderV4':
+            elif model_id == 'ModularReaderV5':
                 logic_file_name = 'modular_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
@@ -1000,7 +1000,7 @@ class PdfButtonHandler:
             if ':' in line:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
-                
+
         # --- New logic for Straps Checks ---
         sides = ['left', 'right']
         for side in sides:
@@ -1500,7 +1500,7 @@ model_ids = {
     'Insoles': 'insoleFormV5',  # model id's
     'AFOs': 'AfoReaderV7',  
     'Bespoke': 'BespokeReaderV3',
-    'Modular': 'ModularReaderV4'  # New entry for Modular
+    'Modular': 'ModularReaderV5'  # New entry for Modular
 }
 
 # Set up the model_id_var with default value
