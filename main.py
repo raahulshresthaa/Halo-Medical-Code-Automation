@@ -1018,6 +1018,24 @@ class PdfButtonHandler:
         normalized_base = base.replace(' ', '').lower()
         print(f"Base value: '{base}'")  # For debugging
 
+        # List of foot modifications that map to BNS45
+        foot_modifications = [
+            'cut out and additions',
+            '1st met head',
+            '1st met ray',
+            '5th met ray',
+            'navicular sweet spot',
+            'fascial accommodation',
+            'heel flange'
+        ]
+        # Check for each foot modification for both left and right foot
+        sides = ['left', 'right']
+        for side in sides:
+            for mod in foot_modifications:
+                key = f"{side} {mod}"
+                if content_dict.get(key, '') == 'selected':
+                    passed_codes['BNS45'] += 1
+
         # Define the list of addition positions (left and right, 1st to 4th)
         addition_positions = [
             'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
