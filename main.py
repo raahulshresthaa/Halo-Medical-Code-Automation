@@ -326,7 +326,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'ModularReaderV5':
+            elif model_id == 'ModularReaderV6':
                 logic_file_name = 'modular_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
@@ -1520,7 +1520,7 @@ model_ids = {
     'Insoles': 'insoleFormV5',  # model id's
     'AFOs': 'AfoReaderV7',  
     'Bespoke': 'BespokeReaderV3',
-    'Modular': 'ModularReaderV5'  # New entry for Modular
+    'Modular': 'ModularReaderV6'  # New entry for Modular
 }
 
 # Set up the model_id_var with default value
