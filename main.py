@@ -1001,6 +1001,18 @@ class PdfButtonHandler:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
+        # --- New logic for elongation Type adding B17 ---
+        rocker_keys = ['left elongation type', 'right elongation type']
+        for key in rocker_keys:
+            if content_dict.get(key, '') in ('full elongated heel', 'half elongated heel'):
+                passed_codes['B25'] += 1
+
+        # --- New logic for Rocker Type adding B17 ---
+        rocker_keys = ['left rocker type', 'right rocker type']
+        for key in rocker_keys:
+            if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
+                passed_codes['B17'] += 1
+
         # --- New logic for Wedges adding B25 ---
         wedges_keys = [
             'left wedges heel lateral',
