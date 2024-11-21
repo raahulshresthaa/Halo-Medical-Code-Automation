@@ -1137,7 +1137,25 @@ class PdfButtonHandler:
         base = content_dict.get('base', '').strip().lower()
         normalized_base = base.replace(' ', '').lower()
         print(f"Base value: '{base}'")  # For debugging
+        # Normalize the base value
+        normalized_base = base.replace(' ', '').lower()
+        shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
 
+        if insole_type == 'cradle':
+            if normalized_base in shore_bases:
+                passed_codes['A10'] += 1
+        elif insole_type in ('tci', 'simple', 'handmould'):
+            passed_codes['B54C'] += 1
+
+        # If 'base poron' is selected then add code B40B
+        if content_dict.get('base poron', '') == 'selected':
+            passed_codes['B40B'] += 1
+
+        # If 'base carbon fibre' is selected then add code B54A
+        if content_dict.get('base carbon fibre', '') == 'selected':
+            passed_codes['B54A'] += 1
+
+        # --- New logic for Pair Handling ---
         # List of foot modifications that map to BNS45
         foot_modifications = [
             'cut out and additions',
@@ -1264,26 +1282,6 @@ class PdfButtonHandler:
             passed_codes[code] += 1
 
         # New logic for Insole Form Base
-
-        # Normalize the base value
-        normalized_base = base.replace(' ', '').lower()
-        shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
-
-        if insole_type == 'cradle':
-            if normalized_base in shore_bases:
-                passed_codes['A10'] += 1
-        elif insole_type in ('tci', 'simple', 'handmould'):
-            passed_codes['B54C'] += 1
-
-        # If 'base poron' is selected then add code B40B
-        if content_dict.get('base poron', '') == 'selected':
-            passed_codes['B40B'] += 1
-
-        # If 'base carbon fibre' is selected then add code B54A
-        if content_dict.get('base carbon fibre', '') == 'selected':
-            passed_codes['B54A'] += 1
-
-        # --- New logic for Pair Handling ---
 
         # General codes to double if 'pair' is selected
         if content_dict.get('pair', '') == 'selected':
