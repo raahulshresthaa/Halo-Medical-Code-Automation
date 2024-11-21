@@ -536,7 +536,7 @@ class PdfButtonHandler:
             return message
         else:
             return None  # No message needed
-        
+
     def generate_bespoke_codes(self, content):
         """Generates codes based on the content for the Bespoke model, counting duplicates."""
         from collections import defaultdict
@@ -678,6 +678,27 @@ class PdfButtonHandler:
                 else:
                     # Handle unexpected addition values if necessary
                     print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
+
+        # --- New logic for Foot Modifications adding BNS45 ---
+
+        # List of foot modifications that map to BNS45
+        foot_modifications = [
+            'cut out and additions',
+            '1st met head',
+            '1st met ray',
+            '5th met ray',
+            'navicular sweet spot',
+            'fascial accommodation',
+            'heel flange'
+        ]
+
+        # Check for each foot modification for both left and right foot
+        sides = ['left', 'right']
+        for side in sides:
+            for mod in foot_modifications:
+                key = f"{side} {mod}"
+                if content_dict.get(key, '') == 'selected':
+                    passed_codes['BNS45'] += 1
 
         # --- New logic for Insole Postings ---
         posting_keys = [
@@ -966,6 +987,190 @@ class PdfButtonHandler:
             codes_to_double_insole = [
                 'A10', 'B54C', 'B40B', 'B54A',  # Insole form base codes
                 'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'  # Insole covering codes (maths)
+            ]
+            for code in codes_to_double_insole:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
+        # --- End of Pair Handling ---
+
+        # Format the passed codes with counts
+        formatted_passed_codes = []
+        for code, count in passed_codes.items():
+            if count > 1:
+                formatted_passed_codes.append(f"{code} x{count}")
+            else:
+                formatted_passed_codes.append(code)
+
+        # Return the passed codes as a string
+        if formatted_passed_codes:
+            return ', '.join(formatted_passed_codes)
+        else:
+            return None  # Return None if no codes were added
+
+    def generate_insole_codes(self, content):
+        """Generates insole codes based on the content."""
+        from collections import defaultdict
+        passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
+
+        # Split the content into lines for easier processing
+        lines = content.split('\n')
+
+        # Convert lines to a dictionary for easier lookup with lowercase keys and values
+        content_dict = {}
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                content_dict[key.strip().lower()] = value.strip().lower()
+
+        # Determine insole type
+        insole_type = None
+        if content_dict.get('tci test', '') == 'selected' or content_dict.get('cradle', '') == 'selected':
+            insole_type = 'tci'
+        elif content_dict.get('simple', '') == 'selected':
+            insole_type = 'simple'
+        elif content_dict.get('hand mould', '') == 'selected':
+            insole_type = 'handmould'
+        # You can add more insole types if needed
+
+        # Get the base value
+        base = content_dict.get('base', '').strip().lower()
+        normalized_base = base.replace(' ', '').lower()
+        print(f"Base value: '{base}'")  # For debugging
+
+        # --- Insole coding section - MATHS! ---
+
+        x = 0
+        if insole_type == 'simple':
+            x -= 1
+        if content_dict.get('lining to shell', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to sulcus', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to full', '') == 'selected':
+            x += 1
+        if content_dict.get('top cover material', '') == 'spenco (green)':
+            x += 1
+        if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
+            x += 1
+
+        if x >= 2:
+            code = 'B55C'
+            passed_codes[code] += 1
+        elif x == 1:
+            code = 'B55B'
+            passed_codes[code] += 1
+        else:  # x <= 0
+            code = 'B55A'
+            passed_codes[code] += 1
+
+        # New logic for Insole Form Base
+
+        # Normalize the base value
+        normalized_base = base.replace(' ', '').lower()
+        shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
+
+        if insole_type in ('tci', 'handmould'):
+            passed_codes['B54C'] += 1
+        # No base code added for 'simple' insole type
+
+        # If 'poron' is selected then add code B40B
+        if content_dict.get('poron', '') == 'selected':
+            passed_codes['B40B'] += 1
+
+        # If 'carbon fibre' is selected then add code B54A
+        if content_dict.get('carbon fibre', '') == 'selected':
+            passed_codes['B54A'] += 1
+
+        # --- Additions ---
+        # Define the list of addition positions (left and right, 1st to 4th)
+        addition_positions = [
+            '1st addition left', '2nd addition left', '3rd addition left', '4th addition left',
+            '1st addition right', '2nd addition right', '3rd addition right', '4th addition right'
+        ]
+
+        # Define the mappings from addition values to codes
+        addition_code_mapping = {
+            # Additions mapping to B41
+            'B41': {
+                'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
+                'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
+                'sulcus crest', 'arch fill'
+            },
+            # Additions mapping to B56
+            'B56': {
+                "morton's extension", "reverse morton's extension", 'poron forefoot'
+            },
+            # Additions mapping to B43
+            'B43': {'kinetic wedge', 'heel raise'},
+            # Additions mapping to D8A
+            'D8A': {'neurological footplate'},
+            # Additions mapping to BNS45
+            'BNS45': {'recess', 'hole & plug'},
+            # Additions mapping to B20
+            'B20': {'rigid 1st extension'},
+            # Additions mapping to B50
+            'B50': {'partial toe block'},
+            # Additions mapping to B51
+            'B51': {'full toe block'}
+        }
+
+        # Iterate over each addition position and apply the appropriate codes
+        for key in addition_positions:
+            addition_value = content_dict.get(key, '')
+            if addition_value:
+                # Check which mapping the addition_value belongs to
+                for code, additions in addition_code_mapping.items():
+                    if addition_value in additions:
+                        passed_codes[code] += 1
+                        break
+                else:
+                    # Handle unexpected addition values if necessary
+                    print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
+
+        # --- Foot Modifications adding BNS45 ---
+
+        # List of foot modifications that map to BNS45
+        foot_modifications = [
+            'cut out and additions',
+            '1st met head',
+            '1st met ray',
+            '5th met ray',
+            'navicular sweet spot',
+            'fascial accommodation',
+            'heel flange'
+        ]
+
+        # Check for each foot modification for both left and right foot
+        sides = ['left', 'right']
+        for side in sides:
+            for mod in foot_modifications:
+                key = f"{side} {mod}"
+                if content_dict.get(key, '') == 'selected':
+                    passed_codes['BNS45'] += 1
+
+        # --- Insole Postings ---
+        posting_keys = [
+            'left medial rearfoot',
+            'left lateral rearfoot',
+            'right medial rearfoot',
+            'right lateral rearfoot',
+            'left medial forefoot',
+            'left lateral forefoot',
+            'right medial forefoot',
+            'right lateral forefoot',
+        ]
+
+        for key in posting_keys:
+            if content_dict.get(key, '') == 'selected':
+                passed_codes['B56'] += 1
+        # --- End of Insole Postings logic ---
+
+        # --- Pair Handling ---
+        # Insole codes to double if 'pair' or 'insole pair' is selected
+        if content_dict.get('pair', '') == 'selected' or content_dict.get('insole pair', '') == 'selected':
+            codes_to_double_insole = [
+                'B54C', 'B40B', 'B54A',  # Insole form base codes
+                'B55A', 'B55B', 'B55C',  # Insole covering codes (maths)
             ]
             for code in codes_to_double_insole:
                 if code in passed_codes:
