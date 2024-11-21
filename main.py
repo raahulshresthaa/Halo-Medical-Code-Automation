@@ -1000,6 +1000,25 @@ class PdfButtonHandler:
             if ':' in line:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
+                
+        # --- New logic for Straps Checks ---
+        sides = ['left', 'right']
+        for side in sides:
+            strap_type_key = f'{side} strap type'
+            double_decker_key = f'{side} double decker'
+
+            strap_type = content_dict.get(strap_type_key, '')
+            double_decker = content_dict.get(double_decker_key, '')
+
+            if double_decker == 'yes':
+                # If double decker is 'yes', add code 'B34' regardless of strap type
+                passed_codes['B34'] += 1
+            else:
+                if strap_type in ('t strap', 'y strap'):
+                    passed_codes['B33'] += 1
+                elif strap_type in ('spur retaining strap', 'heel retaining strap'):
+                    passed_codes['B8'] += 1
+        # --- End of Straps Checks ---
 
         # --- New logic for Sockets Type Checks ---
         socket_keys = ['left socket type', 'right socket type']
