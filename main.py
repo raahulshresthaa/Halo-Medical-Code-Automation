@@ -1163,6 +1163,19 @@ class PdfButtonHandler:
         if content_dict.get('base carbon fibre', '') == 'selected':
             passed_codes['B54A'] += 1
 
+        # --- New logic for Pair Handling ---
+
+        # Insole codes to double if 'insole pair' is selected
+        if content_dict.get('insole pair', '') == 'selected':
+            codes_to_double_insole = [
+                'A10', 'B54C', 'B40B', 'B54A',  # Insole form base codes
+                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'  # Insole covering codes (maths)
+            ]
+            for code in codes_to_double_insole:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
+        # --- End of Pair Handling ---
+
         # Format the passed codes with counts
         formatted_passed_codes = []
         for code, count in passed_codes.items():
