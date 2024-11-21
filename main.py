@@ -1001,6 +1001,17 @@ class PdfButtonHandler:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
+        # --- New logic for Style-based Codes ---
+        if content_dict.get('shoes', '') == 'selected':
+            passed_codes['modular shoes'] += 1
+        if content_dict.get('boots', '') == 'selected':
+            passed_codes['modular boots'] += 1
+        if content_dict.get('trainers', '') == 'selected':
+            passed_codes['modular sports'] += 1
+        if content_dict.get('boa', '') == 'selected':
+            passed_codes['twist fasten'] += 1
+        # --- End of Style-based Codes ---
+
         # --- New logic for Straps Checks ---
         sides = ['left', 'right']
         for side in sides:
@@ -1238,6 +1249,15 @@ class PdfButtonHandler:
             passed_codes['B54A'] += 1
 
         # --- New logic for Pair Handling ---
+
+        # General codes to double if 'pair' is selected
+        if content_dict.get('pair', '') == 'selected':
+            codes_to_double_general = [
+                'modular shoes', 'modular boots', 'twist fasten', 'modular sports'
+            ]
+            for code in codes_to_double_general:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
 
         # Insole codes to double if 'insole pair' is selected
         if content_dict.get('insole pair', '') == 'selected':
