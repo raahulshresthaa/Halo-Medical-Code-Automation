@@ -1001,6 +1001,15 @@ class PdfButtonHandler:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
+        # --- New logic for Sole and Style Checks ---
+        sole_value = content_dict.get('sole', '')
+        style_value = content_dict.get('style', '')
+
+        if sole_value in ('(lcr) lightweight commando sole', 'resin commando sole'):
+            if style_value not in ('highland', 'rockingham', 'rockcliffe'):
+                passed_codes['BNS62'] += 1
+        # --- End of Sole and Style Checks ---
+
         # --- New logic for Style-based Codes ---
         if content_dict.get('shoes', '') == 'selected':
             passed_codes['modular shoes'] += 1
