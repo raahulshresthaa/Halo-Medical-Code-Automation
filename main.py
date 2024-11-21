@@ -1001,6 +1001,18 @@ class PdfButtonHandler:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
+        # --- New logic for Insole Allowance Checks ---
+        allowance_codes = {'3mm', '6mm', '9mm', '12mm'}
+        pattern_allowances = {'9mm', '12mm'}
+
+        for key in ['left insole allowance', 'right insole allowance']:
+            value = content_dict.get(key, '').strip().lower()
+            if value in allowance_codes:
+                passed_codes[value] += 1
+                if value in pattern_allowances:
+                    passed_codes['Pattern'] += 1
+        # --- End of Insole Allowance Checks ---
+
         # --- New logic for Sole and Style Checks ---
         sole_value = content_dict.get('sole', '')
         style_value = content_dict.get('style', '')
@@ -1262,7 +1274,7 @@ class PdfButtonHandler:
         # General codes to double if 'pair' is selected
         if content_dict.get('pair', '') == 'selected':
             codes_to_double_general = [
-                'modular shoes', 'modular boots', 'twist fasten', 'modular sports'
+                'modular shoes', 'modular boots', 'twist fasten', 'modular sports','BNS62'
             ]
             for code in codes_to_double_general:
                 if code in passed_codes:
