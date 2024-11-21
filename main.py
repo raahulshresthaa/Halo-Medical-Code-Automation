@@ -1001,6 +1001,15 @@ class PdfButtonHandler:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
+        # --- New logic for Sockets Type Checks ---
+        socket_keys = ['left socket type', 'right socket type']
+        for key in socket_keys:
+            value = content_dict.get(key, '')
+            if value in ('5/16 round', '1/4 round', 'small rectangular', 'large rectangular', 'rizzoli'):
+                passed_codes['B30'] += 1
+            elif value in ("5/16 with b'stop", "1/4 with b'stop"):
+                passed_codes['B31'] += 1
+
         # --- New logic for elongation Type adding B17 ---
         rocker_keys = ['left elongation type', 'right elongation type']
         for key in rocker_keys:
