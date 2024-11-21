@@ -1001,6 +1001,40 @@ class PdfButtonHandler:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
+        # --- New logic for Wedges adding B25 ---
+        wedges_keys = [
+            'left wedges heel lateral',
+            'left wedges sole lateral',
+            'left wedges heel medial',
+            'left wedges sole medial',
+            'right wedges heel medial',
+            'right wedges sole medial',
+            'right wedges heel lateral',
+            'right wedges sole lateral'
+        ]
+
+        for key in wedges_keys:
+            if content_dict.get(key, '') == 'selected':
+                passed_codes['B25'] += 1
+        # --- End of Wedges logic ---
+
+        # --- New logic for Floated adding B18 ---
+        floated_keys = [
+            'right floated heel lateral',
+            'right floated heel medial',
+            'left floated heel medial',
+            'left floated heel lateral',
+            'left floated sole lateral',
+            'left floated sole medial',
+            'right floated sole lateral',
+            'right floated sole medial'
+        ]
+
+        for key in floated_keys:
+            if content_dict.get(key, '') == 'selected':
+                passed_codes['B18'] += 1
+        # --- End of Floated logic ---
+
         # Determine insole type
         insole_type = None
         if content_dict.get('insole type tci', '') == 'selected':
