@@ -319,6 +319,15 @@ class PdfButtonHandler:
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
+                # Call the AFO code generation method
+                passed_codes = self.generate_afo_codes(content)
+                if passed_codes:
+                    # Append the passed codes under 'Passed code:' in the content
+                    content += f"\n\nPassed code:\n{passed_codes}"
+                    print(f"Passed codes added to content: {passed_codes}")
+                else:
+                    print("No passed codes generated.")
+
             elif model_id == 'BespokeReaderV3':
                 logic_file_name = 'bespoke_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
