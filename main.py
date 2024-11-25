@@ -1121,6 +1121,120 @@ class PdfButtonHandler:
         else:
             return None  # Return None if no codes were added
 
+    def generate_afo_codes(self, content):
+        """Generates codes based on the content for the AFO model, counting duplicates."""
+        from collections import defaultdict
+        passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
+
+        # Split the content into lines for easier processing
+        lines = content.split('\n')
+
+        # Convert lines to a dictionary for easier lookup with lowercase keys and values
+        content_dict = {}
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                content_dict[key.strip().lower()] = value.strip().lower()
+
+        # --- Start of AFO-specific logic ---
+
+        # Example: Assign codes based on 'afo type'
+        afo_type = content_dict.get('afo type', '')
+        afo_type_codes = {
+            'solid ankle': 'C1',
+            'hinged': 'C2',
+            'ground reaction': 'C3',
+            'posterior leaf spring': 'C4',
+            'dorsiflexion assist': 'C5',
+            'dynamic response': 'C6'
+            # Add other AFO types and their corresponding codes here
+        }
+        if afo_type in afo_type_codes:
+            passed_codes[afo_type_codes[afo_type]] += 1
+
+        # Example: Check for straps and add corresponding codes
+        if content_dict.get('calf strap', '') == 'selected':
+            passed_codes['C10'] += 1
+        if content_dict.get('instep strap', '') == 'selected':
+            passed_codes['C11'] += 1
+        if content_dict.get('posterior strap', '') == 'selected':
+            passed_codes['C12'] += 1
+
+        # Example: Check for materials
+        material = content_dict.get('material', '')
+        material_codes = {
+            'polypropylene': 'C20',
+            'carbon fibre': 'C21',
+            'copolymer': 'C22',
+            'graphite': 'C23',
+            'kevlar': 'C24'
+            # Add other materials and their codes here
+        }
+        if material in material_codes:
+            passed_codes[material_codes[material]] += 1
+
+        # Example: Modifications
+        if content_dict.get('posterior opening', '') == 'selected':
+            passed_codes['C30'] += 1
+        if content_dict.get('anterior opening', '') == 'selected':
+            passed_codes['C31'] += 1
+        if content_dict.get('trimline adjustment', '') == 'selected':
+            passed_codes['C32'] += 1
+
+        # Example: Check for padding options
+        if content_dict.get('padding', '') == 'selected':
+            padding_type = content_dict.get('padding type', '')
+            if padding_type == 'soft foam':
+                passed_codes['C40'] += 1
+            elif padding_type == 'gel':
+                passed_codes['C41'] += 1
+
+        # Example: Side-specific options
+        sides = ['left', 'right']
+        for side in sides:
+            # Check for specific options per side
+            afo_side_key = f'{side} afo option'
+            if content_dict.get(afo_side_key, '') == 'selected':
+                passed_codes[f'C50_{side}'] += 1  # Example code, adjust as needed
+
+        # Example: Check for additional components
+        if content_dict.get('footplate extension', '') == 'selected':
+            passed_codes['C60'] += 1
+        if content_dict.get('toe filler', '') == 'selected':
+            passed_codes['C61'] += 1
+
+        # Example: Check for pair selection
+        if content_dict.get('pair', '') == 'selected':
+            codes_to_double = [
+                'C1', 'C2', 'C3', 'C4', 'C5', 'C6',
+                'C10', 'C11', 'C12',
+                'C20', 'C21', 'C22', 'C23', 'C24',
+                'C30', 'C31', 'C32',
+                'C40', 'C41',
+                'C60', 'C61',
+                # Include any other codes that should be doubled
+            ]
+            for code in codes_to_double:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
+
+        # --- End of AFO-specific logic ---
+
+        # Format the passed codes with counts
+        formatted_passed_codes = []
+        for code, count in passed_codes.items():
+            if count > 1:
+                formatted_passed_codes.append(f"{code} x{count}")
+            else:
+                formatted_passed_codes.append(code)
+
+        # Return the passed codes as a string
+        if formatted_passed_codes:
+            return ', '.join(formatted_passed_codes)
+        else:
+            return None  # Return None if no codes were added
+
+
     def generate_modular_codes(self, content):
         """Generates insole codes based on the content for the Modular model."""
         from collections import defaultdict
