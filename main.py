@@ -1129,7 +1129,7 @@ class PdfButtonHandler:
             return ', '.join(formatted_passed_codes)
         else:
             return None  # Return None if no codes were added
-            
+        
     def generate_afo_codes(self, content):
         """Generates codes based on the content for the AFO model, counting duplicates."""
         from collections import defaultdict
@@ -1147,35 +1147,29 @@ class PdfButtonHandler:
 
         # --- Start of AFO-specific logic ---
 
-        # Apply Pair Handling
-        pair_selected = content_dict.get('afo pair', '') == 'selected'
-
-        # Initialize a multiplier for pair handling
-        pair_multiplier = 2 if pair_selected else 1
-
         # Default codes
         default_codes = ['D1/C', 'D8/U']
 
         # Determine AFO Type codes
         afo_type = content_dict.get('afo type', '').lower()
         if afo_type in ('normal', 'fixed', 'articulated'):
-            passed_codes['D1/C'] += 1 * pair_multiplier
-            passed_codes['D8/U'] += 1 * pair_multiplier
+            passed_codes['D1/C'] += 1
+            passed_codes['D8/U'] += 1
         elif afo_type == 'crow boot':
-            passed_codes['DNS 1'] += 1 * pair_multiplier
+            passed_codes['DNS 1'] += 1
         elif afo_type == 'afo/dafo':
-            passed_codes['D1/C'] += 2 * pair_multiplier
-            passed_codes['D8/U'] += 2 * pair_multiplier
+            passed_codes['D1/C'] += 2
+            passed_codes['D8/U'] += 2
         elif afo_type == 'anterior shell':
-            passed_codes['D12/M'] += 1 * pair_multiplier
+            passed_codes['D12/M'] += 1
         else:
             # If 'AFO Type' does not exist, use default codes
-            passed_codes['D1/C'] += 1 * pair_multiplier
-            passed_codes['D8/U'] += 1 * pair_multiplier
+            passed_codes['D1/C'] += 1
+            passed_codes['D8/U'] += 1
 
         # Check for 'Anterior Shell Height' even if 'AFO Type' is not 'anterior shell'
         if afo_type != 'anterior shell' and content_dict.get('anterior shell height', ''):
-            passed_codes['D12/M'] += 1 * pair_multiplier
+            passed_codes['D12/M'] += 1
 
         # Determine Hinge Type codes
         hinge_type = content_dict.get('hinge type', '').lower()
@@ -1192,7 +1186,7 @@ class PdfButtonHandler:
             'right heel posting attached', 'right heel posting blended',
             'right heel posting heel only', 'right heel posting loose'
         ]
-        right_as_left_heel = content_dict.get('heel posting right as left', '') == 'selected'
+        right_as_left_heel = content_dict.get('ca&t right as left', '') == 'selected'
         left_heel_posting = any(content_dict.get(key, '') == 'selected' for key in heel_posting_keys if 'left' in key)
         right_heel_posting = any(content_dict.get(key, '') == 'selected' for key in heel_posting_keys if 'right' in key)
 
@@ -1254,9 +1248,9 @@ class PdfButtonHandler:
         if content_dict.get('transfer 1st choice', ''):
             m_and_t_codes.append('D10/I')
 
-        # Apply pair handling to M&T codes
+        # Add M&T codes
         for code in m_and_t_codes:
-            passed_codes[code] += 1 * pair_multiplier
+            passed_codes[code] += 1
 
         # AFO Lining
         afo_lining_codes = []
@@ -1273,17 +1267,17 @@ class PdfButtonHandler:
             'leather': 'D14/G',
             'sheepskin': 'D14/G'
         }
-        afo_full_material = content_dict.get('afo full material', '')
-        afo_calf_material = content_dict.get('afo calf material', '')
+        afo_full_material = content_dict.get('afo full material', '').lower()
+        afo_calf_material = content_dict.get('afo calf material', '').lower()
 
         if afo_full_material in lining_materials:
             afo_lining_codes.append(lining_materials[afo_full_material])
         if afo_calf_material in lining_materials:
             afo_lining_codes.append(lining_materials[afo_calf_material])
 
-        # Apply pair handling to AFO lining codes
+        # Add AFO lining codes
         for code in afo_lining_codes:
-            passed_codes[code] += 1 * pair_multiplier
+            passed_codes[code] += 1
 
         # Pads
         pads_codes = []
@@ -1303,10 +1297,9 @@ class PdfButtonHandler:
             if content_dict.get(material_pad, '') == 'plain velcro':
                 pads_codes.append('P1')
 
-        # Apply pair handling to pads codes
+        # Add pads codes
         for code in pads_codes:
-            count = pads_codes.count(code)
-            passed_codes[code] += count * pair_multiplier
+            passed_codes[code] += 1
 
         # Slotted Heel Strap
         sides = ['left', 'right']
@@ -1340,7 +1333,16 @@ class PdfButtonHandler:
 
             # Check for 'make multiple' to multiply all codes accordingly
             if 'make multiple' in comments:
-                multiplier = 2  # Or any other number based on the comment
+                # Try to extract the multiplier from the comments, e.g., 'make multiple 3'
+                multiplier = 2  # Default to 2 if not specified
+                words = comments.split()
+                for i, word in enumerate(words):
+                    if word == 'multiple' and i + 1 < len(words):
+                        try:
+                            multiplier = int(words[i + 1])
+                        except ValueError:
+                            pass  # Keep default multiplier
+                # Multiply all codes accordingly
                 for code in passed_codes:
                     passed_codes[code] *= multiplier
 
@@ -1349,11 +1351,20 @@ class PdfButtonHandler:
                 if word.upper() in passed_codes:
                     continue
                 elif word.upper() in ['D14/C', 'D14C']:
-                    passed_codes['D14/C'] += 1 * pair_multiplier
+                    passed_codes['D14/C'] += 1
 
         # Add D14/C code if additional material usage is found
         if additional_material_codes > 0:
-            passed_codes['D14/C'] += additional_material_codes * pair_multiplier
+            passed_codes['D14/C'] += additional_material_codes
+
+        # --- Pair Handling ---
+        # Apply Pair Handling after all codes have been added
+        if content_dict.get('afo pair', '') == 'selected':
+            # Codes to exclude from pair handling
+            codes_to_exclude = ['D10/E', 'D14/A', 'P1', 'P4']
+            for code in passed_codes:
+                if code not in codes_to_exclude:
+                    passed_codes[code] *= 2
 
         # --- End of AFO-specific logic ---
 
@@ -1370,7 +1381,6 @@ class PdfButtonHandler:
             return ', '.join(formatted_passed_codes)
         else:
             return None  # Return None if no codes were added
-
 
     def generate_modular_codes(self, content):
         """Generates insole codes based on the content for the Modular model."""
