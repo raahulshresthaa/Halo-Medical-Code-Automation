@@ -900,8 +900,13 @@ class PdfButtonHandler:
         if insole_type == 'cradle':
             if normalized_base in shore_bases:
                 passed_codes['A10'] += 1
+            elif normalized_base == 'polypropylene':
+                passed_codes['A10'] += 1
         elif insole_type in ('tci', 'simple', 'handmould'):
-            passed_codes['B54C'] += 1
+            if normalized_base == 'polypropylene':
+                passed_codes['B54B'] += 1
+            else:
+                passed_codes['B54C'] += 1
 
         # If 'base poron' is selected then add code B40B
         if content_dict.get('base poron', '') == 'selected':
@@ -1008,7 +1013,9 @@ class PdfButtonHandler:
         normalized_base = base.replace(' ', '').lower()
         shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
 
-        if insole_type in ('tci', 'handmould'):
+        if normalized_base == 'polypropylene':
+            passed_codes['B54B'] += 1
+        else:
             passed_codes['B54C'] += 1
         # No base code added for 'simple' insole type
 
@@ -1541,8 +1548,13 @@ class PdfButtonHandler:
         if insole_type == 'cradle':
             if normalized_base in shore_bases:
                 passed_codes['A10'] += 1
+            elif normalized_base == 'polypropylene':
+                passed_codes['A10'] += 1
         elif insole_type in ('tci', 'simple', 'handmould'):
-            passed_codes['B54C'] += 1
+            if normalized_base == 'polypropylene':
+                passed_codes['B54B'] += 1
+            else:
+                passed_codes['B54C'] += 1
 
         # If 'base poron' is selected then add code B40B
         if content_dict.get('base poron', '') == 'selected':
