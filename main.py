@@ -1129,7 +1129,7 @@ class PdfButtonHandler:
             return ', '.join(formatted_passed_codes)
         else:
             return None  # Return None if no codes were added
-
+            
     def generate_afo_codes(self, content):
         """Generates codes based on the content for the AFO model, counting duplicates."""
         from collections import defaultdict
@@ -1147,85 +1147,213 @@ class PdfButtonHandler:
 
         # --- Start of AFO-specific logic ---
 
-        # Example: Assign codes based on 'afo type'
-        afo_type = content_dict.get('afo type', '')
-        afo_type_codes = {
-            'solid ankle': 'C1',
-            'hinged': 'C2',
-            'ground reaction': 'C3',
-            'posterior leaf spring': 'C4',
-            'dorsiflexion assist': 'C5',
-            'dynamic response': 'C6'
-            # Add other AFO types and their corresponding codes here
+        # Apply Pair Handling
+        pair_selected = content_dict.get('afo pair', '') == 'selected'
+
+        # Initialize a multiplier for pair handling
+        pair_multiplier = 2 if pair_selected else 1
+
+        # Default codes
+        default_codes = ['D1/C', 'D8/U']
+
+        # Determine AFO Type codes
+        afo_type = content_dict.get('afo type', '').lower()
+        if afo_type in ('normal', 'fixed', 'articulated'):
+            passed_codes['D1/C'] += 1 * pair_multiplier
+            passed_codes['D8/U'] += 1 * pair_multiplier
+        elif afo_type == 'crow boot':
+            passed_codes['DNS 1'] += 1 * pair_multiplier
+        elif afo_type == 'afo/dafo':
+            passed_codes['D1/C'] += 2 * pair_multiplier
+            passed_codes['D8/U'] += 2 * pair_multiplier
+        elif afo_type == 'anterior shell':
+            passed_codes['D12/M'] += 1 * pair_multiplier
+        else:
+            # If 'AFO Type' does not exist, use default codes
+            passed_codes['D1/C'] += 1 * pair_multiplier
+            passed_codes['D8/U'] += 1 * pair_multiplier
+
+        # Check for 'Anterior Shell Height' even if 'AFO Type' is not 'anterior shell'
+        if afo_type != 'anterior shell' and content_dict.get('anterior shell height', ''):
+            passed_codes['D12/M'] += 1 * pair_multiplier
+
+        # Determine Hinge Type codes
+        hinge_type = content_dict.get('hinge type', '').lower()
+        if hinge_type == 'gillette/tamarack':
+            passed_codes['D2/A'] += 1
+        elif hinge_type in ('appalachian/metal', 'double action', 'camber axis'):
+            passed_codes['D2/D'] += 1
+
+        # Heel Posting
+        heel_posting_codes = 0
+        heel_posting_keys = [
+            'left heel posting attached', 'left heel posting blended',
+            'left heel posting heel only', 'left heel posting loose',
+            'right heel posting attached', 'right heel posting blended',
+            'right heel posting heel only', 'right heel posting loose'
+        ]
+        right_as_left_heel = content_dict.get('heel posting right as left', '') == 'selected'
+        left_heel_posting = any(content_dict.get(key, '') == 'selected' for key in heel_posting_keys if 'left' in key)
+        right_heel_posting = any(content_dict.get(key, '') == 'selected' for key in heel_posting_keys if 'right' in key)
+
+        if right_as_left_heel and (left_heel_posting != right_heel_posting):
+            heel_posting_codes = 2
+        else:
+            heel_posting_codes = sum([
+                left_heel_posting,
+                right_heel_posting
+            ])
+
+        if heel_posting_codes > 0:
+            passed_codes['D10/E'] += heel_posting_codes
+
+        # PCRO Codes
+        pcro_codes = defaultdict(int)
+        pcro_right_as_left = content_dict.get('pcro right as left', '') == 'selected'
+
+        # List of PCRO features and their codes
+        pcro_features = {
+            'varus resist': 'D8/D',
+            'valgus resist': 'D8/D',
+            'suctentaculum tali': 'D8/H',
+            'peroneal notch': 'D8/I',
+            'metatarsal button': 'B41',
+            'neuro plate': 'D8/A',
+            'toe lift': 'D8/U',
+            'pcro values': 'D8/D'
         }
-        if afo_type in afo_type_codes:
-            passed_codes[afo_type_codes[afo_type]] += 1
 
-        # Example: Check for straps and add corresponding codes
-        if content_dict.get('calf strap', '') == 'selected':
-            passed_codes['C10'] += 1
-        if content_dict.get('instep strap', '') == 'selected':
-            passed_codes['C11'] += 1
-        if content_dict.get('posterior strap', '') == 'selected':
-            passed_codes['C12'] += 1
+        for feature, code in pcro_features.items():
+            left_key = f'{feature} left'
+            right_key = f'{feature} right'
 
-        # Example: Check for materials
-        material = content_dict.get('material', '')
-        material_codes = {
-            'polypropylene': 'C20',
-            'carbon fibre': 'C21',
-            'copolymer': 'C22',
-            'graphite': 'C23',
-            'kevlar': 'C24'
-            # Add other materials and their codes here
+            left_selected = content_dict.get(left_key, '') == 'selected' or content_dict.get(left_key, '').isdigit()
+            right_selected = content_dict.get(right_key, '') == 'selected' or content_dict.get(right_key, '').isdigit()
+
+            if pcro_right_as_left and (left_selected != right_selected):
+                # If right as left is selected and only one side is filled out, multiply by 2
+                total = 2
+            else:
+                total = sum([left_selected, right_selected])
+
+            if total > 0:
+                pcro_codes[code] += total
+
+        # Add PCRO codes to passed_codes
+        for code, count in pcro_codes.items():
+            passed_codes[code] += count
+
+        # M&T Codes
+        m_and_t_codes = []
+        if content_dict.get('carbon ankle reinforcements', '') == 'selected':
+            m_and_t_codes.append('D10/B')
+        if content_dict.get('ribbed ankle reinforcements', '') == 'selected':
+            m_and_t_codes.append('D10/A')
+        if content_dict.get('walking surface', '') == 'selected':
+            m_and_t_codes.append('D10/G')
+        if content_dict.get('transfer 1st choice', ''):
+            m_and_t_codes.append('D10/I')
+
+        # Apply pair handling to M&T codes
+        for code in m_and_t_codes:
+            passed_codes[code] += 1 * pair_multiplier
+
+        # AFO Lining
+        afo_lining_codes = []
+        if content_dict.get('afo full', '') == 'yes':
+            afo_lining_codes.append('D14/E')
+        if content_dict.get('afo calf', '') == 'yes':
+            afo_lining_codes.append('D14/D')
+
+        # Materials for AFO Lining
+        lining_materials = {
+            'ld eva': 'D14/D',
+            "p'zote": 'D14/D',
+            'chamois': 'D14/G',
+            'leather': 'D14/G',
+            'sheepskin': 'D14/G'
         }
-        if material in material_codes:
-            passed_codes[material_codes[material]] += 1
+        afo_full_material = content_dict.get('afo full material', '')
+        afo_calf_material = content_dict.get('afo calf material', '')
 
-        # Example: Modifications
-        if content_dict.get('posterior opening', '') == 'selected':
-            passed_codes['C30'] += 1
-        if content_dict.get('anterior opening', '') == 'selected':
-            passed_codes['C31'] += 1
-        if content_dict.get('trimline adjustment', '') == 'selected':
-            passed_codes['C32'] += 1
+        if afo_full_material in lining_materials:
+            afo_lining_codes.append(lining_materials[afo_full_material])
+        if afo_calf_material in lining_materials:
+            afo_lining_codes.append(lining_materials[afo_calf_material])
 
-        # Example: Check for padding options
-        if content_dict.get('padding', '') == 'selected':
-            padding_type = content_dict.get('padding type', '')
-            if padding_type == 'soft foam':
-                passed_codes['C40'] += 1
-            elif padding_type == 'gel':
-                passed_codes['C41'] += 1
+        # Apply pair handling to AFO lining codes
+        for code in afo_lining_codes:
+            passed_codes[code] += 1 * pair_multiplier
 
-        # Example: Side-specific options
+        # Pads
+        pads_codes = []
+
+        if content_dict.get('arch pads', ''):
+            pads_codes.append('D14/C')
+        if content_dict.get('navicular pad', ''):
+            pads_codes.append('D14/C')
+
+        slip_pads = ['slip pad calf', 'slip pad ankle', 'slip pad foot']
+        for pad in slip_pads:
+            if content_dict.get(pad, '') == 'yes':
+                pads_codes.append('P15')
+
+        material_pads = ['material calf', 'material ankle', 'material foot']
+        for material_pad in material_pads:
+            if content_dict.get(material_pad, '') == 'plain velcro':
+                pads_codes.append('P1')
+
+        # Apply pair handling to pads codes
+        for code in pads_codes:
+            count = pads_codes.count(code)
+            passed_codes[code] += count * pair_multiplier
+
+        # Slotted Heel Strap
         sides = ['left', 'right']
         for side in sides:
-            # Check for specific options per side
-            afo_side_key = f'{side} afo option'
-            if content_dict.get(afo_side_key, '') == 'selected':
-                passed_codes[f'C50_{side}'] += 1  # Example code, adjust as needed
+            strap_type_key = f'{side} strap type'
+            strap_type = content_dict.get(strap_type_key, '').lower()
 
-        # Example: Check for additional components
-        if content_dict.get('footplate extension', '') == 'selected':
-            passed_codes['C60'] += 1
-        if content_dict.get('toe filler', '') == 'selected':
-            passed_codes['C61'] += 1
+            if strap_type == 'y strap':
+                passed_codes['D14/A'] += 1
+                passed_codes['P15'] += 1
+            elif strap_type == 'full as part of ankle lining':
+                passed_codes['D14/A'] += 1
+                passed_codes['P15'] += 1
+            elif strap_type == 'single slotted fix':
+                passed_codes['P1'] += 1
+                passed_codes['P4'] += 1
+                passed_codes['P15'] += 1
 
-        # Example: Check for pair selection
-        if content_dict.get('pair', '') == 'selected':
-            codes_to_double = [
-                'C1', 'C2', 'C3', 'C4', 'C5', 'C6',
-                'C10', 'C11', 'C12',
-                'C20', 'C21', 'C22', 'C23', 'C24',
-                'C30', 'C31', 'C32',
-                'C40', 'C41',
-                'C60', 'C61',
-                # Include any other codes that should be doubled
-            ]
-            for code in codes_to_double:
-                if code in passed_codes:
-                    passed_codes[code] *= 2
+        # Additional Information
+        additional_info_fields = [
+            'additional information',
+            'ca&t comments',
+            'm&t comments',
+            'pcro comments'
+        ]
+        additional_material_codes = 0
+        for field in additional_info_fields:
+            comments = content_dict.get(field, '').lower()
+            if 'add 3mm' in comments or 'add poron' in comments or 'extend poron' in comments or 'add 3mm poron' in comments:
+                additional_material_codes += 1
+
+            # Check for 'make multiple' to multiply all codes accordingly
+            if 'make multiple' in comments:
+                multiplier = 2  # Or any other number based on the comment
+                for code in passed_codes:
+                    passed_codes[code] *= multiplier
+
+            # Check for any codes in the description not already added
+            for word in comments.split():
+                if word.upper() in passed_codes:
+                    continue
+                elif word.upper() in ['D14/C', 'D14C']:
+                    passed_codes['D14/C'] += 1 * pair_multiplier
+
+        # Add D14/C code if additional material usage is found
+        if additional_material_codes > 0:
+            passed_codes['D14/C'] += additional_material_codes * pair_multiplier
 
         # --- End of AFO-specific logic ---
 
