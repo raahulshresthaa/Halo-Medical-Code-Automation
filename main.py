@@ -887,7 +887,7 @@ class PdfButtonHandler:
         elif x == 1:
             code = 'A44B' if insole_type == 'cradle' else 'B55B'
             passed_codes[code] += 1
-        else:  # x <= 0
+        elif x == 0:
             code = 'A44A' if insole_type == 'cradle' else 'B55A'
             passed_codes[code] += 1
 
@@ -998,7 +998,7 @@ class PdfButtonHandler:
         elif x == 1:
             code = 'B55B'
             passed_codes[code] += 1
-        else:  # x <= 0
+        elif x == 0:
             code = 'B55A'
             passed_codes[code] += 1
 
@@ -1674,7 +1674,7 @@ class PdfButtonHandler:
         elif x == 1:
             code = 'A44B' if insole_type == 'cradle' else 'B55B'
             passed_codes[code] += 1
-        else:  # x <= 0
+        elif x == 0:
             code = 'A44A' if insole_type == 'cradle' else 'B55A'
             passed_codes[code] += 1
 
