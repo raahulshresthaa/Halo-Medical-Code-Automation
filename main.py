@@ -462,7 +462,7 @@ class PdfButtonHandler:
                 break  # Stop after finding the clinic line
 
         # List of clinics to check
-        clinics_with_tariff = ['Bury CDC', 'East Surrey', 'WS', 'PCH', 'Sudbury', 'Hinchingbrooke', 'East surrey']
+        clinics_with_tariff = ['Bury CDC', 'East Surrey', 'WS', 'PCH', 'Sudbury', 'Hinchingbrooke', 'East surrey', 'Peterborough']
 
         # Check the clinic_value and create appropriate message
         if clinic_value in clinics_with_tariff:
