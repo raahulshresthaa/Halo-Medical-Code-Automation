@@ -1157,22 +1157,31 @@ class PdfButtonHandler:
         # Default codes
         default_codes = ['D1/C', 'D8/U']
 
-        # Determine AFO Type codes
+        # Determine AFO Type codes with pair handling for 'D8/U'
         afo_type = content_dict.get('afo type', '').lower()
         if afo_type in ('normal', 'fixed', 'articulated'):
             passed_codes['D1/C'] += 1
-            passed_codes['D8/U'] += 1
+            code_count = 1
+            if content_dict.get('afo pair', '') == 'selected':
+                code_count *= 2
+            passed_codes['D8/U'] += code_count
         elif afo_type == 'crow boot':
             passed_codes['DNS 1'] += 1
         elif afo_type == 'afo/dafo':
             passed_codes['D1/C'] += 2
-            passed_codes['D8/U'] += 2
+            code_count = 2
+            if content_dict.get('afo pair', '') == 'selected':
+                code_count *= 2
+            passed_codes['D8/U'] += code_count
         elif afo_type == 'anterior shell':
             passed_codes['D12/M'] += 1
         else:
             # If 'AFO Type' does not exist, use default codes
             passed_codes['D1/C'] += 1
-            passed_codes['D8/U'] += 1
+            code_count = 1
+            if content_dict.get('afo pair', '') == 'selected':
+                code_count *= 2
+            passed_codes['D8/U'] += code_count
 
         # Check for 'Anterior Shell Height' even if 'AFO Type' is not 'anterior shell'
         if afo_type != 'anterior shell' and content_dict.get('anterior shell height', ''):
@@ -1180,10 +1189,17 @@ class PdfButtonHandler:
 
         # Determine Hinge Type codes
         hinge_type = content_dict.get('hinge type', '').lower()
+        hinge_code = None
         if hinge_type == 'gillette/tamarack':
-            passed_codes['D2/A'] += 1
+            hinge_code = 'D2/A'
         elif hinge_type in ('appalachian/metal', 'double action', 'camber axis'):
-            passed_codes['D2/D'] += 1
+            hinge_code = 'D2/D'
+
+        if hinge_code:
+            code_count = 1
+            if content_dict.get('afo pair', '') == 'selected':
+                code_count *= 2
+            passed_codes[hinge_code] += code_count
 
         # Heel Posting
         heel_posting_codes = 0
@@ -1368,7 +1384,7 @@ class PdfButtonHandler:
         # Apply Pair Handling after all codes have been added
         if content_dict.get('afo pair', '') == 'selected':
             # Codes to exclude from pair handling
-            codes_to_exclude = ['D10/E', 'D14/A', 'P1', 'P4']
+            codes_to_exclude = ['D10/E', 'D14/A', 'D14/D', 'P1', 'P4', 'D8/D','D8/H','D8/A', 'B41','D8/I', 'D8/U', 'D8/B']
             for code in passed_codes:
                 if code not in codes_to_exclude:
                     passed_codes[code] *= 2
