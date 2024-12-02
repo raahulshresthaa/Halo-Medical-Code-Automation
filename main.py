@@ -1279,24 +1279,48 @@ class PdfButtonHandler:
 
         # AFO Lining
         afo_lining_codes = []
-        if content_dict.get('afo full', '') == 'yes':
-            afo_lining_codes.append('D14/E')
-        if content_dict.get('afo calf', '') == 'yes':
-            afo_lining_codes.append('D14/D')
+
+        # Process AFO Full
+        afo_full_material_value = content_dict.get('afo full material', '').lower()
+
+        if afo_full_material_value:
+            if afo_full_material_value.startswith('yes'):
+                afo_lining_codes.append('D14/E')  # Add D14/E code
+                # Extract the material after 'yes'
+                afo_full_material = afo_full_material_value[3:].strip()
+            else:
+                # If 'yes' is not present, assume the entire value is the material
+                afo_full_material = afo_full_material_value.strip()
+        else:
+            afo_full_material = ''  # No material provided
+
+        # Process AFO Calf
+        afo_calf_material_value = content_dict.get('afo calf material', '').lower()
+
+        if afo_calf_material_value:
+            if afo_calf_material_value.startswith('yes'):
+                afo_lining_codes.append('D14/D')  # Add D14/D code
+                # Extract the material after 'yes'
+                afo_calf_material = afo_calf_material_value[3:].strip()
+            else:
+                # If 'yes' is not present, assume the entire value is the material
+                afo_calf_material = afo_calf_material_value.strip()
+        else:
+            afo_calf_material = ''  # No material provided
 
         # Materials for AFO Lining
         lining_materials = {
             'ld eva': 'D14/D',
             "p'zote": 'D14/D',
-            'chamois': 'D14/G',
-            'leather': 'D14/G',
-            'sheepskin': 'D14/G'
+            'chamois': 'D14/F',
+            'leather': 'D14/F',
+            'sheepskin': 'D14/F'
         }
-        afo_full_material = content_dict.get('afo full material', '').lower()
-        afo_calf_material = content_dict.get('afo calf material', '').lower()
 
+        # Check and add codes based on materials
         if afo_full_material in lining_materials:
             afo_lining_codes.append(lining_materials[afo_full_material])
+
         if afo_calf_material in lining_materials:
             afo_lining_codes.append(lining_materials[afo_calf_material])
 
