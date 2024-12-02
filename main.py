@@ -1315,14 +1315,17 @@ class PdfButtonHandler:
             if content_dict.get(pad, '') == 'yes':
                 pads_codes.append('P15')
 
-        material_pads = ['material calf', 'material ankle', 'material foot']
-        for material_pad in material_pads:
-            if content_dict.get(material_pad, '') == 'plain velcro':
-                pads_codes.append('P1')
-
-        # Add pads codes
+        # Add pads codes 
         for code in pads_codes:
             passed_codes[code] += 1
+
+        # Ensure 'P15' is added as default if not already added
+        if 'P15' not in passed_codes:
+            passed_codes['P15'] += 1
+
+        # Apply pair handling for 'P15' independently
+        if content_dict.get('afo pair', '') == 'selected':
+            passed_codes['P15'] *= 2
 
         # Slotted Heel Strap
         sides = ['left', 'right']
@@ -1384,7 +1387,7 @@ class PdfButtonHandler:
         # Apply Pair Handling after all codes have been added
         if content_dict.get('afo pair', '') == 'selected':
             # Codes to exclude from pair handling
-            codes_to_exclude = ['D10/E', 'D14/A', 'D14/D', 'P1', 'P4', 'D8/D','D8/H','D8/A', 'B41','D8/I', 'D8/U', 'D8/B']
+            codes_to_exclude = ['D10/E', 'D14/A', 'D14/D', 'P1', 'P4', 'D8/D','D8/H','D8/A', 'B41','D8/I', 'D8/U', 'D8/B', 'P15']
             for code in passed_codes:
                 if code not in codes_to_exclude:
                     passed_codes[code] *= 2
