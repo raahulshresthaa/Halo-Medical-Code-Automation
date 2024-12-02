@@ -1194,7 +1194,7 @@ class PdfButtonHandler:
             hinge_code = 'D2/A'
         elif hinge_type in ('double action', 'camber axis'):
             hinge_code = 'D2/D'
-        elif hinge_type in ('appalachian/metal'):
+        elif hinge_type in ('appalachian/metal', 'appalachian', 'metal'):
             hinge_code = 'D2/B'
 
         if hinge_code:
