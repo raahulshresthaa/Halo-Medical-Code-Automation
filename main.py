@@ -1190,10 +1190,12 @@ class PdfButtonHandler:
         # Determine Hinge Type codes
         hinge_type = content_dict.get('hinge type', '').lower()
         hinge_code = None
-        if hinge_type == 'gillette/tamarack':
+        if hinge_type == 'gillette/tamrack':
             hinge_code = 'D2/A'
-        elif hinge_type in ('appalachian/metal', 'double action', 'camber axis'):
+        elif hinge_type in ('double action', 'camber axis'):
             hinge_code = 'D2/D'
+        elif hinge_type in ('appalachian/metal'):
+            hinge_code = 'D2/B'
 
         if hinge_code:
             code_count = 1
@@ -1387,7 +1389,7 @@ class PdfButtonHandler:
         # Apply Pair Handling after all codes have been added
         if content_dict.get('afo pair', '') == 'selected':
             # Codes to exclude from pair handling
-            codes_to_exclude = ['D10/E', 'D14/A', 'D14/D', 'P1', 'P4', 'D8/D','D8/H','D8/A', 'B41','D8/I', 'D8/U', 'D8/B', 'P15']
+            codes_to_exclude = ['D10/E', 'D14/A', 'D14/D', 'P1', 'P4', 'D8/D','D8/H','D8/A', 'B41','D8/I', 'D8/U', 'D8/B', 'P15', 'D2/D', 'D2/B']
             for code in passed_codes:
                 if code not in codes_to_exclude:
                     passed_codes[code] *= 2
