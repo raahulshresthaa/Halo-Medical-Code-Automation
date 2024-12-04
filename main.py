@@ -985,7 +985,7 @@ class PdfButtonHandler:
 
         # Normalize the base value
         normalized_base = base.replace(' ', '').lower()
-        
+
         # --- Insole Base Codes ---
         shore_bases = {'40shore', '50shore', '65shore'}
 
@@ -999,52 +999,6 @@ class PdfButtonHandler:
             passed_codes['B54A'] += 1
         else:
             passed_codes['B54C'] += 1  # Default base code for other materials
-
-        # --- Additions ---
-        # Define the list of addition positions (left and right, 1st to 4th)
-        addition_positions = [
-            '1st addition left', '2nd addition left', '3rd addition left', '4th addition left',
-            '1st addition right', '2nd addition right', '3rd addition right', '4th addition right'
-        ]
-
-        # Define the mappings from addition values to codes
-        addition_code_mapping = {
-            # Additions mapping to B41
-            'B41': {
-                'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
-                'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
-                'sulcus crest', 'arch fill'
-            },
-            # Additions mapping to B56
-            'B56': {
-                "morton's extension", "reverse morton's extension", 'poron forefoot'
-            },
-            # Additions mapping to B43
-            'B43': {'kinetic wedge', 'heel raise'},
-            # Additions mapping to D8A
-            'D8A': {'neurological footplate'},
-            # Additions mapping to BNS45
-            'BNS45': {'recess', 'hole & plug'},
-            # Additions mapping to B20
-            'B20': {'rigid 1st extension'},
-            # Additions mapping to B50
-            'B50': {'partial toe block'},
-            # Additions mapping to B51
-            'B51': {'full toe block'}
-        }
-
-        # Iterate over each addition position and apply the appropriate codes
-        for key in addition_positions:
-            addition_value = content_dict.get(key, '')
-            if addition_value:
-                # Check which mapping the addition_value belongs to
-                for code, additions in addition_code_mapping.items():
-                    if addition_value in additions:
-                        passed_codes[code] += 1
-                        break
-                else:
-                    # Handle unexpected addition values if necessary
-                    print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
 
         # --- Foot Modifications adding BNS45 ---
 
@@ -1104,7 +1058,6 @@ class PdfButtonHandler:
         # --- Apply 'Right as Left' logic ---
         insole_right_as_left = content_dict.get('right as left', '') == 'selected'
 
-
         # For modifications
         if insole_right_as_left and ((left_modifications_count == 0 and right_modifications_count > 0) or (left_modifications_count > 0 and right_modifications_count == 0)):
             # Only one side is filled out, multiply 'BNS45' code for modifications by 2
@@ -1116,6 +1069,52 @@ class PdfButtonHandler:
             passed_codes['B56'] *= 2
 
         # --- End of Insole Postings logic ---
+        # --- Additions ---
+        # Define the list of addition positions (left and right, 1st to 4th)
+        addition_positions = [
+            '1st addition left', '2nd addition left', '3rd addition left', '4th addition left',
+            '1st addition right', '2nd addition right', '3rd addition right', '4th addition right'
+        ]
+
+        # Define the mappings from addition values to codes
+        addition_code_mapping = {
+            # Additions mapping to B41
+            'B41': {
+                'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
+                'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
+                'sulcus crest', 'arch fill'
+            },
+            # Additions mapping to B56
+            'B56': {
+                "morton's extension", "reverse morton's extension", 'poron forefoot'
+            },
+            # Additions mapping to B43
+            'B43': {'kinetic wedge', 'heel raise'},
+            # Additions mapping to D8A
+            'D8A': {'neurological footplate'},
+            # Additions mapping to BNS45
+            'BNS45': {'recess', 'hole & plug'},
+            # Additions mapping to B20
+            'B20': {'rigid 1st extension'},
+            # Additions mapping to B50
+            'B50': {'partial toe block'},
+            # Additions mapping to B51
+            'B51': {'full toe block'}
+        }
+
+        # Iterate over each addition position and apply the appropriate codes
+        for key in addition_positions:
+            addition_value = content_dict.get(key, '')
+            if addition_value:
+                # Check which mapping the addition_value belongs to
+                for code, additions in addition_code_mapping.items():
+                    if addition_value in additions:
+                        passed_codes[code] += 1
+                        break
+                else:
+                    # Handle unexpected addition values if necessary
+                    print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
+                    
         # --- Insole coding section - MATHS! ---
 
         x = 0
