@@ -981,32 +981,6 @@ class PdfButtonHandler:
         normalized_base = base.replace(' ', '').lower()
         print(f"Base value: '{base}'")  # For debugging
 
-        # --- Insole coding section - MATHS! ---
-
-        x = 0
-        if insole_type == 'simple':
-            x -= 1
-        if content_dict.get('lining to shell', '') == 'selected':
-            x += 1
-        if content_dict.get('lining to sulcus', '') == 'selected':
-            x += 1
-        if content_dict.get('lining to full', '') == 'selected':
-            x += 1
-        if content_dict.get('top cover material', '') == 'spenco (green)':
-            x += 1
-        if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
-            x += 1
-
-        if x >= 2:
-            code = 'B55C'
-            passed_codes[code] += 1
-        elif x == 1:
-            code = 'B55B'
-            passed_codes[code] += 1
-        elif x == 0:
-            code = 'B55A'
-            passed_codes[code] += 1
-
         # New logic for Insole Form Base
 
         # Normalize the base value
@@ -1086,30 +1060,88 @@ class PdfButtonHandler:
             'heel flange'
         ]
 
+        left_modifications_count = 0
+        right_modifications_count = 0
+
         # Check for each foot modification for both left and right foot
-        sides = ['left', 'right']
-        for side in sides:
-            for mod in foot_modifications:
-                key = f"{side} {mod}"
-                if content_dict.get(key, '') == 'selected':
-                    passed_codes['BNS45'] += 1
+        for mod in foot_modifications:
+            left_key = f"left {mod}"
+            right_key = f"right {mod}"
+            if content_dict.get(left_key, '') == 'selected':
+                left_modifications_count += 1
+                passed_codes['BNS45'] += 1
+            if content_dict.get(right_key, '') == 'selected':
+                right_modifications_count += 1
+                passed_codes['BNS45'] += 1
 
         # --- Insole Postings ---
-        posting_keys = [
+        posting_keys_left = [
             'left medial rearfoot',
             'left lateral rearfoot',
-            'right medial rearfoot',
-            'right lateral rearfoot',
             'left medial forefoot',
             'left lateral forefoot',
+        ]
+
+        posting_keys_right = [
+            'right medial rearfoot',
+            'right lateral rearfoot',
             'right medial forefoot',
             'right lateral forefoot',
         ]
 
-        for key in posting_keys:
+        left_postings_count = 0
+        right_postings_count = 0
+
+        for key in posting_keys_left:
             if content_dict.get(key, '') == 'selected':
+                left_postings_count += 1
                 passed_codes['B56'] += 1
+
+        for key in posting_keys_right:
+            if content_dict.get(key, '') == 'selected':
+                right_postings_count += 1
+                passed_codes['B56'] += 1
+
+        # --- Apply 'Right as Left' logic ---
+        insole_right_as_left = content_dict.get('right as left', '') == 'selected'
+
+
+        # For modifications
+        if insole_right_as_left and ((left_modifications_count == 0 and right_modifications_count > 0) or (left_modifications_count > 0 and right_modifications_count == 0)):
+            # Only one side is filled out, multiply 'BNS45' code for modifications by 2
+            passed_codes['BNS45'] *= 2
+
+        # For postings
+        if insole_right_as_left and ((left_postings_count == 0 and right_postings_count >= 0) or (left_postings_count >= 0 and right_postings_count == 0)):
+            # Only one side is filled out, multiply 'B56' code for postings by 2
+            passed_codes['B56'] *= 2
+
         # --- End of Insole Postings logic ---
+        # --- Insole coding section - MATHS! ---
+
+        x = 0
+        if insole_type == 'simple':
+            x -= 1
+        if content_dict.get('lining to shell', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to sulcus', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to full', '') == 'selected':
+            x += 1
+        if content_dict.get('top cover material', '') == 'spenco (green)':
+            x += 1
+        if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
+            x += 1
+
+        if x >= 2:
+            code = 'B55C'
+            passed_codes[code] += 1
+        elif x == 1:
+            code = 'B55B'
+            passed_codes[code] += 1
+        elif x == 0:
+            code = 'B55A'
+            passed_codes[code] += 1
 
         # --- Pair Handling ---
         # Insole codes to double if 'pair' or 'insole pair' is selected
