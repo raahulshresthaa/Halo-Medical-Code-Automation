@@ -985,21 +985,20 @@ class PdfButtonHandler:
 
         # Normalize the base value
         normalized_base = base.replace(' ', '').lower()
-        shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
+        
+        # --- Insole Base Codes ---
+        shore_bases = {'40shore', '50shore', '65shore'}
 
         if normalized_base == 'polypropylene':
             passed_codes['B54B'] += 1
-        else:
-            passed_codes['B54C'] += 1
-        # No base code added for 'simple' insole type
-
-        # If 'poron' is selected then add code B40B
-        if content_dict.get('poron', '') == 'selected':
+        elif normalized_base == 'poron':
+            passed_codes['B40B'] += 1  # Assuming 'Poron' is always coded as 'B40B'
+        elif insole_type == 'simple' and normalized_base in shore_bases:
             passed_codes['B40B'] += 1
-
-        # If 'carbon fibre' is selected then add code B54A
-        if content_dict.get('carbon fibre', '') == 'selected':
+        elif normalized_base == 'carbonfibre' or normalized_base == 'carbonfiber':
             passed_codes['B54A'] += 1
+        else:
+            passed_codes['B54C'] += 1  # Default base code for other materials
 
         # --- Additions ---
         # Define the list of addition positions (left and right, 1st to 4th)
