@@ -15,7 +15,7 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 from collections import defaultdict
 
 # Version number
-VERSION = "4.1.0-dev"
+VERSION = "4.1.0"
 
 
 # To fix blurriness on some displays
@@ -1114,7 +1114,7 @@ class PdfButtonHandler:
                 else:
                     # Handle unexpected addition values if necessary
                     print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
-                    
+
         # --- Insole coding section - MATHS! ---
 
         x = 0
