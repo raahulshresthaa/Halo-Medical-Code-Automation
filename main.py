@@ -147,15 +147,10 @@ class PdfButtonHandler:
             else:
                 query_message = None
 
-            # Check for clinic tariff and get the message (applies to all models)
-            clinic_tariff_message = self.check_clinic_tariff(content)
-
             # Combine all messages
             messages = []
             if query_message:
                 messages.append(query_message)
-            if clinic_tariff_message:
-                messages.append(clinic_tariff_message)
             combined_messages = '\n'.join(messages) if messages else None
 
             # Update the GUI with the results (must be done in the main thread)
@@ -450,30 +445,6 @@ class PdfButtonHandler:
             return query_message
         else:
             return None  # No query needed
-
-    def check_clinic_tariff(self, data):
-        # Initialize clinic_value
-        clinic_value = ''
-        # Split the data into lines and look for the line that starts with 'Clinic:'
-        for line in data.split('\n'):
-            if line.lower().startswith('clinic:'):
-                clinic_value = line[len('clinic:'):].strip()
-                break  # Stop after finding the clinic line
-
-        # List of clinics to check
-        clinics_with_tariff = ['Bury CDC', 'East Surrey', 'WS', 'PCH', 'Sudbury', 'Hinchingbrooke', 'East surrey', 'Peterborough']
-
-        # Check the clinic_value and create appropriate message
-        if clinic_value in clinics_with_tariff:
-            message = f"Tariff: {clinic_value}"
-            self.root.after(0, messagebox.showinfo, "Clinic Tariff", message)
-            return message
-        elif clinic_value == 'Medway':
-            message = "Tariff: Medbns72"
-            self.root.after(0, messagebox.showinfo, "Clinic Tariff", message)
-            return message
-        else:
-            return None  # No message needed
 
     def generate_bespoke_codes(self, content):
         """Generates codes based on the content for the Bespoke model, counting duplicates."""
