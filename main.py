@@ -15,7 +15,7 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 from collections import defaultdict
 
 # Version number
-VERSION = "4.2.0-dev"
+VERSION = "4.1.0"
 
 
 # To fix blurriness on some displays
