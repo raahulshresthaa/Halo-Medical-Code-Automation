@@ -1450,17 +1450,17 @@ class PdfButtonHandler:
             return None  # Return None if no codes were added
 
     def generate_modular_codes(self, content):
-        """Generates insole codes based on the content for the Modular model."""
+        """Generates codes based on the content for the Modular model, with tariff logic."""
         from collections import defaultdict
         passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
         # Define lists of clinics for each insole tariff code (edit these lists as needed)
-        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely','hinchingbrooke', 'pch','peterborough city hospital','sudbury','w.s.h','ws','wsh']
-        tariff_simple_clinics = ['bury cdc','ely' ,'harpenden', 'hinchingbrooke','pch','peterborough city hospital','sudbury','w.s.h', 'ws','wsh']
-        tariff_polyprop_clinics = ['east surrey','bury cdc','ely', 'hinchingbrooke','pch','peterborough city hospital','sudbury','w.s.h', 'ws','wsh']
+        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+        tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+        tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
 
         # Define list of clinics for Tariff Modular
-        tariff_modular_clinics = ['bury cdc', 'east surrey', 'sudbury','w.s.h', 'ws', 'wsh']
+        tariff_modular_clinics = ['bury cdc', 'east surrey', 'sudbury', 'w.s.h', 'ws', 'wsh']
 
         # Split the content into lines for easier processing
         lines = content.split('\n')
@@ -1478,33 +1478,68 @@ class PdfButtonHandler:
         # Check if it's a pair
         is_pair = content_dict.get('pair', '') == 'selected' or content_dict.get('insole pair', '') == 'selected'
 
-        # --- Insole Tariff Checks ---
+        # Variables to track if tariffs were added
+        modular_tariff_added = False
+        insole_tariff_added = False
+
+        # --- Modular Tariff Check (should happen first) ---
+        if clinic_name in tariff_modular_clinics:
+            passed_codes['Tariff Modular'] += 1
+            modular_tariff_added = True
+
+        # --- Insole Tariff Checks (after modular) ---
+        # Check for TCI
         if clinic_name in tariff_tci_clinics:
             passed_codes['Tariff TCI'] += 1
             if is_pair:
                 passed_codes['Tariff TCI'] *= 2
-            return 'Tariff TCI' if passed_codes['Tariff TCI'] == 1 else 'Tariff TCI x2'
+            insole_tariff_added = True
 
-        if clinic_name in tariff_simple_clinics:
+        # Check for Simple if not already found TCI
+        elif clinic_name in tariff_simple_clinics:
             passed_codes['Tariff Simple'] += 1
             if is_pair:
                 passed_codes['Tariff Simple'] *= 2
-            return 'Tariff Simple' if passed_codes['Tariff Simple'] == 1 else f'Tariff Simple x{passed_codes["Tariff Simple"]}'
+            insole_tariff_added = True
 
-        if clinic_name in tariff_polyprop_clinics:
+        # Check for Polyprop if not already found TCI or Simple
+        elif clinic_name in tariff_polyprop_clinics:
             passed_codes['Tariff Polyprop'] += 1
             if is_pair:
                 passed_codes['Tariff Polyprop'] *= 2
-            return 'Tariff Polyprop' if passed_codes['Tariff Polyprop'] == 1 else f'Tariff Polyprop x{passed_codes["Tariff Polyprop"]}'
+            insole_tariff_added = True
 
-        # --- Modular Tariff Check (after insole tariff checks) ---
-        if clinic_name in tariff_modular_clinics:
-            passed_codes['Tariff Modular'] += 1
-            if is_pair:
-                passed_codes['Tariff Modular'] *= 2
-            return 'Tariff Modular' if passed_codes['Tariff Modular'] == 1 else f'Tariff Modular x{passed_codes["Tariff Modular"]}'
+        # Decide next steps based on what tariffs have been added:
+        # 1. If modular and insole tariff both added: return them now, no normal logic.
+        if modular_tariff_added and insole_tariff_added:
+            formatted_passed_codes = []
+            for code, count in passed_codes.items():
+                if count > 1:
+                    formatted_passed_codes.append(f"{code} x{count}")
+                else:
+                    formatted_passed_codes.append(code)
+            return ', '.join(formatted_passed_codes)
 
-        # If not a tariff clinic, proceed with normal logic
+        # 2. If modular tariff but no insole tariff, run normal logic (including insole logic).
+        # 3. If no modular tariff but insole tariff added, just return insole tariff now.
+        if insole_tariff_added and not modular_tariff_added:
+            # Just return the insole tariff codes
+            formatted_passed_codes = []
+            for code, count in passed_codes.items():
+                if count > 1:
+                    formatted_passed_codes.append(f"{code} x{count}")
+                else:
+                    formatted_passed_codes.append(code)
+            return ', '.join(formatted_passed_codes)
+
+        # If we reach here:
+        # - Either we have a modular tariff with no insole tariff
+        # - Or we have no tariffs at all.
+        #
+        # If we have modular tariff only, we keep its code and proceed with normal logic, appending the results.
+        # If no tariffs, we just proceed with normal logic.
+
+        # --- Normal logic (Modular + Insole) ---
 
         # --- New logic for Last Type Checks ---
         if content_dict.get('last type', '').strip().lower() == 'wide extra deep':
@@ -1512,9 +1547,8 @@ class PdfButtonHandler:
             if content_dict.get('pair', '') == 'selected':
                 count = 2
             passed_codes['6mm'] += count
-        # --- End of Last Type Checks ---
 
-        # --- New logic for Insole Allowance Checks ---
+        # --- Insole Allowance Checks ---
         allowance_codes = {'3mm', '6mm', '9mm', '12mm'}
         pattern_allowances = {'9mm', '12mm'}
 
@@ -1524,18 +1558,16 @@ class PdfButtonHandler:
                 passed_codes[value] += 1
                 if value in pattern_allowances:
                     passed_codes['Pattern'] += 1
-        # --- End of Insole Allowance Checks ---
 
-        # --- New logic for Sole and Style Checks ---
+        # --- Sole and Style Checks ---
         sole_value = content_dict.get('sole', '')
         style_value = content_dict.get('style', '')
 
         if sole_value in ('(lcr) lightweight commando sole', 'resin commando sole'):
             if style_value not in ('highland', 'rockingham', 'rockcliffe'):
                 passed_codes['BNS62'] += 1
-        # --- End of Sole and Style Checks ---
 
-        # --- New logic for Style-based Codes ---
+        # --- Style-based Codes ---
         if content_dict.get('shoes', '') == 'selected':
             passed_codes['modular shoes'] += 1
         if content_dict.get('boots', '') == 'selected':
@@ -1544,13 +1576,11 @@ class PdfButtonHandler:
             passed_codes['modular sports'] += 1
         if content_dict.get('boa', '') == 'selected':
             passed_codes['twist fasten'] += 1
-        # --- End of Style-based Codes ---
         if content_dict.get('velcro', '') == 'selected':
             passed_codes['velcro'] += 1
 
-        # --- New logic for Straps Checks ---
-        sides = ['left', 'right']
-        for side in sides:
+        # --- Straps Checks ---
+        for side in ['left', 'right']:
             strap_type_key = f'{side} strap type'
             double_decker_key = f'{side} double decker'
 
@@ -1558,16 +1588,14 @@ class PdfButtonHandler:
             double_decker = content_dict.get(double_decker_key, '')
 
             if double_decker == 'yes':
-                # If double decker is 'yes', add code 'B34' regardless of strap type
                 passed_codes['B34'] += 1
             else:
                 if strap_type in ('t strap', 'y strap'):
                     passed_codes['B33'] += 1
                 elif strap_type in ('spur retaining strap', 'heel retaining strap'):
                     passed_codes['B8'] += 1
-        # --- End of Straps Checks ---
 
-        # --- New logic for Sockets Type Checks ---
+        # --- Sockets Type Checks ---
         socket_keys = ['left socket type', 'right socket type']
         for key in socket_keys:
             value = content_dict.get(key, '')
@@ -1576,19 +1604,19 @@ class PdfButtonHandler:
             elif value in ("5/16 with b'stop", "1/4 with b'stop"):
                 passed_codes['B31'] += 1
 
-        # --- New logic for elongation Type adding B25 ---
+        # --- Elongation Type (B25) ---
         elongation_keys = ['left elongation type', 'right elongation type']
         for key in elongation_keys:
             if content_dict.get(key, '') in ('full elongated heel', 'half elongated heel'):
                 passed_codes['B25'] += 1
 
-        # --- New logic for Rocker Type adding B17 ---
+        # --- Rocker Type (B17) ---
         rocker_keys = ['left rocker type', 'right rocker type']
         for key in rocker_keys:
             if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
                 passed_codes['B17'] += 1
 
-        # --- Updated logic for Wedges ---
+        # --- Wedges ---
         wedges_keys = [
             'left wedges heel lateral',
             'left wedges heel medial',
@@ -1603,12 +1631,11 @@ class PdfButtonHandler:
         for key in wedges_keys:
             if content_dict.get(key, '') == 'selected':
                 if 'heel' in key:
-                    passed_codes['B25'] += 1  # Heel wedge code
+                    passed_codes['B25'] += 1
                 elif 'sole' in key:
-                    passed_codes['B18'] += 1  # Sole wedge code
-        # --- End of Wedges logic ---
+                    passed_codes['B18'] += 1
 
-        # --- Updated logic for Floated ---
+        # --- Floated ---
         floated_keys = [
             'right floated heel lateral',
             'right floated heel medial',
@@ -1623,10 +1650,10 @@ class PdfButtonHandler:
         for key in floated_keys:
             if content_dict.get(key, '') == 'selected':
                 if 'heel' in key:
-                    passed_codes['B25'] += 1  # Floated heel code
+                    passed_codes['B25'] += 1
                 elif 'sole' in key:
-                    passed_codes['B19'] += 1  # Floated sole code
-        # --- End of Floated logic ---
+                    passed_codes['B19'] += 1
+
         # --- beyond this point is the insole logic ---
         # Determine insole type
         insole_type = None
@@ -1638,13 +1665,11 @@ class PdfButtonHandler:
             insole_type = 'simple'
         elif content_dict.get('insole type handmould', '') == 'selected':
             insole_type = 'handmould'
-        # You can add more insole types if needed
 
         # Get the base value
         base = content_dict.get('base', '').strip().lower()
         print(f"Base value: '{base}'")  # For debugging
 
-        # Normalize the base value
         normalized_base = base.replace(' ', '').lower()
         shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
 
@@ -1659,16 +1684,13 @@ class PdfButtonHandler:
             else:
                 passed_codes['B54C'] += 1
 
-        # If 'base poron' is selected then add code B40B
         if content_dict.get('base poron', '') == 'selected':
             passed_codes['B40B'] += 1
 
-        # If 'base carbon fibre' is selected then add code B54A
         if content_dict.get('base carbon fibre', '') == 'selected':
             passed_codes['B54A'] += 1
 
-        # --- New logic for Pair Handling ---
-        # List of foot modifications that map to BNS45
+        # Foot modifications mapping to BNS45
         foot_modifications = [
             'cut out and additions',
             '1st met head',
@@ -1684,7 +1706,6 @@ class PdfButtonHandler:
                 if content_dict.get(key, '') == 'selected':
                     passed_codes['BNS45'] += 1
 
-        # Define the list of addition positions (left and right, 1st to 4th)
         addition_positions = [
             'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
             'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition'
@@ -1735,7 +1756,6 @@ class PdfButtonHandler:
                 else:
                     print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
 
-        # --- New logic for Insole Postings ---
         posting_keys = [
             'left medial rearfoot posting',
             'left lateral rearfoot posting',
@@ -1752,7 +1772,7 @@ class PdfButtonHandler:
                 code = 'A45' if insole_type == 'cradle' else 'B56'
                 passed_codes[code] += 1
 
-        # --- Insole coding section - MATHS! ---
+        # Insole coding section - MATHS!
         x = 0
         if insole_type == 'simple':
             x -= 1
@@ -1777,7 +1797,7 @@ class PdfButtonHandler:
             code = 'A44A' if insole_type == 'cradle' else 'B55A'
             passed_codes[code] += 1
 
-        # --- Pair Handling ---
+        # Pair Handling
         if content_dict.get('pair', '') == 'selected':
             codes_to_double_general = [
                 'twist fasten', 'BNS62', 'velcro'
@@ -1795,7 +1815,7 @@ class PdfButtonHandler:
                 if code in passed_codes:
                     passed_codes[code] *= 2
 
-        # Format the passed codes with counts
+        # Now format and return all codes
         formatted_passed_codes = []
         for code, count in passed_codes.items():
             if count > 1:
@@ -1803,11 +1823,10 @@ class PdfButtonHandler:
             else:
                 formatted_passed_codes.append(code)
 
-        # Return the passed codes as a string
         if formatted_passed_codes:
             return ', '.join(formatted_passed_codes)
         else:
-            return None  # Return None if no codes were added
+            return None
 
 # --- Main Application Setup ---
 
