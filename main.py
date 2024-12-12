@@ -1147,6 +1147,9 @@ class PdfButtonHandler:
         from collections import defaultdict
         passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
+        # Define list of clinics for Tariff AFO (edit this list as needed)
+        tariff_afo_clinics = ['bury cdc', 'east surrey', 'sudbury', 'w.s.h', 'ws', 'wsh']
+
         # Split the content into lines for easier processing
         lines = content.split('\n')
 
@@ -1157,8 +1160,20 @@ class PdfButtonHandler:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
-        # --- Start of AFO-specific logic ---
+        # Extract the clinic name if it exists in the content
+        clinic_name = content_dict.get('clinic', '').lower()
 
+        # Check if it's a pair for AFO
+        is_pair = content_dict.get('pair', '') == 'selected' or content_dict.get('afo pair', '') == 'selected'
+
+        # --- Tariff AFO Check ---
+        if clinic_name in tariff_afo_clinics:
+            passed_codes['Tariff AFO'] += 1
+            if is_pair:
+                passed_codes['Tariff AFO'] *= 2
+            return 'Tariff AFO' if passed_codes['Tariff AFO'] == 1 else f'Tariff AFO x{passed_codes["Tariff AFO"]}'
+
+        # --- Start of AFO-specific logic (if not a Tariff AFO clinic) ---
         # Default codes
         default_codes = ['D1/C', 'D8/U']
 
@@ -1223,10 +1238,7 @@ class PdfButtonHandler:
         if right_as_left_heel and (left_heel_posting != right_heel_posting):
             heel_posting_codes = 2
         else:
-            heel_posting_codes = sum([
-                left_heel_posting,
-                right_heel_posting
-            ])
+            heel_posting_codes = sum([left_heel_posting, right_heel_posting])
 
         if heel_posting_codes > 0:
             passed_codes['D10/E'] += heel_posting_codes
@@ -1415,15 +1427,13 @@ class PdfButtonHandler:
             passed_codes['D14/C'] += additional_material_codes
 
         # --- Pair Handling ---
-        # Apply Pair Handling after all codes have been added
+        # Apply Pair Handling after all codes have been added if 'afo pair' selected
         if content_dict.get('afo pair', '') == 'selected':
             # Codes to exclude from pair handling
             codes_to_exclude = ['D10/E', 'D14/A', 'D14/D', 'P1', 'P4', 'D8/D','D8/H','D8/A', 'B41','D8/I', 'D8/U', 'D8/B', 'P15', 'D2/D', 'D2/B', 'D2/A']
             for code in passed_codes:
                 if code not in codes_to_exclude:
                     passed_codes[code] *= 2
-
-        # --- End of AFO-specific logic ---
 
         # Format the passed codes with counts
         formatted_passed_codes = []
