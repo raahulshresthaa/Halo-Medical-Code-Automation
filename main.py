@@ -923,18 +923,55 @@ class PdfButtonHandler:
 
     def generate_insole_codes(self, content):
         """Generates insole codes based on the content."""
+
         from collections import defaultdict
         passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
+
+        # Define lists of clinics for each tariff code (edit these lists as needed)
+        tariff_tci_clinics = ['east surrey', 'clinicB', 'clinicC']
+        tariff_simple_clinics = ['east surrey', 'clinicE']
+        tariff_polyprop_clinics = ['east surrey', 'clinicG']
 
         # Split the content into lines for easier processing
         lines = content.split('\n')
 
-        # Convert lines to a dictionary for easier lookup with lowercase keys and values
+        # Convert lines to a dictionary for easier lookup with lowercase keys
         content_dict = {}
         for line in lines:
             if ':' in line:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
+
+        # Extract the clinic name if it exists in the content
+        clinic_name = content_dict.get('clinic', '').lower()
+
+        # Check if it's a pair
+        is_pair = content_dict.get('pair', '') == 'selected' or content_dict.get('insole pair', '') == 'selected'
+
+        # Check if the clinic falls into one of the tariff code categories
+        # If so, select the corresponding tariff and override normal processing
+        if clinic_name in tariff_tci_clinics:
+            passed_codes['Tariff TCI'] += 1
+            if is_pair:
+                passed_codes['Tariff TCI'] *= 2
+            # Return immediately if a tariff clinic is matched
+            return 'Tariff TCI' if passed_codes['Tariff TCI'] == 1 else 'Tariff TCI x2'
+
+        elif clinic_name in tariff_simple_clinics:
+            passed_codes['Tariff Simple'] += 1
+            if is_pair:
+                passed_codes['Tariff Simple'] *= 2
+            return 'Tariff Simple' if passed_codes['Tariff Simple'] == 1 else f'Tariff Simple x{passed_codes["Tariff Simple"]}'
+
+        elif clinic_name in tariff_polyprop_clinics:
+            passed_codes['Tariff Polyprop'] += 1
+            if is_pair:
+                passed_codes['Tariff Polyprop'] *= 2
+            return 'Tariff Polyprop' if passed_codes['Tariff Polyprop'] == 1 else f'Tariff Polyprop x{passed_codes["Tariff Polyprop"]}'
+
+        # If the clinic does not match any tariff lists, continue with the normal logic
+        from collections import defaultdict
+        passed_codes = defaultdict(int)
 
         # Determine insole type
         insole_type = None
@@ -948,10 +985,7 @@ class PdfButtonHandler:
 
         # Get the base value
         base = content_dict.get('base', '').strip().lower()
-        normalized_base = base.replace(' ', '').lower()
         print(f"Base value: '{base}'")  # For debugging
-
-        # New logic for Insole Form Base
 
         # Normalize the base value
         normalized_base = base.replace(' ', '').lower()
@@ -971,8 +1005,6 @@ class PdfButtonHandler:
             passed_codes['B54C'] += 1  # Default base code for other materials
 
         # --- Foot Modifications adding BNS45 ---
-
-        # List of foot modifications that map to BNS45
         foot_modifications = [
             'cut out and additions',
             '1st met head',
@@ -986,7 +1018,6 @@ class PdfButtonHandler:
         left_modifications_count = 0
         right_modifications_count = 0
 
-        # Check for each foot modification for both left and right foot
         for mod in foot_modifications:
             left_key = f"left {mod}"
             right_key = f"right {mod}"
@@ -1030,63 +1061,42 @@ class PdfButtonHandler:
 
         # For modifications
         if insole_right_as_left and ((left_modifications_count == 0 and right_modifications_count > 0) or (left_modifications_count > 0 and right_modifications_count == 0)):
-            # Only one side is filled out, multiply 'BNS45' code for modifications by 2
             passed_codes['BNS45'] *= 2
 
         # For postings
         if insole_right_as_left and ((left_postings_count == 0 and right_postings_count >= 0) or (left_postings_count >= 0 and right_postings_count == 0)):
-            # Only one side is filled out, multiply 'B56' code for postings by 2
             passed_codes['B56'] *= 2
 
-        # --- End of Insole Postings logic ---
         # --- Additions ---
-        # Define the list of addition positions (left and right, 1st to 4th)
         addition_positions = [
             '1st addition left', '2nd addition left', '3rd addition left', '4th addition left',
             '1st addition right', '2nd addition right', '3rd addition right', '4th addition right'
         ]
 
-        # Define the mappings from addition values to codes
         addition_code_mapping = {
-            # Additions mapping to B41
-            'B41': {
-                'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
-                'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
-                'sulcus crest', 'arch fill'
-            },
-            # Additions mapping to B56
-            'B56': {
-                "morton's extension", "reverse morton's extension", 'poron forefoot'
-            },
-            # Additions mapping to B43
+            'B41': {'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
+                    'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
+                    'sulcus crest', 'arch fill'},
+            'B56': {"morton's extension", "reverse morton's extension", 'poron forefoot'},
             'B43': {'kinetic wedge', 'heel raise'},
-            # Additions mapping to D8A
             'D8A': {'neurological footplate'},
-            # Additions mapping to BNS45
             'BNS45': {'recess', 'hole & plug'},
-            # Additions mapping to B20
             'B20': {'rigid 1st extension'},
-            # Additions mapping to B50
             'B50': {'partial toe block'},
-            # Additions mapping to B51
             'B51': {'full toe block'}
         }
 
-        # Iterate over each addition position and apply the appropriate codes
         for key in addition_positions:
             addition_value = content_dict.get(key, '')
             if addition_value:
-                # Check which mapping the addition_value belongs to
                 for code, additions in addition_code_mapping.items():
                     if addition_value in additions:
                         passed_codes[code] += 1
                         break
                 else:
-                    # Handle unexpected addition values if necessary
                     print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
 
         # --- Insole coding section - MATHS! ---
-
         x = 0
         if insole_type == 'simple':
             x -= 1
@@ -1112,16 +1122,11 @@ class PdfButtonHandler:
             passed_codes[code] += 1
 
         # --- Pair Handling ---
-        # Insole codes to double if 'pair' or 'insole pair' is selected
-        if content_dict.get('pair', '') == 'selected' or content_dict.get('insole pair', '') == 'selected':
-            codes_to_double_insole = [
-                'B54C', 'B40B', 'B54A',  # Insole form base codes
-                'B55A', 'B55B', 'B55C',  # Insole covering codes (maths)
-            ]
+        if is_pair:
+            codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C']
             for code in codes_to_double_insole:
                 if code in passed_codes:
                     passed_codes[code] *= 2
-        # --- End of Pair Handling ---
 
         # Format the passed codes with counts
         formatted_passed_codes = []
