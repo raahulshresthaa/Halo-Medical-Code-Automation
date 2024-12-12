@@ -928,9 +928,9 @@ class PdfButtonHandler:
         passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
         # Define lists of clinics for each tariff code (edit these lists as needed)
-        tariff_tci_clinics = ['east surrey', 'clinicB', 'clinicC']
-        tariff_simple_clinics = ['east surrey', 'clinicE']
-        tariff_polyprop_clinics = ['east surrey', 'clinicG']
+        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely','hinchingbrooke', 'pch','peterborough city hospital','sudbury','w.s.h','ws','wsh']
+        tariff_simple_clinics = ['bury cdc','ely' ,'harpenden', 'hinchingbrooke','pch','peterborough city hospital','sudbury','w.s.h', 'ws','wsh']
+        tariff_polyprop_clinics = ['east surrey','bury cdc','ely', 'hinchingbrooke','pch','peterborough city hospital','sudbury','w.s.h', 'ws','wsh']
 
         # Split the content into lines for easier processing
         lines = content.split('\n')
