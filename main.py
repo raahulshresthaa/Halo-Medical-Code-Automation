@@ -1791,8 +1791,13 @@ class PdfButtonHandler:
 
         # --- Filtering Step ---
         # Example filter sets (adjust as needed)
-        insole_filter_codes = {'B55A', 'B55B', 'B55C'}  # Example insole filter codes
-        modular_filter_codes = {'BNS62', 'modular boots'}  # Example modular filter codes
+        insole_filter_codes = {
+            'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
+            'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
+            'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41'
+        }
+        modular_filter_codes = {'6mm','Pattern','BNS62','modular shoes','modular boots',
+        'modular sports','twist fasten','velcro','B34','B33','B8','B30','B31','B25','B17','B18','B19'}
 
         # Apply filters based on tariffs
         if insole_tariff_added:
