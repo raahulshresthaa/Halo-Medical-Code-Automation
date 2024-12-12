@@ -479,13 +479,12 @@ class PdfButtonHandler:
         bespoke_tariff_added = False
         insole_tariff_added = False
 
-        # --- Bespoke Tariff Check (should happen first) ---
+        # --- Bespoke Tariff Check ---
         if clinic_name in tariff_bespoke_clinics:
             passed_codes['Tariff Bespoke'] += 1
-            # Note: No immediate pair multiplication here, following the modular logic
             bespoke_tariff_added = True
 
-        # --- Insole Tariff Checks (after bespoke) ---
+        # --- Insole Tariff Checks ---
         if clinic_name in tariff_tci_clinics:
             passed_codes['Tariff TCI'] += 1
             if is_pair:
@@ -502,40 +501,7 @@ class PdfButtonHandler:
                 passed_codes['Tariff Polyprop'] *= 2
             insole_tariff_added = True
 
-        # Decide next steps based on what tariffs have been added:
-        # 1. If bespoke and insole tariff both added: return them now, no normal logic.
-        if bespoke_tariff_added and insole_tariff_added:
-            formatted_passed_codes = []
-            for code, count in passed_codes.items():
-                if count > 1:
-                    formatted_passed_codes.append(f"{code} x{count}")
-                else:
-                    formatted_passed_codes.append(code)
-            return ', '.join(formatted_passed_codes)
-
-        # 2. If no bespoke tariff but insole tariff added, just return the insole tariff codes now
-        if insole_tariff_added and not bespoke_tariff_added:
-            formatted_passed_codes = []
-            for code, count in passed_codes.items():
-                if count > 1:
-                    formatted_passed_codes.append(f"{code} x{count}")
-                else:
-                    formatted_passed_codes.append(code)
-            return ', '.join(formatted_passed_codes)
-
-        # If we reach here:
-        # - Either we have a bespoke tariff with no insole tariff
-        # - Or we have no tariffs at all.
-        #
-        # If we have bespoke tariff only, we keep its code and proceed with normal logic, appending the results.
-        # If no tariffs, we just proceed with normal logic.
-
-        # Debugging: Print content_dict keys
-        print(f"Content Dictionary Keys: {list(content_dict.keys())}")
-
-        # --- Start of normal bespoke logic ---
-
-        # --- Start of Style-based Codes ---
+        # Start of normal bespoke logic
         style = content_dict.get('style', '').lower()
 
         a1b_styles = {
@@ -559,7 +525,7 @@ class PdfButtonHandler:
         if content_dict.get('pop cast', '') == 'selected':
             passed_codes['A1K'] += 1
 
-        # Backup logic for 'A1A' and 'A1B' based on 'type' selections
+        # Backup logic for 'A1A' and 'A1B'
         if 'A1A' not in passed_codes and 'A1B' not in passed_codes:
             type_code_mapping = {
                 'type boots': 'A1A',
@@ -572,10 +538,9 @@ class PdfButtonHandler:
                 if content_dict.get(key, '') == 'selected':
                     passed_codes[code] += 1
 
-        # Default to 'A1A' if neither 'A1A' nor 'A1B' is in passed_codes
+        # Default to 'A1A' if neither 'A1A' nor 'A1B' is present
         if 'A1A' not in passed_codes and 'A1B' not in passed_codes:
             passed_codes['A1A'] += 1
-        # --- End of Style-based Codes ---
 
         # Determine insole type
         insole_type = None
@@ -588,10 +553,8 @@ class PdfButtonHandler:
         elif content_dict.get('insole type handmould', '') == 'selected':
             insole_type = 'handmould'
 
-        # Get the base value
         base = content_dict.get('base', '').strip().lower()
         normalized_base = base.replace(' ', '').lower()
-        print(f"Base value: '{base}'")  # For debugging
 
         addition_positions = [
             'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
@@ -615,6 +578,7 @@ class PdfButtonHandler:
             'A47_B51': {'full toe block'}
         }
 
+        # Additions
         for key in addition_positions:
             addition_value = content_dict.get(key, '')
             if addition_value:
@@ -643,6 +607,7 @@ class PdfButtonHandler:
                 else:
                     print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
 
+        # Foot modifications
         foot_modifications = [
             'cut out and additions',
             '1st met head',
@@ -675,7 +640,7 @@ class PdfButtonHandler:
                 code = 'A45' if insole_type == 'cradle' else 'B56'
                 passed_codes[code] += 1
 
-        # Sole Stiffeners Checks
+        # Sole Stiffeners
         stiffener_keys = {
             'sole stiffeners left carbon fibre': 'A20',
             'sole stiffeners right carbon fibre': 'A20',
@@ -687,7 +652,7 @@ class PdfButtonHandler:
             if content_dict.get(key, '') == 'selected':
                 passed_codes[code] += 1
 
-        # Sole Additions Checks
+        # Sole Additions
         sole_addition_keys = {
             'sole additions left toe tips': 'A23',
             'sole additions right toe tips': 'A23',
@@ -720,7 +685,7 @@ class PdfButtonHandler:
                 passed_codes[code] += 1
 
         # Stiffeners Checks
-        # Left side
+        # Left
         left_a16_count = 0
         if content_dict.get('stiffeners left medial', '') == 'selected':
             left_a16_count += 1
@@ -730,11 +695,10 @@ class PdfButtonHandler:
         if content_dict.get('stiffeners left type', '') in ('elongated', 'high'):
             if left_a16_count > 1:
                 left_a16_count = 1
-
         if left_a16_count > 0:
             passed_codes['A16'] += left_a16_count
 
-        # Right side
+        # Right
         right_a16_count = 0
         if content_dict.get('stiffeners right medial', '') == 'selected':
             right_a16_count += 1
@@ -744,7 +708,6 @@ class PdfButtonHandler:
         if content_dict.get('stiffeners right type', '') in ('elongated', 'high'):
             if right_a16_count > 1:
                 right_a16_count = 1
-
         if right_a16_count > 0:
             passed_codes['A16'] += right_a16_count
 
@@ -768,7 +731,7 @@ class PdfButtonHandler:
             if content_dict.get(key, '') in ('5/16 with backstop', '1/4 with backstop'):
                 passed_codes[code] += 1
 
-        # Wedges Checks
+        # Wedges
         wedges_heel_keys = [
             'wedges left heel medial',
             'wedges left heel lateral',
@@ -791,7 +754,7 @@ class PdfButtonHandler:
             if content_dict.get(key, '') == 'selected':
                 passed_codes['A19'] += 1
 
-        # Floated Checks
+        # Floated
         floated_heel_keys = [
             'floated left heel medial',
             'floated left heel lateral',
@@ -814,7 +777,7 @@ class PdfButtonHandler:
             if content_dict.get(key, '') == 'selected':
                 passed_codes['A26'] += 1
 
-        # Raises Checks
+        # Raises
         for side in ['left', 'right']:
             raise_inside_key = f'raise {side} inside'
             raise_outside_key = f'raise {side} outside'
@@ -832,19 +795,19 @@ class PdfButtonHandler:
                 elif raise_material in ('lightweight p/zote (non-covered)', 'lightweight p/zote (covered)'):
                     passed_codes['A12A'] += 1
 
-        # Elongations Checks
+        # Elongations
         elongations_keys = ['elongations left type', 'elongations right type']
         for key in elongations_keys:
             if content_dict.get(key, '') in ('full', 'half'):
                 passed_codes['A31'] += 1
 
-        # Rocker Type Checks
+        # Rocker
         rocker_keys = ['rocker left type', 'rocker right type']
         for key in rocker_keys:
             if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
                 passed_codes['A19'] += 1
 
-        # Straps Checks
+        # Straps
         for side in ['left', 'right']:
             strap_type_key = f'straps {side} type'
             strap_double_decker_key = f'straps {side} double decker'
@@ -887,7 +850,6 @@ class PdfButtonHandler:
             code = 'A44A' if insole_type == 'cradle' else 'B55A'
             passed_codes[code] += 1
 
-        # Insole Form Base
         normalized_base = base.replace(' ', '').lower()
         shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
 
@@ -919,14 +881,41 @@ class PdfButtonHandler:
 
         if content_dict.get('insole pair', '') == 'selected':
             codes_to_double_insole = [
-                'A10', 'B54C', 'B40B', 'B54A',  # Insole form base codes
-                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'  # Insole covering codes (maths)
+                'A10', 'B54C', 'B40B', 'B54A',
+                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'
             ]
             for code in codes_to_double_insole:
                 if code in passed_codes:
                     passed_codes[code] *= 2
 
-        # Finally, format and return all codes, including tariff(s) if bespoke tariff was set
+        # --- Final Filtering Step ---
+        insole_filter_codes = {
+            'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
+            'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
+            'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41'
+        }
+
+        bespoke_filter_codes = {
+            'A1B', 'A1A', 'A1K', 'A22', 'A23', 'A24', 'A25',
+            'Twist Fasten', 'A18A', 'A6', 'A15', 'A16', 'A37A',
+            'A37B', 'A31', 'A19', 'A26', 'A8', 'A13A', 'A12A',
+            'A39', 'A38', 'A40', 'B54B'
+        }
+
+        # If insole tariff selected, remove insole_filter_codes
+        # not working 
+        if insole_tariff_added:
+            for c in insole_filter_codes:
+                if c in passed_codes:
+                    del passed_codes[c]
+
+        # If bespoke tariff selected, remove bespoke_filter_codes
+        if bespoke_tariff_added:
+            for c in bespoke_filter_codes:
+                if c in passed_codes:
+                    del passed_codes[c]
+
+        # Format the passed codes with counts
         formatted_passed_codes = []
         for code, count in passed_codes.items():
             if count > 1:
@@ -938,7 +927,6 @@ class PdfButtonHandler:
             return ', '.join(formatted_passed_codes)
         else:
             return None
-
 
     def generate_insole_codes(self, content):
         """Generates insole codes based on the content."""
