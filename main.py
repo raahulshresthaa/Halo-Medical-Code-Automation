@@ -462,29 +462,29 @@ class PdfButtonHandler:
         # Split the content into lines for easier processing
         lines = content.split('\n')
 
-        # Convert lines to a dictionary for easier lookup with lowercase keys and values
+        # Convert lines to a dictionary for easier lookup
         content_dict = {}
         for line in lines:
             if ':' in line:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
-        # Extract the clinic name if it exists in the content
+        # Extract the clinic name
         clinic_name = content_dict.get('clinic', '').lower()
 
         # Check if it's a pair
         is_pair = content_dict.get('pair', '') == 'selected' or content_dict.get('insole pair', '') == 'selected'
 
-        # Variables to track if tariffs were added
+        # Track if tariffs were added
         bespoke_tariff_added = False
         insole_tariff_added = False
 
-        # --- Bespoke Tariff Check ---
+        # Bespoke Tariff Check
         if clinic_name in tariff_bespoke_clinics:
             passed_codes['Tariff Bespoke'] += 1
             bespoke_tariff_added = True
 
-        # --- Insole Tariff Checks ---
+        # Insole Tariff Checks
         if clinic_name in tariff_tci_clinics:
             passed_codes['Tariff TCI'] += 1
             if is_pair:
@@ -501,7 +501,7 @@ class PdfButtonHandler:
                 passed_codes['Tariff Polyprop'] *= 2
             insole_tariff_added = True
 
-        # Start of normal bespoke logic
+        # Style-based logic
         style = content_dict.get('style', '').lower()
 
         a1b_styles = {
@@ -604,8 +604,6 @@ class PdfButtonHandler:
                 elif addition_value in addition_code_mapping['A47_B51']:
                     code = 'A47' if insole_type == 'cradle' else 'B51'
                     passed_codes[code] += 1
-                else:
-                    print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
 
         # Foot modifications
         foot_modifications = [
@@ -685,7 +683,7 @@ class PdfButtonHandler:
                 passed_codes[code] += 1
 
         # Stiffeners Checks
-        # Left
+        # Left side
         left_a16_count = 0
         if content_dict.get('stiffeners left medial', '') == 'selected':
             left_a16_count += 1
@@ -698,7 +696,7 @@ class PdfButtonHandler:
         if left_a16_count > 0:
             passed_codes['A16'] += left_a16_count
 
-        # Right
+        # Right side
         right_a16_count = 0
         if content_dict.get('stiffeners right medial', '') == 'selected':
             right_a16_count += 1
@@ -902,18 +900,26 @@ class PdfButtonHandler:
             'A39', 'A38', 'A40', 'B54B'
         }
 
+        # Debug before filtering
+        print("passed_codes before filter:", dict(passed_codes))
+        print("insole_tariff_added:", insole_tariff_added)
+        print("bespoke_tariff_added:", bespoke_tariff_added)
+
         # If insole tariff selected, remove insole_filter_codes
-        # not working 
         if insole_tariff_added:
+            print("Removing insole codes:", insole_filter_codes)
             for c in insole_filter_codes:
                 if c in passed_codes:
                     del passed_codes[c]
 
         # If bespoke tariff selected, remove bespoke_filter_codes
         if bespoke_tariff_added:
+            print("Removing bespoke codes:", bespoke_filter_codes)
             for c in bespoke_filter_codes:
                 if c in passed_codes:
                     del passed_codes[c]
+
+        print("passed_codes after filter:", dict(passed_codes))
 
         # Format the passed codes with counts
         formatted_passed_codes = []
