@@ -445,7 +445,7 @@ class PdfButtonHandler:
             return query_message
         else:
             return None  # No query needed
-
+        
     def generate_bespoke_codes(self, content):
         """Generates codes based on the content for the Bespoke model, counting duplicates."""
         from collections import defaultdict
@@ -462,14 +462,13 @@ class PdfButtonHandler:
         # Split the content into lines for easier processing
         lines = content.split('\n')
 
-        # Convert lines to a dictionary for easier lookup
+        # Convert lines to a dictionary
         content_dict = {}
         for line in lines:
             if ':' in line:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
-        # Extract the clinic name
         clinic_name = content_dict.get('clinic', '').lower()
 
         # Check if it's a pair
@@ -478,6 +477,32 @@ class PdfButtonHandler:
         # Track if tariffs were added
         bespoke_tariff_added = False
         insole_tariff_added = False
+
+        # Determine insole type
+        insole_type = None
+        if content_dict.get('insole type tci', '') == 'selected':
+            insole_type = 'tci'
+        elif content_dict.get('insole type cradle', '') == 'selected':
+            insole_type = 'cradle'
+        elif content_dict.get('insole type simple', '') == 'selected':
+            insole_type = 'simple'
+        elif content_dict.get('insole type handmould', '') == 'selected':
+            insole_type = 'handmould'
+
+        # --- Medway Tariffs for Bespoke ---
+        # If medway:
+        # - If simple: add MEDBNS71
+        # - Otherwise: add MEDBNS72
+        # In all cases: add MEDFOOTWEAR
+        # Don't return immediately, continue logic and filter at the end
+        if clinic_name == 'medway':
+            if insole_type == 'simple':
+                passed_codes['MEDBNS71'] += 1
+            else:
+                passed_codes['MEDBNS72'] += 1
+            passed_codes['MEDFOOTWEAR'] += 1
+            bespoke_tariff_added = True
+            insole_tariff_added = True
 
         # Bespoke Tariff Check
         if clinic_name in tariff_bespoke_clinics:
@@ -533,7 +558,6 @@ class PdfButtonHandler:
                 'type shoes': 'A1B',
                 'type sports': 'A1B',
             }
-
             for key, code in type_code_mapping.items():
                 if content_dict.get(key, '') == 'selected':
                     passed_codes[code] += 1
@@ -541,17 +565,6 @@ class PdfButtonHandler:
         # Default to 'A1A' if neither 'A1A' nor 'A1B' is present
         if 'A1A' not in passed_codes and 'A1B' not in passed_codes:
             passed_codes['A1A'] += 1
-
-        # Determine insole type
-        insole_type = None
-        if content_dict.get('insole type tci', '') == 'selected':
-            insole_type = 'tci'
-        elif content_dict.get('insole type cradle', '') == 'selected':
-            insole_type = 'cradle'
-        elif content_dict.get('insole type simple', '') == 'selected':
-            insole_type = 'simple'
-        elif content_dict.get('insole type handmould', '') == 'selected':
-            insole_type = 'handmould'
 
         base = content_dict.get('base', '').strip().lower()
         normalized_base = base.replace(' ', '').lower()
@@ -868,7 +881,7 @@ class PdfButtonHandler:
         if content_dict.get('base carbon fibre', '') == 'selected':
             passed_codes['B54A'] += 1
 
-        # Pair Handling
+        # Pair Handling for normal codes
         if content_dict.get('pair', '') == 'selected':
             codes_to_double_general = [
                 'A1K', 'A18A', 'Twist Fasten', 'A6'
@@ -886,6 +899,14 @@ class PdfButtonHandler:
                 if code in passed_codes:
                     passed_codes[code] *= 2
 
+        # If it's a pair, double MEDBNS71 or MEDBNS72 if present, but not MEDFOOTWEAR
+        if is_pair:
+            if 'MEDBNS71' in passed_codes:
+                passed_codes['MEDBNS71'] *= 2
+            if 'MEDBNS72' in passed_codes:
+                passed_codes['MEDBNS72'] *= 2
+            # Do not double MEDFOOTWEAR
+
         # --- Final Filtering Step ---
         insole_filter_codes = {
             'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
@@ -900,26 +921,17 @@ class PdfButtonHandler:
             'A39', 'A38', 'A40', 'B54B'
         }
 
-        # Debug before filtering
-        print("passed_codes before filter:", dict(passed_codes))
-        print("insole_tariff_added:", insole_tariff_added)
-        print("bespoke_tariff_added:", bespoke_tariff_added)
-
         # If insole tariff selected, remove insole_filter_codes
         if insole_tariff_added:
-            print("Removing insole codes:", insole_filter_codes)
             for c in insole_filter_codes:
                 if c in passed_codes:
                     del passed_codes[c]
 
         # If bespoke tariff selected, remove bespoke_filter_codes
         if bespoke_tariff_added:
-            print("Removing bespoke codes:", bespoke_filter_codes)
             for c in bespoke_filter_codes:
                 if c in passed_codes:
                     del passed_codes[c]
-
-        print("passed_codes after filter:", dict(passed_codes))
 
         # Format the passed codes with counts
         formatted_passed_codes = []
@@ -933,7 +945,7 @@ class PdfButtonHandler:
             return ', '.join(formatted_passed_codes)
         else:
             return None
-            
+
     def generate_insole_codes(self, content):
         """Generates insole codes based on the content."""
 
