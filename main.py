@@ -1215,6 +1215,13 @@ class PdfButtonHandler:
         # Check if it's a pair for AFO
         is_pair = content_dict.get('pair', '') == 'selected' or content_dict.get('afo pair', '') == 'selected'
 
+        # --- New Medway Tariff ---
+        if clinic_name == 'medway':
+            passed_codes['MEDDNS2'] += 1
+            if is_pair:
+                passed_codes['MEDDNS2'] *= 2
+            return 'MEDDNS2' if passed_codes['MEDDNS2'] == 1 else f'MEDDNS2 x{passed_codes["MEDDNS2"]}'
+
         # --- Tariff AFO Check ---
         if clinic_name in tariff_afo_clinics:
             passed_codes['Tariff AFO'] += 1
@@ -1476,7 +1483,7 @@ class PdfButtonHandler:
             passed_codes['D14/C'] += additional_material_codes
 
         # --- Pair Handling ---
-        # Apply Pair Handling after all codes have been added if 'afo pair' selected
+        # Apply Pair Handling after all codes have been added
         if content_dict.get('afo pair', '') == 'selected':
             # Codes to exclude from pair handling
             codes_to_exclude = ['D10/E', 'D14/A', 'D14/D', 'P1', 'P4', 'D8/D','D8/H','D8/A', 'B41','D8/I', 'D8/U', 'D8/B', 'P15', 'D2/D', 'D2/B', 'D2/A']
