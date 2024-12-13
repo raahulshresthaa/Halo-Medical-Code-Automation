@@ -948,6 +948,7 @@ class PdfButtonHandler:
         tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
                                 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
 
+        # Split the content into lines
         lines = content.split('\n')
 
         # Convert lines to a dictionary
@@ -972,22 +973,23 @@ class PdfButtonHandler:
         elif content_dict.get('hand mould', '') == 'selected':
             insole_type = 'handmould'
 
-        # Handle medway clinic tariffs first
+        # --- Medway Tariff Logic ---
+        # If clinic is 'medway':
+        # - MEDBNS71 for simple
+        # - MEDBNS72 for others
         if clinic_name == 'medway':
             if insole_type == 'simple':
-                # For medway and simple insole
                 passed_codes['MEDBNS71'] += 1
                 if is_pair:
                     passed_codes['MEDBNS71'] *= 2
                 return 'MEDBNS71' if passed_codes['MEDBNS71'] == 1 else f'MEDBNS71 x{passed_codes["MEDBNS71"]}'
             else:
-                # For medway and any other insole type (tci, handmould, or anything else)
                 passed_codes['MEDBNS72'] += 1
                 if is_pair:
                     passed_codes['MEDBNS72'] *= 2
                 return 'MEDBNS72' if passed_codes['MEDBNS72'] == 1 else f'MEDBNS72 x{passed_codes["MEDBNS72"]}'
 
-        # If not medway, fall back to original tariff logic
+        # Tariff checks for other clinics
         if clinic_name in tariff_tci_clinics:
             passed_codes['Tariff TCI'] += 1
             if is_pair:
@@ -1010,10 +1012,159 @@ class PdfButtonHandler:
         from collections import defaultdict
         passed_codes = defaultdict(int)
 
-        # Continue normal logic...
-        # (The rest of the code remains unchanged)
-        # ...
-        # After finishing normal logic, format and return codes as done before.
+        base = content_dict.get('base', '').strip().lower()
+        print(f"Base value: '{base}'")  # For debugging
+
+        normalized_base = base.replace(' ', '').lower()
+        shore_bases = {'40shore', '50shore', '65shore'}
+
+        # Base codes
+        if normalized_base == 'polypropylene':
+            passed_codes['B54B'] += 1
+        elif normalized_base == 'poron':
+            passed_codes['B40B'] += 1
+        elif insole_type == 'simple' and normalized_base in shore_bases:
+            passed_codes['B40B'] += 1
+        elif normalized_base in ['carbonfibre', 'carbonfiber']:
+            passed_codes['B54A'] += 1
+        else:
+            passed_codes['B54C'] += 1
+
+        # Foot modifications -> BNS45
+        foot_modifications = [
+            'cut out and additions', '1st met head', '1st met ray', '5th met ray',
+            'navicular sweet spot', 'fascial accommodation', 'heel flange'
+        ]
+
+        left_modifications_count = 0
+        right_modifications_count = 0
+
+        for mod in foot_modifications:
+            left_key = f"left {mod}"
+            right_key = f"right {mod}"
+            if content_dict.get(left_key, '') == 'selected':
+                left_modifications_count += 1
+                passed_codes['BNS45'] += 1
+            if content_dict.get(right_key, '') == 'selected':
+                right_modifications_count += 1
+                passed_codes['BNS45'] += 1
+
+        # Postings
+        posting_keys_left = [
+            'left medial rearfoot', 'left lateral rearfoot',
+            'left medial forefoot', 'left lateral forefoot',
+        ]
+        posting_keys_right = [
+            'right medial rearfoot', 'right lateral rearfoot',
+            'right medial forefoot', 'right lateral forefoot',
+        ]
+
+        left_postings_count = 0
+        right_postings_count = 0
+
+        for key in posting_keys_left:
+            if content_dict.get(key, '') == 'selected':
+                left_postings_count += 1
+                passed_codes['B56'] += 1
+
+        for key in posting_keys_right:
+            if content_dict.get(key, '') == 'selected':
+                right_postings_count += 1
+                passed_codes['B56'] += 1
+
+        insole_right_as_left = content_dict.get('right as left', '') == 'selected'
+
+        # Right as Left for modifications
+        if insole_right_as_left and ((left_modifications_count == 0 and right_modifications_count > 0) or
+                                    (left_modifications_count > 0 and right_modifications_count == 0)):
+            passed_codes['BNS45'] *= 2
+
+        # Right as Left for postings
+        if insole_right_as_left and ((left_postings_count == 0 and right_postings_count >= 0) or
+                                    (left_postings_count >= 0 and right_postings_count == 0)):
+            passed_codes['B56'] *= 2
+
+        # Additions
+        addition_positions = [
+            '1st addition left', '2nd addition left', '3rd addition left', '4th addition left',
+            '1st addition right', '2nd addition right', '3rd addition right', '4th addition right'
+        ]
+
+        addition_code_mapping = {
+            'B41': {'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
+                    'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
+                    'sulcus crest', 'arch fill'},
+            'B56': {"morton's extension", "reverse morton's extension", 'poron forefoot'},
+            'B43': {'kinetic wedge', 'heel raise'},
+            'D8A': {'neurological footplate'},
+            'BNS45': {'recess', 'hole & plug'},
+            'B20': {'rigid 1st extension'},
+            'B50': {'partial toe block'},
+            'B51': {'full toe block'}
+        }
+
+        for key in addition_positions:
+            addition_value = content_dict.get(key, '')
+            if addition_value:
+                for code, additions in addition_code_mapping.items():
+                    if addition_value in additions:
+                        passed_codes[code] += 1
+                        break
+                else:
+                    print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
+
+        # Insole coding - MATHS
+        x = 0
+        if insole_type == 'simple':
+            x -= 1
+        if content_dict.get('lining to shell', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to sulcus', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to full', '') == 'selected':
+            x += 1
+        if content_dict.get('top cover material', '') == 'spenco (green)':
+            x += 1
+        if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
+            x += 1
+
+        if x >= 2:
+            passed_codes['B55C'] += 1
+        elif x == 1:
+            passed_codes['B55B'] += 1
+        elif x == 0:
+            passed_codes['B55A'] += 1
+
+        # CLCH Simple Logic
+        if clinic_name == 'clch' and insole_type == 'simple':
+            total_posts = (passed_codes['B41'] + passed_codes['B56'] +
+                        passed_codes['B43'] + passed_codes['BNS45'])
+
+            # Decide tariff
+            if total_posts <= 4:
+                chosen_tariff = 'Tariff insole >4 POST'
+            else:
+                chosen_tariff = 'Tariff insole <5 POST'
+
+            passed_codes[chosen_tariff] += 1
+
+            # Remove all non-tariff codes (all except chosen_tariff)
+            for code in list(passed_codes.keys()):
+                if code != chosen_tariff:
+                    del passed_codes[code]
+
+            # Now handle pairs including chosen_tariff
+            if is_pair:
+                # Double the chosen tariff code if it's still present
+                if chosen_tariff in passed_codes:
+                    passed_codes[chosen_tariff] *= 2
+        else:
+            # Normal pair handling if not CLCH simple
+            if is_pair:
+                codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C']
+                for code in codes_to_double_insole:
+                    if code in passed_codes:
+                        passed_codes[code] *= 2
 
         # Format output
         formatted_passed_codes = []
@@ -1368,9 +1519,39 @@ class PdfButtonHandler:
         is_pair = (content_dict.get('pair', '') == 'selected' or 
                 content_dict.get('insole pair', '') == 'selected')
 
+        # Determine insole type for medway logic
+        insole_type = None
+        if content_dict.get('insole type tci', '') == 'selected':
+            insole_type = 'tci'
+        elif content_dict.get('insole type cradle', '') == 'selected':
+            insole_type = 'cradle'
+        elif content_dict.get('insole type simple', '') == 'selected':
+            insole_type = 'simple'
+        elif content_dict.get('insole type handmould', '') == 'selected':
+            insole_type = 'handmould'
+
+        # Get the base value for polyprop check
+        base = content_dict.get('base', '').strip().lower()
+        normalized_base = base.replace(' ', '').lower()
+
         # Variables to track tariffs
         modular_tariff_added = False
         insole_tariff_added = False
+
+        # --- Medway Tariffs ---
+        # If medway and simple, MEDBNS71
+        # If medway and not simple, MEDBNS72
+        if clinic_name == 'medway':
+            if insole_type == 'simple':
+                passed_codes['MEDBNS71'] += 1
+                if is_pair:
+                    passed_codes['MEDBNS71'] *= 2
+                return 'MEDBNS71' if passed_codes['MEDBNS71'] == 1 else f'MEDBNS71 x{passed_codes["MEDBNS71"]}'
+            else:
+                passed_codes['MEDBNS72'] += 1
+                if is_pair:
+                    passed_codes['MEDBNS72'] *= 2
+                return 'MEDBNS72' if passed_codes['MEDBNS72'] == 1 else f'MEDBNS72 x{passed_codes["MEDBNS72"]}'
 
         # Modular Tariff Check
         if clinic_name in tariff_modular_clinics:
@@ -1509,19 +1690,8 @@ class PdfButtonHandler:
                     passed_codes['B19'] += 1
 
         # Insole logic
-        insole_type = None
-        if content_dict.get('insole type tci', '') == 'selected':
-            insole_type = 'tci'
-        elif content_dict.get('insole type cradle', '') == 'selected':
-            insole_type = 'cradle'
-        elif content_dict.get('insole type simple', '') == 'selected':
-            insole_type = 'simple'
-        elif content_dict.get('insole type handmould', '') == 'selected':
-            insole_type = 'handmould'
-
-        base = content_dict.get('base', '').strip().lower()
-        normalized_base = base.replace(' ', '').lower()
-
+        # insole_type already determined above
+        # base and normalized_base also determined above
         shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
         if insole_type == 'cradle':
             if normalized_base in shore_bases:
@@ -1540,7 +1710,6 @@ class PdfButtonHandler:
         if content_dict.get('base carbon fibre', '') == 'selected':
             passed_codes['B54A'] += 1
 
-        # Foot modifications mapping to BNS45
         foot_modifications = [
             'cut out and additions',
             '1st met head',
@@ -1669,8 +1838,11 @@ class PdfButtonHandler:
             'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
             'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41'
         }
-        modular_filter_codes = {'6mm','Pattern','BNS62','modular shoes','modular boots',
-        'modular sports','twist fasten','velcro','B34','B33','B8','B30','B31','B25','B17','B18','B19'}
+        modular_filter_codes = {
+            '6mm','Pattern','BNS62','modular shoes','modular boots',
+            'modular sports','twist fasten','velcro','B34','B33','B8',
+            'B30','B31','B25','B17','B18','B19'
+        }
 
         # Apply filters based on tariffs
         if insole_tariff_added:
