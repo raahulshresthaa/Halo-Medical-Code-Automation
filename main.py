@@ -1485,41 +1485,39 @@ class PdfButtonHandler:
             return ', '.join(formatted_passed_codes)
         else:
             return None  # Return None if no codes were added
-
+        
     def generate_modular_codes(self, content):
         """Generates codes based on the content for the Modular model, with tariff logic."""
         from collections import defaultdict
         passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
         # Define lists of clinics for each insole tariff code (edit these lists as needed)
-        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 
+        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
                             'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
-        tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch', 
+        tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch',
                                 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
-        tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 
+        tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
                                 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
 
         # Define list of clinics for Tariff Modular
         tariff_modular_clinics = ['bury cdc', 'east surrey', 'sudbury', 'w.s.h', 'ws', 'wsh']
 
-        # Split the content into lines for easier processing
+        # Split the content into lines
         lines = content.split('\n')
 
-        # Convert lines to a dictionary for easier lookup with lowercase keys and values
+        # Convert lines to a dictionary
         content_dict = {}
         for line in lines:
             if ':' in line:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
-        # Extract the clinic name if it exists
         clinic_name = content_dict.get('clinic', '').lower()
-
         # Check if it's a pair
         is_pair = (content_dict.get('pair', '') == 'selected' or 
                 content_dict.get('insole pair', '') == 'selected')
 
-        # Determine insole type for medway logic
+        # Determine insole type for modular logic
         insole_type = None
         if content_dict.get('insole type tci', '') == 'selected':
             insole_type = 'tci'
@@ -1538,22 +1536,24 @@ class PdfButtonHandler:
         modular_tariff_added = False
         insole_tariff_added = False
 
-        # --- Medway Tariffs ---
-        # If medway and simple, MEDBNS71
-        # If medway and not simple, MEDBNS72
+        # --- Medway Tariffs for Modular ---
+        # If medway:
+        # - If simple: add MEDBNS71
+        # - Otherwise: add MEDBNS72
+        # In all cases: add MEDFOOTWEAR
         if clinic_name == 'medway':
             if insole_type == 'simple':
                 passed_codes['MEDBNS71'] += 1
-                if is_pair:
-                    passed_codes['MEDBNS71'] *= 2
-                return 'MEDBNS71' if passed_codes['MEDBNS71'] == 1 else f'MEDBNS71 x{passed_codes["MEDBNS71"]}'
             else:
                 passed_codes['MEDBNS72'] += 1
-                if is_pair:
-                    passed_codes['MEDBNS72'] *= 2
-                return 'MEDBNS72' if passed_codes['MEDBNS72'] == 1 else f'MEDBNS72 x{passed_codes["MEDBNS72"]}'
 
-        # Modular Tariff Check
+            # Add MEDFOOTWEAR in all medway cases
+            passed_codes['MEDFOOTWEAR'] += 1
+            # Mark modular tariff as added so filters run later
+            modular_tariff_added = True
+            insole_tariff_added = True
+
+        # Modular Tariff Check (other clinics)
         if clinic_name in tariff_modular_clinics:
             passed_codes['Tariff Modular'] += 1
             modular_tariff_added = True
@@ -1561,25 +1561,20 @@ class PdfButtonHandler:
         # Insole Tariff Checks
         if clinic_name in tariff_tci_clinics:
             passed_codes['Tariff TCI'] += 1
-            if is_pair:
-                passed_codes['Tariff TCI'] *= 2
             insole_tariff_added = True
         elif clinic_name in tariff_simple_clinics:
             passed_codes['Tariff Simple'] += 1
-            if is_pair:
-                passed_codes['Tariff Simple'] *= 2
             insole_tariff_added = True
         elif clinic_name in tariff_polyprop_clinics:
             passed_codes['Tariff Polyprop'] += 1
-            if is_pair:
-                passed_codes['Tariff Polyprop'] *= 2
             insole_tariff_added = True
 
-        # --- Normal logic (Modular + Insole) ---
+        # Note: Continue normal logic to allow code filtering at the end
+
         # Last Type Checks
         if content_dict.get('last type', '').strip().lower() == 'wide extra deep':
             count = 1
-            if content_dict.get('pair', '') == 'selected':
+            if is_pair:
                 count = 2
             passed_codes['6mm'] += count
 
@@ -1642,7 +1637,7 @@ class PdfButtonHandler:
         # Elongation Type (B25)
         elongation_keys = ['left elongation type', 'right elongation type']
         for key in elongation_keys:
-            if content_dict.get(key, '') in ('full elongated heel', 'half elongated heel'):
+            if content_dict.get(key, '') in ('full', 'half'):
                 passed_codes['B25'] += 1
 
         # Rocker Type (B17)
@@ -1689,9 +1684,7 @@ class PdfButtonHandler:
                 elif 'sole' in key:
                     passed_codes['B19'] += 1
 
-        # Insole logic
-        # insole_type already determined above
-        # base and normalized_base also determined above
+        # beyond this point is the insole logic
         shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
         if insole_type == 'cradle':
             if normalized_base in shore_bases:
@@ -1831,20 +1824,27 @@ class PdfButtonHandler:
                 if code in passed_codes:
                     passed_codes[code] *= 2
 
+        # Now we must double MEDBNS71 or MEDBNS72 if it's a pair, but NOT MEDFOOTWEAR
+        if is_pair:
+            if 'MEDBNS71' in passed_codes:
+                passed_codes['MEDBNS71'] *= 2
+            if 'MEDBNS72' in passed_codes:
+                passed_codes['MEDBNS72'] *= 2
+            # Do not double MEDFOOTWEAR
+
         # --- Filtering Step ---
-        # Example filter sets (adjust as needed)
         insole_filter_codes = {
             'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
             'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
             'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41'
         }
+
         modular_filter_codes = {
-            '6mm','Pattern','BNS62','modular shoes','modular boots',
-            'modular sports','twist fasten','velcro','B34','B33','B8',
-            'B30','B31','B25','B17','B18','B19'
+            '6mm', 'Pattern', 'BNS62', 'modular shoes', 'modular boots',
+            'modular sports', 'twist fasten', 'velcro', 'B34', 'B33', 'B8',
+            'B30', 'B31', 'B25', 'B17', 'B18', 'B19'
         }
 
-        # Apply filters based on tariffs
         if insole_tariff_added:
             for c in insole_filter_codes:
                 if c in passed_codes:
