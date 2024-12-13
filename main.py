@@ -940,34 +940,34 @@ class PdfButtonHandler:
         from collections import defaultdict
         passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
-        # Define lists of clinics for each tariff code (edit these lists as needed)
-        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely','hinchingbrooke', 'pch','peterborough city hospital','sudbury','w.s.h','ws','wsh']
-        tariff_simple_clinics = ['bury cdc','ely' ,'harpenden', 'hinchingbrooke','pch','peterborough city hospital','sudbury','w.s.h', 'ws','wsh']
-        tariff_polyprop_clinics = ['east surrey','bury cdc','ely', 'hinchingbrooke','pch','peterborough city hospital','sudbury','w.s.h', 'ws','wsh']
+        # Define lists of clinics for each insole tariff code (edit these lists as needed)
+        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely','hinchingbrooke', 'pch',
+                            'peterborough city hospital','sudbury','w.s.h','ws','wsh']
+        tariff_simple_clinics = ['bury cdc','ely' ,'harpenden', 'hinchingbrooke','pch',
+                                'peterborough city hospital','sudbury','w.s.h', 'ws','wsh']
+        tariff_polyprop_clinics = ['east surrey','bury cdc','ely', 'hinchingbrooke','pch',
+                                'peterborough city hospital','sudbury','w.s.h', 'ws','wsh']
 
-        # Split the content into lines for easier processing
+        # Split the content into lines
         lines = content.split('\n')
 
-        # Convert lines to a dictionary for easier lookup with lowercase keys
+        # Convert lines to a dictionary
         content_dict = {}
         for line in lines:
             if ':' in line:
                 key, value = line.split(':', 1)
                 content_dict[key.strip().lower()] = value.strip().lower()
 
-        # Extract the clinic name if it exists in the content
         clinic_name = content_dict.get('clinic', '').lower()
 
         # Check if it's a pair
         is_pair = content_dict.get('pair', '') == 'selected' or content_dict.get('insole pair', '') == 'selected'
 
-        # Check if the clinic falls into one of the tariff code categories
-        # If so, select the corresponding tariff and override normal processing
+        # Tariff checks
         if clinic_name in tariff_tci_clinics:
             passed_codes['Tariff TCI'] += 1
             if is_pair:
                 passed_codes['Tariff TCI'] *= 2
-            # Return immediately if a tariff clinic is matched
             return 'Tariff TCI' if passed_codes['Tariff TCI'] == 1 else 'Tariff TCI x2'
 
         elif clinic_name in tariff_simple_clinics:
@@ -982,7 +982,7 @@ class PdfButtonHandler:
                 passed_codes['Tariff Polyprop'] *= 2
             return 'Tariff Polyprop' if passed_codes['Tariff Polyprop'] == 1 else f'Tariff Polyprop x{passed_codes["Tariff Polyprop"]}'
 
-        # If the clinic does not match any tariff lists, continue with the normal logic
+        # Normal logic
         from collections import defaultdict
         passed_codes = defaultdict(int)
 
@@ -994,38 +994,29 @@ class PdfButtonHandler:
             insole_type = 'simple'
         elif content_dict.get('hand mould', '') == 'selected':
             insole_type = 'handmould'
-        # You can add more insole types if needed
 
-        # Get the base value
         base = content_dict.get('base', '').strip().lower()
         print(f"Base value: '{base}'")  # For debugging
 
-        # Normalize the base value
         normalized_base = base.replace(' ', '').lower()
-
-        # --- Insole Base Codes ---
         shore_bases = {'40shore', '50shore', '65shore'}
 
+        # Base codes
         if normalized_base == 'polypropylene':
             passed_codes['B54B'] += 1
         elif normalized_base == 'poron':
-            passed_codes['B40B'] += 1  # Assuming 'Poron' is always coded as 'B40B'
+            passed_codes['B40B'] += 1
         elif insole_type == 'simple' and normalized_base in shore_bases:
             passed_codes['B40B'] += 1
-        elif normalized_base == 'carbonfibre' or normalized_base == 'carbonfiber':
+        elif normalized_base in ['carbonfibre', 'carbonfiber']:
             passed_codes['B54A'] += 1
         else:
-            passed_codes['B54C'] += 1  # Default base code for other materials
+            passed_codes['B54C'] += 1
 
-        # --- Foot Modifications adding BNS45 ---
+        # Foot modifications -> BNS45
         foot_modifications = [
-            'cut out and additions',
-            '1st met head',
-            '1st met ray',
-            '5th met ray',
-            'navicular sweet spot',
-            'fascial accommodation',
-            'heel flange'
+            'cut out and additions', '1st met head', '1st met ray', '5th met ray',
+            'navicular sweet spot', 'fascial accommodation', 'heel flange'
         ]
 
         left_modifications_count = 0
@@ -1041,19 +1032,14 @@ class PdfButtonHandler:
                 right_modifications_count += 1
                 passed_codes['BNS45'] += 1
 
-        # --- Insole Postings ---
+        # Postings
         posting_keys_left = [
-            'left medial rearfoot',
-            'left lateral rearfoot',
-            'left medial forefoot',
-            'left lateral forefoot',
+            'left medial rearfoot', 'left lateral rearfoot',
+            'left medial forefoot', 'left lateral forefoot',
         ]
-
         posting_keys_right = [
-            'right medial rearfoot',
-            'right lateral rearfoot',
-            'right medial forefoot',
-            'right lateral forefoot',
+            'right medial rearfoot', 'right lateral rearfoot',
+            'right medial forefoot', 'right lateral forefoot',
         ]
 
         left_postings_count = 0
@@ -1069,18 +1055,19 @@ class PdfButtonHandler:
                 right_postings_count += 1
                 passed_codes['B56'] += 1
 
-        # --- Apply 'Right as Left' logic ---
         insole_right_as_left = content_dict.get('right as left', '') == 'selected'
 
-        # For modifications
-        if insole_right_as_left and ((left_modifications_count == 0 and right_modifications_count > 0) or (left_modifications_count > 0 and right_modifications_count == 0)):
+        # Right as Left for modifications
+        if insole_right_as_left and ((left_modifications_count == 0 and right_modifications_count > 0) or
+                                    (left_modifications_count > 0 and right_modifications_count == 0)):
             passed_codes['BNS45'] *= 2
 
-        # For postings
-        if insole_right_as_left and ((left_postings_count == 0 and right_postings_count >= 0) or (left_postings_count >= 0 and right_postings_count == 0)):
+        # Right as Left for postings
+        if insole_right_as_left and ((left_postings_count == 0 and right_postings_count >= 0) or
+                                    (left_postings_count >= 0 and right_postings_count == 0)):
             passed_codes['B56'] *= 2
 
-        # --- Additions ---
+        # Additions
         addition_positions = [
             '1st addition left', '2nd addition left', '3rd addition left', '4th addition left',
             '1st addition right', '2nd addition right', '3rd addition right', '4th addition right'
@@ -1109,7 +1096,7 @@ class PdfButtonHandler:
                 else:
                     print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
 
-        # --- Insole coding section - MATHS! ---
+        # Insole coding - MATHS
         x = 0
         if insole_type == 'simple':
             x -= 1
@@ -1125,23 +1112,44 @@ class PdfButtonHandler:
             x += 1
 
         if x >= 2:
-            code = 'B55C'
-            passed_codes[code] += 1
+            passed_codes['B55C'] += 1
         elif x == 1:
-            code = 'B55B'
-            passed_codes[code] += 1
+            passed_codes['B55B'] += 1
         elif x == 0:
-            code = 'B55A'
-            passed_codes[code] += 1
+            passed_codes['B55A'] += 1
 
-        # --- Pair Handling ---
-        if is_pair:
-            codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C']
-            for code in codes_to_double_insole:
-                if code in passed_codes:
-                    passed_codes[code] *= 2
+        # CLCH Simple Logic
+        if clinic_name == 'clch' and insole_type == 'simple':
+            total_posts = (passed_codes['B41'] + passed_codes['B56'] +
+                        passed_codes['B43'] + passed_codes['BNS45'])
 
-        # Format the passed codes with counts
+            # Decide tariff
+            if total_posts <= 4:
+                chosen_tariff = 'Tariff insole >4 POST'
+            else:
+                chosen_tariff = 'Tariff insole <5 POST'
+
+            passed_codes[chosen_tariff] += 1
+
+            # Remove all non-tariff codes (all except chosen_tariff)
+            for code in list(passed_codes.keys()):
+                if code != chosen_tariff:
+                    del passed_codes[code]
+
+            # Now handle pairs including chosen_tariff
+            if is_pair:
+                # Double the chosen tariff code if it's still present
+                if chosen_tariff in passed_codes:
+                    passed_codes[chosen_tariff] *= 2
+        else:
+            # Normal pair handling if not CLCH simple
+            if is_pair:
+                codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C']
+                for code in codes_to_double_insole:
+                    if code in passed_codes:
+                        passed_codes[code] *= 2
+
+        # Format output
         formatted_passed_codes = []
         for code, count in passed_codes.items():
             if count > 1:
@@ -1149,11 +1157,10 @@ class PdfButtonHandler:
             else:
                 formatted_passed_codes.append(code)
 
-        # Return the passed codes as a string
         if formatted_passed_codes:
             return ', '.join(formatted_passed_codes)
         else:
-            return None  # Return None if no codes were added
+            return None
         
     def generate_afo_codes(self, content):
         """Generates codes based on the content for the AFO model, counting duplicates."""
