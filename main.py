@@ -13,6 +13,7 @@ import sys
 import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
 from collections import defaultdict
+from work_order_util import create_work_order_file
 
 # Version number
 VERSION = "4.2.0-alpha"
@@ -361,6 +362,9 @@ class PdfButtonHandler:
 
             # Call the API with the content
             self.process_api_call(content, logic_content, AutoDocRef, clinic)
+
+            create_work_order_file(AutoDocRef)
+            print(f"Created a work order file automatically for AutoDocRef: {AutoDocRef}")
 
         except Exception as e:
             # Show error message in the main thread
