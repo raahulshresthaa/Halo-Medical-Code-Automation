@@ -788,7 +788,7 @@ class PdfButtonHandler:
             if content_dict.get(key, '') == 'selected':
                 passed_codes['A26'] += 1
 
-        # Raises
+        # Raises - to do the 25mm+ codes 
         for side in ['left', 'right']:
             raise_inside_key = f'raise {side} inside'
             raise_outside_key = f'raise {side} outside'
