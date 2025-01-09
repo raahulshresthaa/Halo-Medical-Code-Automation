@@ -1608,19 +1608,46 @@ class PdfButtonHandler:
 
         # Sole and Style Checks
         sole_value = content_dict.get('sole', '')
-        style_value = content_dict.get('style', '')
+        style_value = content_dict.get('styles', '')
 
         if sole_value in ('(lcr) lightweight commando sole', 'resin commando sole'):
             if style_value not in ('highland', 'rockingham', 'rockcliffe'):
                 passed_codes['BNS62'] += 1
 
-        # Style-based Codes
-        if content_dict.get('shoes', '') == 'selected':
-            passed_codes['modular shoes'] += 1
-        if content_dict.get('boots', '') == 'selected':
-            passed_codes['modular boots'] += 1
-        if content_dict.get('trainers', '') == 'selected':
+        style = content_dict.get('styles', '').lower()
+
+        sport_styles = {'sneaker', 'greenock', 'greeock'}
+
+        shoe_styles = {
+            'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
+            'truro', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'olympic',
+            'melton', 'hendon', 'stirling', 'exeter', 'chester', 'kelso', 'dover',
+            'shelwyck', 'mowbray', 'shelby'
+        }
+
+        # Currently empty — add any boot names you want here
+        boot_styles = {'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
+    'dundee', 'brigg', 'elgin', 'highland'
+}
+
+        # If style is recognized use style lists
+        if style in sport_styles:
             passed_codes['modular sports'] += 1
+        elif style in shoe_styles:
+            passed_codes['modular shoes'] += 1
+        elif style in boot_styles:
+            passed_codes['modular boots'] += 1
+
+        # If style not found use tick box
+        else:
+            if content_dict.get('shoes', '') == 'selected':
+                passed_codes['modular shoes'] += 1
+            if content_dict.get('boots', '') == 'selected':
+                passed_codes['modular boots'] += 1
+            if content_dict.get('trainers', '') == 'selected':
+                passed_codes['modular sports'] += 1
+
+        # Check boa/velcro 
         if content_dict.get('boa', '') == 'selected':
             passed_codes['twist fasten'] += 1
         if content_dict.get('velcro', '') == 'selected':
