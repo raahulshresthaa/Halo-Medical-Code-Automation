@@ -1025,20 +1025,24 @@ class PdfButtonHandler:
         base = content_dict.get('base', '').strip().lower()
         print(f"Base value: '{base}'")  # For debugging
 
-        normalized_base = base.replace(' ', '').lower()
-        shore_bases = {'40shore', '50shore', '65shore'}
+        if content_dict.get('poron', '').lower() == 'selected':
+            passed_codes['B40B'] += 1
 
-        # Base codes
-        if normalized_base == 'polypropylene':
-            passed_codes['B54B'] += 1
-        elif normalized_base == 'poron':
-            passed_codes['B40B'] += 1
-        elif insole_type == 'simple' and normalized_base in shore_bases:
-            passed_codes['B40B'] += 1
-        elif normalized_base in ['carbonfibre', 'carbonfiber']:
-            passed_codes['B54A'] += 1
+        # 2) Otherwise, use the base logic
         else:
-            passed_codes['B54C'] += 1
+            normalized_base = base.replace(' ', '').lower()
+            shore_bases = {'40shore', '50shore', '65shore'}
+
+            # Base codes
+            if normalized_base == 'polypropylene':
+                passed_codes['B54B'] += 1
+            elif insole_type == 'simple' and normalized_base in shore_bases:
+                passed_codes['B40B'] += 1
+            elif normalized_base in ['carbonfibre', 'carbonfiber']:
+                passed_codes['B54A'] += 1
+            else:
+                # If none match, default to B54C
+                passed_codes['B54C'] += 1
 
         # Foot modifications -> BNS45
         foot_modifications = [
