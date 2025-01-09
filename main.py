@@ -1622,7 +1622,7 @@ class PdfButtonHandler:
         style = content_dict.get('styles', '').lower()
 
         sport_styles = {'sneaker', 'greenock', 'greeock', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'olympic',
-            'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'} # to do update this list
+            'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'} 
 
         shoe_styles = {
             'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
