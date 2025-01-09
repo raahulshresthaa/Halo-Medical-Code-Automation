@@ -1094,9 +1094,10 @@ class PdfButtonHandler:
             passed_codes['BNS45'] *= 2
 
         # Right as Left for postings
-        if insole_right_as_left and ((left_postings_count == 0 and right_postings_count >= 0) or
-                                    (left_postings_count >= 0 and right_postings_count == 0)):
-            passed_codes['B56'] *= 2
+        if insole_right_as_left and 'B56' in passed_codes and passed_codes['B56'] > 0:
+            if (left_postings_count == 0 and right_postings_count > 0) or (left_postings_count > 0 and right_postings_count == 0):
+                passed_codes['B56'] *= 2
+
 
         # Additions
         addition_positions = [
