@@ -274,13 +274,11 @@ class PdfButtonHandler:
                 form_type = self.determine_form_type(fields_data)
                 if not form_type:
                     query_message = "No form type found in the extracted data. Please raise a query."
-                    self.root.after(0, messagebox.showinfo, "Query", query_message)
-                    # Optionally, you can log this message or handle it as needed
-                    # Close the loading pop-up
-                    self.root.after(0, self.close_loading_popup)
-                    # Re-enable the upload button
-                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-                    return  # Stops further processing
+                    self.root.after(0, messagebox.showinfo, "Query", query_message)          
+
+                    # Instead of returning, default to TCI so that we can still generate codes
+                    form_type = 'tci'  
+
 
                 # Sanitize form_type
                 form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
