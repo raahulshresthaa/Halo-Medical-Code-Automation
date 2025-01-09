@@ -891,7 +891,7 @@ class PdfButtonHandler:
         if content_dict.get('insole pair', '') == 'selected':
             codes_to_double_insole = [
                 'A10', 'B54C', 'B40B', 'B54A',
-                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'
+                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C', 'B54B'
             ]
             for code in codes_to_double_insole:
                 if code in passed_codes:
@@ -1171,7 +1171,7 @@ class PdfButtonHandler:
         else:
             # Normal pair handling if not CLCH simple
             if is_pair:
-                codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C']
+                codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B']
                 for code in codes_to_double_insole:
                     if code in passed_codes:
                         passed_codes[code] *= 2
@@ -1835,7 +1835,7 @@ class PdfButtonHandler:
         if content_dict.get('insole pair', '') == 'selected':
             codes_to_double_insole = [
                 'A10', 'B54C', 'B40B', 'B54A',
-                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'
+                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C', 'B54B'
             ]
             for code in codes_to_double_insole:
                 if code in passed_codes:
@@ -1853,7 +1853,7 @@ class PdfButtonHandler:
         insole_filter_codes = {
             'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
             'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
-            'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41'
+            'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41', 'B54B'
         }
 
         modular_filter_codes = {
