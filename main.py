@@ -452,9 +452,9 @@ class PdfButtonHandler:
         passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
         # Define lists of clinics for each insole tariff code (edit these lists as needed)
-        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
-        tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
-        tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
+        tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
+        tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
 
         # Define list of clinics for Tariff Bespoke
         tariff_bespoke_clinics = ['bury cdc', 'east surrey', 'sudbury', 'w.s.h', 'ws', 'wsh']
@@ -954,11 +954,11 @@ class PdfButtonHandler:
 
         # Define lists of clinics for each insole tariff code (edit these lists as needed)
         tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
         tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
         tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
 
         # Split the content into lines
         lines = content.split('\n')
@@ -1512,11 +1512,11 @@ class PdfButtonHandler:
 
         # Define lists of clinics for each insole tariff code (edit these lists as needed)
         tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
         tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
         tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
 
         # Define list of clinics for Tariff Modular
         tariff_modular_clinics = ['bury cdc', 'east surrey', 'sudbury', 'w.s.h', 'ws', 'wsh']
