@@ -1616,13 +1616,12 @@ class PdfButtonHandler:
 
         style = content_dict.get('styles', '').lower()
 
-        sport_styles = {'sneaker', 'greenock', 'greeock'}
+        sport_styles = {'sneaker', 'greenock', 'greeock', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'olympic',
+            'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'} # to do update this list
 
         shoe_styles = {
             'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
-            'truro', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'olympic',
-            'melton', 'hendon', 'stirling', 'exeter', 'chester', 'kelso', 'dover',
-            'shelwyck', 'mowbray', 'shelby'
+            'truro', 'hendon', 'stirling', 'exeter', 'chester', 'shelby'
         }
 
         # Currently empty — add any boot names you want here
