@@ -322,7 +322,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'BespokeReaderV3':
+            elif model_id == 'BespokeReaderV4':
                 logic_file_name = 'bespoke_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
@@ -2122,7 +2122,7 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 model_ids = {
     'Insoles': 'insoleFormV5',  # model id's
     'AFOs': 'AfoReaderV7',  
-    'Bespoke': 'BespokeReaderV3',
+    'Bespoke': 'BespokeReaderV4',
     'Modular': 'ModularReaderV6'  # New entry for Modular
 }
 
