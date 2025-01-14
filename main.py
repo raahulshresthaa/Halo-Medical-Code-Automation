@@ -29,6 +29,20 @@ except Exception:
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.formrecognizer import DocumentAnalysisClient
 
+ 
+def get_form_type_from_model_id(model_id):
+    """
+    Returns a friendly string for naming files, 
+    based on the provided model_id.
+    """
+    mapping = {
+        'insoleFormV5': 'insole',
+        'AfoReaderV7': 'afo',
+        'BespokeReaderV3': 'bespoke',
+        'ModularReaderV6': 'modular'
+    }
+    return mapping.get(model_id, 'unknown')
+
 # --- PdfButtonHandler Class Definition ---
 
 class PdfButtonHandler:
@@ -135,6 +149,9 @@ class PdfButtonHandler:
             # Debug print to check the content of price_codes
             print(f"Price codes received: {price_codes}")
 
+            model_id = self.model_id_var.get()
+            form_type_for_filename = get_form_type_from_model_id(model_id)
+
             # Get the current date and time
             current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
@@ -158,7 +175,7 @@ class PdfButtonHandler:
             self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes, combined_messages)
 
             # Write the price codes, auto doc reference, clinic, Azure data, and messages to the log file
-            self.write_to_log_file(price_codes, AutoDocRef, clinic, content, combined_messages)
+            self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
 
         except Exception as e:
             # Show error message in the main thread
@@ -169,7 +186,7 @@ class PdfButtonHandler:
             # Re-enable the upload button
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
-    def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, messages=None):
+    def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, form_type, messages=None):
         try:
             result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
             if not os.path.exists(result_logs_folder):
@@ -189,7 +206,7 @@ class PdfButtonHandler:
                 sanitized_auto_doc_ref = 'log'
 
             # Use the auto_doc_ref as the filename
-            log_file_name = f"{sanitized_auto_doc_ref}.txt"
+            log_file_name = f"results_log_{sanitized_auto_doc_ref}_{form_type}.txt"
             log_file_path = os.path.join(date_folder_path, log_file_name)
 
             with open(log_file_path, 'w', encoding='utf-8') as log_file:
@@ -244,6 +261,9 @@ class PdfButtonHandler:
             # Get the current model_id
             model_id = self.model_id_var.get()
             print(f"Using model ID: {model_id}")  # Debug print
+
+            #   Define form_type_for_filename here
+            form_type_for_filename = get_form_type_from_model_id(model_id)
 
             # Analyze the PDF using Azure Form Recognizer
             with open(pdf_file_path, "rb") as pdf_file:
@@ -363,8 +383,8 @@ class PdfButtonHandler:
             # Call the API with the content
             self.process_api_call(content, logic_content, AutoDocRef, clinic)
 
-            create_work_order_file(AutoDocRef)
-            print(f"Created a work order file automatically for AutoDocRef: {AutoDocRef}")
+            create_work_order_file(AutoDocRef, form_type_for_filename)
+            print(f"Created a work order file automatically for AutoDocRef: {AutoDocRef} and form type: {form_type_for_filename}")
 
         except Exception as e:
             # Show error message in the main thread

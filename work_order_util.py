@@ -1,15 +1,16 @@
-# work_order_util.py
+
 import os
 import datetime
 
-def create_work_order_file(auto_doc_ref):
+def create_work_order_file(auto_doc_ref, form_type):
     """
-    Creates a text file named 'work_order_<auto_doc_ref>.txt'
-    in a folder structure: work_orders/YYYY-MM-DD/work_order_<auto_doc_ref>.txt
+    Creates a text file named 'work_order_<auto_doc_ref>_<form_type>.txt'
+    in a folder structure: work_orders/YYYY-MM-DD/work_order_<auto_doc_ref>_<form_type>.txt
     
     Currently writes a fixed text string into the file:
     'test complete, work order written to successfully'
     """
+
     # 1. Generate today's date string (e.g. '2025-01-08')
     date_str = datetime.datetime.now().strftime('%Y-%m-%d')
 
@@ -21,13 +22,13 @@ def create_work_order_file(auto_doc_ref):
     if not os.path.exists(date_folder_path):
         os.makedirs(date_folder_path)
 
-    # 4. Build the file name, e.g. "work_order_02342.txt"
-    file_name = f"work_order_{auto_doc_ref}.txt"
+    # 4. Build the file name, e.g. "work_order_02342_insole.txt"
+    file_name = f"work_order_{auto_doc_ref}_{form_type}.txt"
     file_path = os.path.join(date_folder_path, file_name)
 
     # 5. Write our fixed text into the file
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write("test complete, work order written to successfully")
 
-    # 6. (Optional) Print a message or return the file path
+    # 6. Print or return the file path
     print(f"Work order file created at: {file_path}")
