@@ -1002,9 +1002,9 @@ class PdfButtonHandler:
         insole_type = None
         if content_dict.get('insole type tci', '') == 'selected' or content_dict.get('cradle', '') == 'selected':
             insole_type = 'tci'
-        elif content_dict.get('simple', '') == 'selected':
+        elif content_dict.get('insole type simple', '') == 'selected':
             insole_type = 'simple'
-        elif content_dict.get('hand mould', '') == 'selected':
+        elif content_dict.get('insole type hand mould', '') == 'selected':
             insole_type = 'handmould'
 
         # --- Medway Tariff Logic ---
