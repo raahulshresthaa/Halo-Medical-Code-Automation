@@ -904,7 +904,7 @@ class PdfButtonHandler:
             passed_codes['B54A'] += 1
 
         # Pair Handling for normal codes
-        if content_dict.get('pair', '') == 'selected':
+        if content_dict.get('insole pair', '') == 'selected':
             codes_to_double_general = [
                 'A1K', 'A18A', 'Twist Fasten', 'A6'
             ]
@@ -1157,7 +1157,7 @@ class PdfButtonHandler:
             x += 1
         if content_dict.get('lining to full', '') == 'selected':
             x += 1
-        if content_dict.get('top cover material', '') == 'spenco (green)':
+        if content_dict.get('insole top cover material', '') == 'spenco (green)':
             x += 1
         if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
             x += 1
