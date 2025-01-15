@@ -36,7 +36,7 @@ def get_form_type_from_model_id(model_id):
     based on the provided model_id.
     """
     mapping = {
-        'InsoleReaderFullV2': 'insole',
+        'InsoleReaderFullV3': 'insole',
         'AfoReaderV7': 'afo',
         'BespokeReaderV3': 'bespoke',
         'ModularReaderFullV3': 'modular'
@@ -158,7 +158,7 @@ class PdfButtonHandler:
 
             # Determine if we should check for base and special base
             model_id = self.model_id_var.get()
-            if model_id == 'InsoleReaderFullV2':
+            if model_id == 'InsoleReaderFullV3':
                 # Check for base in the extracted content and get the query message
                 query_message = self.check_for_base(content)
 
@@ -290,7 +290,7 @@ class PdfButtonHandler:
             # Logic file mapping based on model_id and form_type
             logic_file_name = None
 
-            if model_id == 'InsoleReaderFullV2':
+            if model_id == 'InsoleReaderFullV3':
                 # Determine form_type based on extracted data
                 form_type = self.determine_form_type(fields_data)
                 if not form_type:
@@ -409,18 +409,16 @@ class PdfButtonHandler:
         # Assuming form_type is indicated by keys like 'tci test' or 'simple test' etc.
         form_type = None
         for key, value in data.items():
-            if key.lower() == 'tci' and value.lower() == 'selected':
+            if key.lower() == 'insole type tci' and value.lower() == 'selected':
                 form_type = 'tci'
                 break
-            elif key.lower() == 'tci test' and value.lower() == 'selected':
-                form_type = 'tci'
-            elif key.lower() == 'simple' and value.lower() == 'selected':
+            elif key.lower() == 'insole type simple' and value.lower() == 'selected':
                 form_type = 'simple'
                 break
-            elif key.lower() == 'hand mould' and value.lower() == 'selected':
+            elif key.lower() == 'insole type hand mould' and value.lower() == 'selected':
                 form_type = 'handmold'
                 break
-            elif key.lower() == 'cradle' and value.lower() == 'selected':
+            elif key.lower() == 'insole type cradle' and value.lower() == 'selected':
                 form_type = 'cradle'
                 break
             elif key.lower() == 'afo' and value.lower() == 'selected':
@@ -1002,7 +1000,7 @@ class PdfButtonHandler:
 
         # Determine insole type early for medway logic
         insole_type = None
-        if content_dict.get('tci test', '') == 'selected' or content_dict.get('cradle', '') == 'selected':
+        if content_dict.get('insole type tci', '') == 'selected' or content_dict.get('cradle', '') == 'selected':
             insole_type = 'tci'
         elif content_dict.get('simple', '') == 'selected':
             insole_type = 'simple'
@@ -2144,14 +2142,14 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 
 # Define model IDs (replace with your actual model IDs)
 model_ids = {
-    'Insoles': 'InsoleReaderFullV2',  # model id's
+    'Insoles': 'InsoleReaderFullV3',  # model id's
     'AFOs': 'AfoReaderV7',  
     'Bespoke': 'BespokeReaderV3',
     'Modular': 'ModularReaderFullV3'  # New entry for Modular
 }
 
 # Set up the model_id_var with default value
-model_id_var = tk.StringVar(value='InsoleReaderFullV2')  # Set the default model ID
+model_id_var = tk.StringVar(value='InsoleReaderFullV3')  # Set the default model ID
 
 # Create a frame for the model selection
 model_frame = ttk.Frame(root)
