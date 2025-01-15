@@ -1085,12 +1085,12 @@ class PdfButtonHandler:
 
         # Postings
         posting_keys_left = [
-            'left medial rearfoot', 'left lateral rearfoot',
-            'left medial forefoot', 'left lateral forefoot',
+            'left medial rearfoot posting', 'left lateral rearfoot posting',
+            'left medial forefoot posting', 'left lateral forefoot posting',
         ]
         posting_keys_right = [
-            'right medial rearfoot', 'right lateral rearfoot',
-            'right medial forefoot', 'right lateral forefoot',
+            'right medial rearfoot posting', 'right lateral rearfoot posting',
+            'right medial forefoot posting', 'right lateral forefoot posting',
         ]
 
         left_postings_count = 0
@@ -1106,7 +1106,7 @@ class PdfButtonHandler:
                 right_postings_count += 1
                 passed_codes['B56'] += 1
 
-        insole_right_as_left = content_dict.get('right as left', '') == 'selected'
+        insole_right_as_left = content_dict.get('right as left insole modification', '') == 'selected'
 
         # Right as Left for modifications
         if insole_right_as_left and ((left_modifications_count == 0 and right_modifications_count > 0) or
@@ -1120,8 +1120,8 @@ class PdfButtonHandler:
 
         # Additions
         addition_positions = [
-            '1st addition left', '2nd addition left', '3rd addition left', '4th addition left',
-            '1st addition right', '2nd addition right', '3rd addition right', '4th addition right'
+            'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
+            'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition'
         ]
 
         addition_code_mapping = {
