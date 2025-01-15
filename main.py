@@ -16,7 +16,7 @@ from collections import defaultdict
 from work_order_util import create_work_order_file
 
 # Version number
-VERSION = "4.2.0-alpha"
+VERSION = "4.2.1-alpha"
 
 # To fix blurriness on some displays
 try:
@@ -295,13 +295,11 @@ class PdfButtonHandler:
                 form_type = self.determine_form_type(fields_data)
                 if not form_type:
                     query_message = "No form type found in the extracted data. Please raise a query."
-                    self.root.after(0, messagebox.showinfo, "Query", query_message)
-                    # Optionally, you can log this message or handle it as needed
-                    # Close the loading pop-up
-                    self.root.after(0, self.close_loading_popup)
-                    # Re-enable the upload button
-                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-                    return  # Stops further processing
+                    self.root.after(0, messagebox.showinfo, "Query", query_message)          
+
+                    # Instead of returning, default to TCI so that we can still generate codes
+                    form_type = 'tci'  
+
 
                 # Sanitize form_type
                 form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
@@ -343,7 +341,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'BespokeReaderV3':
+            elif model_id == 'BespokeReaderV4':
                 logic_file_name = 'bespoke_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
@@ -474,9 +472,9 @@ class PdfButtonHandler:
         passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
         # Define lists of clinics for each insole tariff code (edit these lists as needed)
-        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
-        tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
-        tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
+        tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
+        tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
 
         # Define list of clinics for Tariff Bespoke
         tariff_bespoke_clinics = ['bury cdc', 'east surrey', 'sudbury', 'w.s.h', 'ws', 'wsh']
@@ -810,7 +808,7 @@ class PdfButtonHandler:
             if content_dict.get(key, '') == 'selected':
                 passed_codes['A26'] += 1
 
-        # Raises
+        # Raises - to do the 25mm+ codes 
         for side in ['left', 'right']:
             raise_inside_key = f'raise {side} inside'
             raise_outside_key = f'raise {side} outside'
@@ -915,7 +913,7 @@ class PdfButtonHandler:
         if content_dict.get('insole pair', '') == 'selected':
             codes_to_double_insole = [
                 'A10', 'B54C', 'B40B', 'B54A',
-                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'
+                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C', 'B54B'
             ]
             for code in codes_to_double_insole:
                 if code in passed_codes:
@@ -976,11 +974,11 @@ class PdfButtonHandler:
 
         # Define lists of clinics for each insole tariff code (edit these lists as needed)
         tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
         tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
         tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
 
         # Split the content into lines
         lines = content.split('\n')
@@ -1049,20 +1047,24 @@ class PdfButtonHandler:
         base = content_dict.get('base', '').strip().lower()
         print(f"Base value: '{base}'")  # For debugging
 
-        normalized_base = base.replace(' ', '').lower()
-        shore_bases = {'40shore', '50shore', '65shore'}
+        if content_dict.get('poron', '').lower() == 'selected':
+            passed_codes['B40B'] += 1
 
-        # Base codes
-        if normalized_base == 'polypropylene':
-            passed_codes['B54B'] += 1
-        elif normalized_base == 'poron':
-            passed_codes['B40B'] += 1
-        elif insole_type == 'simple' and normalized_base in shore_bases:
-            passed_codes['B40B'] += 1
-        elif normalized_base in ['carbonfibre', 'carbonfiber']:
-            passed_codes['B54A'] += 1
+        # 2) Otherwise, use the base logic
         else:
-            passed_codes['B54C'] += 1
+            normalized_base = base.replace(' ', '').lower()
+            shore_bases = {'40shore', '50shore', '65shore'}
+
+            # Base codes
+            if normalized_base == 'polypropylene':
+                passed_codes['B54B'] += 1
+            elif insole_type == 'simple' and normalized_base in shore_bases:
+                passed_codes['B40B'] += 1
+            elif normalized_base in ['carbonfibre', 'carbonfiber']:
+                passed_codes['B54A'] += 1
+            else:
+                # If none match, default to B54C
+                passed_codes['B54C'] += 1
 
         # Foot modifications -> BNS45
         foot_modifications = [
@@ -1114,9 +1116,10 @@ class PdfButtonHandler:
             passed_codes['BNS45'] *= 2
 
         # Right as Left for postings
-        if insole_right_as_left and ((left_postings_count == 0 and right_postings_count >= 0) or
-                                    (left_postings_count >= 0 and right_postings_count == 0)):
-            passed_codes['B56'] *= 2
+        if insole_right_as_left and 'B56' in passed_codes and passed_codes['B56'] > 0:
+            if (left_postings_count == 0 and right_postings_count > 0) or (left_postings_count > 0 and right_postings_count == 0):
+                passed_codes['B56'] *= 2
+
 
         # Additions
         addition_positions = [
@@ -1195,7 +1198,7 @@ class PdfButtonHandler:
         else:
             # Normal pair handling if not CLCH simple
             if is_pair:
-                codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C']
+                codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B']
                 for code in codes_to_double_insole:
                     if code in passed_codes:
                         passed_codes[code] *= 2
@@ -1534,11 +1537,11 @@ class PdfButtonHandler:
 
         # Define lists of clinics for each insole tariff code (edit these lists as needed)
         tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
         tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
         tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh']
+                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab']
 
         # Define list of clinics for Tariff Modular
         tariff_modular_clinics = ['bury cdc', 'east surrey', 'sudbury', 'w.s.h', 'ws', 'wsh']
@@ -1632,19 +1635,45 @@ class PdfButtonHandler:
 
         # Sole and Style Checks
         sole_value = content_dict.get('sole', '')
-        style_value = content_dict.get('style', '')
+        style_value = content_dict.get('styles', '')
 
         if sole_value in ('(lcr) lightweight commando sole', 'resin commando sole'):
             if style_value not in ('highland', 'rockingham', 'rockcliffe'):
                 passed_codes['BNS62'] += 1
 
-        # Style-based Codes
-        if content_dict.get('shoes', '') == 'selected':
-            passed_codes['modular shoes'] += 1
-        if content_dict.get('boots', '') == 'selected':
-            passed_codes['modular boots'] += 1
-        if content_dict.get('trainers', '') == 'selected':
+        style = content_dict.get('styles', '').lower()
+
+        sport_styles = {'sneaker', 'greenock', 'greeock', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'olympic',
+            'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'} 
+
+        shoe_styles = {
+            'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
+            'truro', 'hendon', 'stirling', 'exeter', 'chester', 'shelby'
+        }
+
+        # Currently empty — add any boot names you want here
+        boot_styles = {'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
+    'dundee', 'brigg', 'elgin', 'highland'
+}
+
+        # If style is recognized use style lists
+        if style in sport_styles:
             passed_codes['modular sports'] += 1
+        elif style in shoe_styles:
+            passed_codes['modular shoes'] += 1
+        elif style in boot_styles:
+            passed_codes['modular boots'] += 1
+
+        # If style not found use tick box
+        else:
+            if content_dict.get('shoes', '') == 'selected':
+                passed_codes['modular shoes'] += 1
+            if content_dict.get('boots', '') == 'selected':
+                passed_codes['modular boots'] += 1
+            if content_dict.get('trainers', '') == 'selected':
+                passed_codes['modular sports'] += 1
+
+        # Check boa/velcro 
         if content_dict.get('boa', '') == 'selected':
             passed_codes['twist fasten'] += 1
         if content_dict.get('velcro', '') == 'selected':
@@ -1859,7 +1888,7 @@ class PdfButtonHandler:
         if content_dict.get('insole pair', '') == 'selected':
             codes_to_double_insole = [
                 'A10', 'B54C', 'B40B', 'B54A',
-                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C'
+                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C', 'B54B'
             ]
             for code in codes_to_double_insole:
                 if code in passed_codes:
@@ -1877,7 +1906,7 @@ class PdfButtonHandler:
         insole_filter_codes = {
             'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
             'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
-            'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41'
+            'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41', 'B54B'
         }
 
         modular_filter_codes = {
