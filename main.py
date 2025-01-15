@@ -36,10 +36,10 @@ def get_form_type_from_model_id(model_id):
     based on the provided model_id.
     """
     mapping = {
-        'insoleFormV5': 'insole',
+        'InsoleReaderFullV2': 'insole',
         'AfoReaderV7': 'afo',
         'BespokeReaderV3': 'bespoke',
-        'ModularReaderV6': 'modular'
+        'ModularReaderFullV3': 'modular'
     }
     return mapping.get(model_id, 'unknown')
 
@@ -158,7 +158,7 @@ class PdfButtonHandler:
 
             # Determine if we should check for base and special base
             model_id = self.model_id_var.get()
-            if model_id == 'insoleFormV5':
+            if model_id == 'InsoleReaderFullV2':
                 # Check for base in the extracted content and get the query message
                 query_message = self.check_for_base(content)
 
@@ -290,7 +290,7 @@ class PdfButtonHandler:
             # Logic file mapping based on model_id and form_type
             logic_file_name = None
 
-            if model_id == 'insoleFormV5':
+            if model_id == 'InsoleReaderFullV2':
                 # Determine form_type based on extracted data
                 form_type = self.determine_form_type(fields_data)
                 if not form_type:
@@ -356,7 +356,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'ModularReaderV6':
+            elif model_id == 'ModularReaderFullV3':
                 logic_file_name = 'modular_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
@@ -2144,14 +2144,14 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 
 # Define model IDs (replace with your actual model IDs)
 model_ids = {
-    'Insoles': 'insoleFormV5',  # model id's
+    'Insoles': 'InsoleReaderFullV2',  # model id's
     'AFOs': 'AfoReaderV7',  
     'Bespoke': 'BespokeReaderV3',
-    'Modular': 'ModularReaderV6'  # New entry for Modular
+    'Modular': 'ModularReaderFullV3'  # New entry for Modular
 }
 
 # Set up the model_id_var with default value
-model_id_var = tk.StringVar(value='insoleFormV5')  # Set the default model ID
+model_id_var = tk.StringVar(value='InsoleReaderFullV2')  # Set the default model ID
 
 # Create a frame for the model selection
 model_frame = ttk.Frame(root)
