@@ -1965,7 +1965,112 @@ class PdfButtonHandler:
             return None
 
 # --- Main Application Setup ---
+def create_search_tab(notebook):
+    """
+    Creates a new tab in the provided ttk.Notebook for searching
+    through the 'work_orders' folder by AutoDocRef.
+    """
+    import tkinter as tk
+    from tkinter import ttk, messagebox
+    import os
 
+    # Create a frame for the 'Search Work Orders' tab
+    search_tab = ttk.Frame(notebook)
+    notebook.add(search_tab, text="Search Work Orders")
+
+    search_label = ttk.Label(search_tab, text="Enter AutoDocRef:")
+    search_label.pack(pady=5)
+    search_entry = ttk.Entry(search_tab, width=30)
+    search_entry.pack(pady=5)
+
+    button_frame = ttk.Frame(search_tab)
+    button_frame.pack(pady=5)
+
+    results_listbox = tk.Listbox(search_tab, width=80, height=10)
+    results_listbox.pack(pady=5)
+
+    file_content_text = tk.Text(search_tab, wrap='word', width=80, height=10)
+    file_content_text.pack(pady=5)
+    file_content_text.config(state='disabled')
+
+    def search_files():
+        """Search 'work_orders' folder for files containing the entered AutoDocRef."""
+        results_listbox.delete(0, tk.END)
+        file_content_text.config(state='normal')
+        file_content_text.delete('1.0', tk.END)
+        file_content_text.config(state='disabled')
+
+        query = search_entry.get().strip()
+        if not query:
+            messagebox.showinfo("No Input", "Please enter an AutoDocRef to search.")
+            return
+
+        work_orders_folder = os.path.join(os.getcwd(), 'work_orders')
+        if not os.path.exists(work_orders_folder):
+            messagebox.showerror("Error", f"The folder '{work_orders_folder}' does not exist.")
+            return
+
+        matches = []
+        for date_folder in os.listdir(work_orders_folder):
+            date_path = os.path.join(work_orders_folder, date_folder)
+            if os.path.isdir(date_path):
+                for filename in os.listdir(date_path):
+                    if query in filename:
+                        full_path = os.path.join(date_path, filename)
+                        matches.append(full_path)
+
+        if matches:
+            for m in matches:
+                results_listbox.insert(tk.END, m)
+        else:
+            messagebox.showinfo("No Matches", f"No files found containing '{query}'")
+
+    def open_file():
+        """Open the selected file and display its contents in file_content_text."""
+        selection = results_listbox.curselection()
+        if not selection:
+            messagebox.showinfo("No File Selected", "Please select a file from the list.")
+            return
+
+        selected_file = results_listbox.get(selection[0])
+
+        if not os.path.isfile(selected_file):
+            messagebox.showerror("Error", f"File does not exist: {selected_file}")
+            return
+
+        try:
+            with open(selected_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            file_content_text.config(state='normal')
+            file_content_text.delete('1.0', tk.END)
+            file_content_text.insert(tk.END, content)
+            file_content_text.config(state='disabled')
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open file:\n{str(e)}")
+
+    def copy_to_clipboard():
+        """Copy the displayed file text to the clipboard."""
+        file_content_text.config(state='normal')
+        contents = file_content_text.get('1.0', tk.END).strip()
+        file_content_text.config(state='disabled')
+
+        if contents:
+            search_tab.clipboard_clear()
+            search_tab.clipboard_append(contents)
+            messagebox.showinfo("Copied", "File contents copied to clipboard.")
+        else:
+            messagebox.showinfo("No Contents", "There is no file text to copy.")
+
+    search_button = ttk.Button(button_frame, text="Search", command=search_files)
+    search_button.pack(side=tk.LEFT, padx=5)
+
+    open_button = ttk.Button(button_frame, text="Open", command=open_file)
+    open_button.pack(side=tk.LEFT, padx=5)
+
+    copy_button = ttk.Button(button_frame, text="Copy to Clipboard", command=copy_to_clipboard)
+    copy_button.pack(side=tk.LEFT, padx=5)
+
+    return search_tab
 # Define the list of available themes
 theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'simplex', 'vapor']
 
@@ -2109,31 +2214,40 @@ def change_theme(event):
 # Define the custom font for labels (if not already defined)
 label_font = ('Calibri', 11)
 
+# ---------------------------------------------------------------------
+# Create a Notebook so we can have 2 tabs: Main PDF Processing + Search
+# ---------------------------------------------------------------------
+notebook = ttk.Notebook(root)
+notebook.pack(expand=True, fill='both')
+
+# ---------------------------
+# MAIN PDF PROCESSING TAB
+# ---------------------------
+main_tab = ttk.Frame(notebook)
+notebook.add(main_tab, text="Main PDF Processing")
+
 # Load the logo image
 try:
     logo_img = Image.open(logo_file_path)
     logo_img = logo_img.resize((200, 100), Image.LANCZOS)
     logo_photo = ImageTk.PhotoImage(logo_img)
-    root.logo_photo = logo_photo  # Keep a reference to prevent garbage collection
+    root.logo_photo = logo_photo  # Keep a reference to prevent GC
 
-    # Create a label to display the logo using ttk.Label
-    logo_label = ttk.Label(root, image=logo_photo)
+    # Place the logo in the main_tab
+    logo_label = ttk.Label(main_tab, image=logo_photo)
     logo_label.pack(pady=10)
 except Exception as e:
     messagebox.showerror("Error", f"Error loading logo: {str(e)}")
 
-# Add a bold title below the logo using ttk.Label
-title_label = ttk.Label(root, text="Code Automation Program", font=("Calibri", 16, "bold"))
+# Title label in main_tab
+title_label = ttk.Label(main_tab, text="Code Automation Program", font=("Calibri", 16, "bold"))
 title_label.pack(pady=5)
 
-# Define the custom font for the labels
-label_font = ('Calibri', 11)  # You can adjust the font size as needed
-
-# Create a frame for the info boxes
-info_frame = ttk.Frame(root)
+# Info frame in main_tab
+info_frame = ttk.Frame(main_tab)
 info_frame.pack(pady=10)
 
-# Create labels and entries for AutoDocRef, Clinic, Date and Time with the larger font
+# Create labels and entries for AutoDocRef, Clinic, Date/Time
 auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef:', font=label_font)
 auto_doc_ref_entry = ttk.Entry(info_frame, width=30)
 clinic_label = ttk.Label(info_frame, text='Clinic:', font=label_font)
@@ -2141,7 +2255,6 @@ clinic_entry = ttk.Entry(info_frame, width=30)
 datetime_label = ttk.Label(info_frame, text='Date and Time:', font=label_font)
 datetime_entry = ttk.Entry(info_frame, width=30)
 
-# Arrange them in a grid layout
 auto_doc_ref_label.grid(row=0, column=0, padx=5, pady=5)
 auto_doc_ref_entry.grid(row=1, column=0, padx=5, pady=5)
 clinic_label.grid(row=0, column=1, padx=5, pady=5)
@@ -2149,65 +2262,52 @@ clinic_entry.grid(row=1, column=1, padx=5, pady=5)
 datetime_label.grid(row=0, column=2, padx=5, pady=5)
 datetime_entry.grid(row=1, column=2, padx=5, pady=5)
 
-# Create a frame to hold the result text widget and scrollbar
-result_frame = ttk.Frame(root)
+# Create a frame to hold the result text widget
+result_frame = ttk.Frame(main_tab)
 result_frame.pack(pady=10, anchor='center')
 
-# Create a text widget inside the result_frame to display the results
+# Create a text widget inside result_frame
 result_text = tk.Text(result_frame, wrap='word', height=25, width=80)
 result_text.grid(row=0, column=0)
 
-# Create a vertical scrollbar linked to the result_text widget
+# Vertical scrollbar for result_text
 result_scrollbar = ttk.Scrollbar(result_frame, orient='vertical', command=result_text.yview)
 result_scrollbar.grid(row=0, column=1, sticky='ns')
-
-# Configure the text widget to use the scrollbar
 result_text['yscrollcommand'] = result_scrollbar.set
-
 result_text.config(state='disabled')  # Make it read-only
 
-# Make the result_text widget a drop target
+# Make the result_text a drop target
 result_text.drop_target_register(DND_FILES)
 
-# Function to handle dropped files
+# The drop event
 def handle_drop(event):
-    # event.data contains the list of files dropped
-    # It may contain multiple files separated by spaces or newlines
     files = root.tk.splitlist(event.data)
     pdf_files = [f for f in files if f.lower().endswith('.pdf')]
     if pdf_files:
         for pdf_file in pdf_files:
-            # Disable the upload button to prevent multiple clicks
             pdf_handler.upload_pdf_button.config(state='disabled')
             try:
-                # Show the loading pop-up with animation
                 show_loading_popup()
-
-                # Start processing each PDF file in a separate thread
                 threading.Thread(target=pdf_handler.process_pdf_and_call_api, args=(pdf_file,)).start()
             except Exception as e:
                 messagebox.showerror("Error", f"Error processing the file: {str(e)}")
-                pdf_handler.upload_pdf_button.config(state='normal')  # Re-enable the upload button
-                close_loading_popup()  # Ensure the loading pop-up is closed if an error occurs
+                pdf_handler.upload_pdf_button.config(state='normal')
+                close_loading_popup()
     else:
         messagebox.showinfo("No PDF Files", "Please drop PDF files only.")
 
-# Bind the drop event to the handle_drop function
 result_text.dnd_bind('<<Drop>>', handle_drop)
 
-# Define model IDs (replace with your actual model IDs)
+# Model IDs
 model_ids = {
-    'Insoles': 'InsoleReaderFullV3',  # model id's
-    'AFOs': 'AfoReaderV7',  
+    'Insoles': 'InsoleReaderFullV3',
+    'AFOs': 'AfoReaderV7',
     'Bespoke': 'BespokeReaderV3',
-    'Modular': 'ModularReaderFullV3'  # New entry for Modular
+    'Modular': 'ModularReaderFullV3'
 }
+model_id_var = tk.StringVar(value='InsoleReaderFullV3')
 
-# Set up the model_id_var with default value
-model_id_var = tk.StringVar(value='InsoleReaderFullV3')  # Set the default model ID
-
-# Create a frame for the model selection
-model_frame = ttk.Frame(root)
+model_frame = ttk.Frame(main_tab)
 model_frame.pack(pady=10)
 
 model_label = ttk.Label(model_frame, text='Select Form Type:', font=label_font)
@@ -2222,63 +2322,48 @@ for model_name, model_id_value in model_ids.items():
     )
     radio_button.pack(side='left', padx=5)
 
-# Function to show the loading pop-up with moving dots animation on a new line
+# The loading popup and associated functions
 def show_loading_popup():
     global loading_popup, loading_label, dot_index, base_message
     loading_popup = Toplevel(root)
     loading_popup.title("Loading...")
-
-    # Set icon on loading pop-up
     icon_image_loading = load_icon_image(icon_path, size=(32, 32))
     if icon_image_loading:
         loading_popup.iconphoto(False, icon_image_loading)
-        loading_popup.icon_image = icon_image_loading  # Keep a reference
+        loading_popup.icon_image = icon_image_loading
 
-    # Make the window non-resizable
     loading_popup.resizable(False, False)
-    loading_popup.protocol("WM_DELETE_WINDOW", lambda: None)  # Disable the close button
+    loading_popup.protocol("WM_DELETE_WINDOW", lambda: None)
 
-    # Position the window in the center of the root window
-    root.update_idletasks()  # Update "requested size" from geometry manager
+    root.update_idletasks()
     x = root.winfo_x() + (root.winfo_width() // 2) - (300 // 2)
     y = root.winfo_y() + (root.winfo_height() // 2) - (100 // 2)
     loading_popup.geometry(f"300x100+{x}+{y}")
 
-    # Make the window stay on top of the root window
     loading_popup.transient(root)
     loading_popup.grab_set()
 
-    # Set initial base message
     base_message = "Please wait, reading the file"
-
-    # Add a label to display the loading message with dots on a new line
     loading_label = ttk.Label(loading_popup, text=f"{base_message}\n", font=("Calibri", 12, "bold"))
     loading_label.pack(expand=True, pady=20)
 
-    dot_index = 0  # Initialize the dot counter
-    animate_dots()  # Start the animation
-
-    # Disable the main window while loading
+    dot_index = 0
+    animate_dots()
     root.attributes('-disabled', True)
 
-# Function to animate the moving dots
 def animate_dots():
     global dot_index, base_message
     dots = ['.', '..', '...', '']
-    # Update the label text
     loading_label.config(text=f"{base_message}\n{dots[dot_index]}")
-    dot_index = (dot_index + 1) % len(dots)  # Loop through the dots
-    # Update every 500ms (0.5 seconds)
+    dot_index = (dot_index + 1) % len(dots)
     loading_popup.after(500, animate_dots)
 
-# Function to close the loading pop-up
 def close_loading_popup():
     loading_popup.destroy()
-    root.attributes('-disabled', False)  # Re-enable the main window
-    root.focus_force()  # Bring the main window back to focus
+    root.attributes('-disabled', False)
+    root.focus_force()
 
 def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, messages=None):
-    # Update the entries
     auto_doc_ref_entry.config(state=tk.NORMAL)
     auto_doc_ref_entry.delete(0, tk.END)
     auto_doc_ref_entry.insert(0, AutoDocRef)
@@ -2291,55 +2376,36 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, message
 
     clinic_entry.config(state=tk.NORMAL)
     clinic_entry.delete(0, tk.END)
-    if clinic:
-        clinic_entry.insert(0, clinic)
-    else:
-        clinic_entry.insert(0, "N/A")
+    clinic_entry.insert(0, clinic if clinic else "N/A")
     clinic_entry.config(state='readonly')
 
-    # Display the price codes in the result_text, centered
-    result_text.config(state=tk.NORMAL)  # Enable editing temporarily
-    result_text.delete('1.0', tk.END)  # Clear previous content
+    result_text.config(state=tk.NORMAL)
+    result_text.delete('1.0', tk.END)
 
-    # Configure tags
     result_text.tag_configure('center', justify='center')
     result_text.tag_configure('bold', font=('Calibri', 12, 'bold'))
-    result_text.tag_configure('bold', font=('Calibri', 12, 'bold'))
-    # You can adjust font sizes as needed
 
-    # Split the price_codes into lines
     lines = price_codes.split('\n')
-
     for line in lines:
         stripped_line = line.strip()
-        # Check for bold syntax (**text**)
         if stripped_line.startswith('**') and stripped_line.endswith('**'):
             content = stripped_line.strip('*')
             result_text.insert(tk.END, content + '\n', ('center', 'bold'))
-        # Check for italic syntax (*text*)
         elif stripped_line.startswith('*') and stripped_line.endswith('*'):
             content = stripped_line.strip('*')
             result_text.insert(tk.END, content + '\n', ('center', 'bold'))
         else:
             result_text.insert(tk.END, line + '\n', 'center')
 
-    # If there are messages, insert them below the price codes
     if messages:
-        # Add a separator or newline
         result_text.insert(tk.END, "\n\n")
-        # Configure the 'warning' tag for messages (you can adjust the font or color as needed)
         result_text.tag_configure('warning', justify='center', foreground='red', font=('Calibri', 12, 'bold'))
-        # Insert messages with the 'warning' tag
         result_text.insert(tk.END, messages, 'warning')
 
-    # Scroll to the end of the text
     result_text.see(tk.END)
+    result_text.config(state=tk.DISABLED)
 
-    result_text.config(state=tk.DISABLED)  # Disable editing again
-
-# --- Instantiate PdfButtonHandler and Setup GUI ---
-
-# Create an instance of PdfButtonHandler
+# Instantiate PdfButtonHandler
 pdf_handler = PdfButtonHandler(
     root=root,
     result_text=result_text,
@@ -2352,44 +2418,41 @@ pdf_handler = PdfButtonHandler(
     model_id_var=model_id_var
 )
 
-# Create the upload PDF button
-upload_pdf_button = ttk.Button(root, text="Upload PDF", command=pdf_handler.upload_pdf_file)
+upload_pdf_button = ttk.Button(main_tab, text="Upload PDF", command=pdf_handler.upload_pdf_file)
 upload_pdf_button.pack(pady=10)
 
-# Set the button reference in the handler
 pdf_handler.set_upload_pdf_button(upload_pdf_button)
 
-# Create an exit button using ttk.Button
-exit_button = ttk.Button(root, text="Exit", command=root.quit)
+exit_button = ttk.Button(main_tab, text="Exit", command=root.quit)
 exit_button.pack(pady=10)
 
-# Create a bottom frame to hold the theme selection dropdown and version label
-bottom_frame = ttk.Frame(root)
+# The bottom frame for theme selection
+bottom_frame = ttk.Frame(main_tab)
 bottom_frame.pack(side='bottom', fill='x', padx=10, pady=10)
 
-# Create a label and Combobox for theme selection
 theme_label = ttk.Label(bottom_frame, text='Theme:')
 theme_label.pack(side='left', padx=(0, 5))
 
-# Set the theme variable to the selected theme
 theme_var = tk.StringVar(value=selected_theme)
 theme_combobox = ttk.Combobox(
     bottom_frame, textvariable=theme_var, values=theme_list, state='readonly'
 )
 theme_combobox.pack(side='left')
 
-# Add a spacer frame to push the version label to the right
 spacer = ttk.Frame(bottom_frame)
 spacer.pack(side='left', expand=True, fill='x')
 
-# Create a label for the version number using the VERSION variable
 version_label = ttk.Label(
     bottom_frame, text=f"Version {VERSION}", font=("Calibri", 10)
 )
 version_label.pack(side='right')
 
-# Bind the selection change event
 theme_combobox.bind('<<ComboboxSelected>>', change_theme)
+
+# ---------------------------
+# SEARCH WORK ORDERS TAB
+# ---------------------------
+search_tab = create_search_tab(notebook)
 
 # Start the GUI event loop
 root.mainloop()
