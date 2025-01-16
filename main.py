@@ -1965,6 +1965,7 @@ class PdfButtonHandler:
             return None
 
 # --- Main Application Setup ---
+
 def create_search_tab(notebook):
     """
     Creates a new tab in the provided ttk.Notebook for searching
@@ -1989,7 +1990,7 @@ def create_search_tab(notebook):
     results_listbox = tk.Listbox(search_tab, width=80, height=10)
     results_listbox.pack(pady=5)
 
-    file_content_text = tk.Text(search_tab, wrap='word', width=80, height=10)
+    file_content_text = tk.Text(search_tab, wrap='word', width=80, height=30)
     file_content_text.pack(pady=5)
     file_content_text.config(state='disabled')
 
@@ -2015,7 +2016,8 @@ def create_search_tab(notebook):
             date_path = os.path.join(work_orders_folder, date_folder)
             if os.path.isdir(date_path):
                 for filename in os.listdir(date_path):
-                    if query in filename:
+                    # **Case-insensitive** check
+                    if query.lower() in filename.lower():
                         full_path = os.path.join(date_path, filename)
                         matches.append(full_path)
 
