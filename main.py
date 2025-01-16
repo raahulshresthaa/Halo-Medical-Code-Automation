@@ -1965,11 +1965,11 @@ class PdfButtonHandler:
             return None
 
 # --- Main Application Setup ---
-
 def create_search_tab(notebook):
     """
     Creates a new tab in the provided ttk.Notebook for searching
-    through the 'work_orders' folder by AutoDocRef.
+    through the 'work_orders' folder by AutoDocRef (case-insensitive),
+    with scrollable listbox and text box, and double-click to open.
     """
     import tkinter as tk
     from tkinter import ttk, messagebox
@@ -1979,23 +1979,58 @@ def create_search_tab(notebook):
     search_tab = ttk.Frame(notebook)
     notebook.add(search_tab, text="Search Work Orders")
 
+    # Search label + entry
     search_label = ttk.Label(search_tab, text="Enter AutoDocRef:")
     search_label.pack(pady=5)
+
     search_entry = ttk.Entry(search_tab, width=30)
     search_entry.pack(pady=5)
 
+    # Frame to hold the buttons
     button_frame = ttk.Frame(search_tab)
     button_frame.pack(pady=5)
 
-    results_listbox = tk.Listbox(search_tab, width=80, height=10)
-    results_listbox.pack(pady=5)
+    # 1) SCROLLABLE LISTBOX
+    listbox_frame = ttk.Frame(search_tab)
+    listbox_frame.pack(pady=5, fill='both', expand=True)
 
-    file_content_text = tk.Text(search_tab, wrap='word', width=80, height=30)
-    file_content_text.pack(pady=5)
+    # Vertical scrollbar for the listbox
+    listbox_scrollbar = ttk.Scrollbar(listbox_frame, orient='vertical')
+    listbox_scrollbar.pack(side='right', fill='y')
+
+    # The results listbox, attached to the scrollbar
+    results_listbox = tk.Listbox(
+        listbox_frame,
+        width=80, height=10,
+        yscrollcommand=listbox_scrollbar.set
+    )
+    results_listbox.pack(side='left', fill='both', expand=True)
+
+    listbox_scrollbar.config(command=results_listbox.yview)
+
+    # 2) SCROLLABLE TEXT WIDGET
+    text_frame = ttk.Frame(search_tab)
+    text_frame.pack(pady=5, fill='both', expand=True)
+
+    text_scrollbar = ttk.Scrollbar(text_frame, orient='vertical')
+    text_scrollbar.pack(side='right', fill='y')
+
+    file_content_text = tk.Text(
+        text_frame,
+        wrap='word', width=80, height=30,
+        yscrollcommand=text_scrollbar.set
+    )
+    file_content_text.pack(side='left', fill='both', expand=True)
     file_content_text.config(state='disabled')
 
+    text_scrollbar.config(command=file_content_text.yview)
+
+    # ---------------------------
+    # Functions
+    # ---------------------------
+
     def search_files():
-        """Search 'work_orders' folder for files containing the entered AutoDocRef."""
+        """Search 'work_orders' folder (case-insensitive) for the query and populate the listbox."""
         results_listbox.delete(0, tk.END)
         file_content_text.config(state='normal')
         file_content_text.delete('1.0', tk.END)
@@ -2016,7 +2051,7 @@ def create_search_tab(notebook):
             date_path = os.path.join(work_orders_folder, date_folder)
             if os.path.isdir(date_path):
                 for filename in os.listdir(date_path):
-                    # **Case-insensitive** check
+                    # Case-insensitive check
                     if query.lower() in filename.lower():
                         full_path = os.path.join(date_path, filename)
                         matches.append(full_path)
@@ -2028,7 +2063,7 @@ def create_search_tab(notebook):
             messagebox.showinfo("No Matches", f"No files found containing '{query}'")
 
     def open_file():
-        """Open the selected file and display its contents in file_content_text."""
+        """Open the selected file from the listbox and display its contents."""
         selection = results_listbox.curselection()
         if not selection:
             messagebox.showinfo("No File Selected", "Please select a file from the list.")
@@ -2063,6 +2098,15 @@ def create_search_tab(notebook):
         else:
             messagebox.showinfo("No Contents", "There is no file text to copy.")
 
+    # DOUBLE-CLICK EVENT -> same as pressing “Open” button
+    def on_listbox_double_click(event):
+        open_file()
+
+    results_listbox.bind("<Double-Button-1>", on_listbox_double_click)
+
+    # ---------------------------
+    # Buttons
+    # ---------------------------
     search_button = ttk.Button(button_frame, text="Search", command=search_files)
     search_button.pack(side=tk.LEFT, padx=5)
 
@@ -2073,6 +2117,7 @@ def create_search_tab(notebook):
     copy_button.pack(side=tk.LEFT, padx=5)
 
     return search_tab
+
 # Define the list of available themes
 theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'simplex', 'vapor']
 
