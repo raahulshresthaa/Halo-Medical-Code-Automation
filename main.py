@@ -16,7 +16,7 @@ from collections import defaultdict
 from work_order_util import create_work_order_file
 
 # Version number
-VERSION = "4.2.1-alpha"
+VERSION = "5.0.0-dev"
 
 # To fix blurriness on some displays
 try:
@@ -1642,7 +1642,7 @@ class PdfButtonHandler:
                 passed_codes['BNS62'] += 1
 
         style = content_dict.get('styles', '').lower()
-        
+
         sport_styles = {
             'sneaker', 'greenock', 'greeock', 'colwyn', 'lineham', 'hove', 'plymouth', 
             'drayton', 'olympic', 'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'
