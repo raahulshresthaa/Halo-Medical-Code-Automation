@@ -1642,19 +1642,21 @@ class PdfButtonHandler:
                 passed_codes['BNS62'] += 1
 
         style = content_dict.get('styles', '').lower()
-
-        sport_styles = {'sneaker', 'greenock', 'greeock', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'olympic',
-            'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'} 
+        
+        sport_styles = {
+            'sneaker', 'greenock', 'greeock', 'colwyn', 'lineham', 'hove', 'plymouth', 
+            'drayton', 'olympic', 'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'
+        } 
 
         shoe_styles = {
             'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
             'truro', 'hendon', 'stirling', 'exeter', 'chester', 'shelby'
         }
 
-        # Currently empty — add any boot names you want here
-        boot_styles = {'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
-    'dundee', 'brigg', 'elgin', 'highland'
-}
+        boot_styles = {
+            'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
+            'dundee', 'brigg', 'elgin', 'highland'
+        }
 
         # If style is recognized use style lists
         if style in sport_styles:
@@ -1663,16 +1665,39 @@ class PdfButtonHandler:
             passed_codes['modular shoes'] += 1
         elif style in boot_styles:
             passed_codes['modular boots'] += 1
-
-        # If style not found use tick box
         else:
+            # --- ADDED WARNING LOGIC HERE ---
+            # The style wasn't found in sport, shoe, or boot sets, so fallback to tick boxes.
+            # We'll also build a warning message to show the user that we are “guessing.”
+            fallback_styles_used = []
+
             if content_dict.get('shoes', '') == 'selected':
                 passed_codes['modular shoes'] += 1
+                fallback_styles_used.append('shoes')
             if content_dict.get('boots', '') == 'selected':
                 passed_codes['modular boots'] += 1
+                fallback_styles_used.append('boots')
             if content_dict.get('trainers', '') == 'selected':
                 passed_codes['modular sports'] += 1
-                
+                fallback_styles_used.append('trainers')
+
+            if fallback_styles_used:
+                # Create a warning message letting the user know we didn't detect the style
+                warning_message = (
+                    f"Footwear style not detected!\n"
+                    f"• Entered style: '{style}' may be spelled incorrectly.\n"
+                    f"• Falling back to tick-box selections: {', '.join(fallback_styles_used)}"
+                )
+                # Show the pop-up in the same way you handle other warnings
+                self.root.after(0, messagebox.showinfo, "Warning", warning_message)
+            else:
+                # If no tick boxes are also selected, you might want a different warning or default assumption.
+                warning_message = (
+                    f"Footwear style '{style}' not recognized, and no tick boxes selected. "
+                    f"Please verify the footwear style."
+                )
+                self.root.after(0, messagebox.showinfo, "Warning", warning_message)
+
         # Check boa/velcro 
         if content_dict.get('boa', '') == 'selected':
             passed_codes['twist fasten'] += 1
