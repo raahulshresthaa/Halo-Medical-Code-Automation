@@ -1969,7 +1969,9 @@ def create_search_tab(notebook):
     """
     Creates a new tab in the provided ttk.Notebook for searching
     through the 'work_orders' folder by AutoDocRef (case-insensitive),
-    with scrollable listbox and text box, and double-click to open.
+    with smaller scrollable listbox and text box,
+    automatic searching on each keystroke,
+    and double-click to open files.
     """
     import tkinter as tk
     from tkinter import ttk, messagebox
@@ -1979,45 +1981,41 @@ def create_search_tab(notebook):
     search_tab = ttk.Frame(notebook)
     notebook.add(search_tab, text="Search Work Orders")
 
-    # Search label + entry
-    search_label = ttk.Label(search_tab, text="Enter AutoDocRef:")
+    # Label + Entry
+    search_label = ttk.Label(search_tab, text="Enter AutoDocRef (live search):")
     search_label.pack(pady=5)
 
     search_entry = ttk.Entry(search_tab, width=30)
     search_entry.pack(pady=5)
 
-    # Frame to hold the buttons
-    button_frame = ttk.Frame(search_tab)
-    button_frame.pack(pady=5)
-
-    # 1) SCROLLABLE LISTBOX
+    # Frame to hold the listbox + scrollbar
     listbox_frame = ttk.Frame(search_tab)
     listbox_frame.pack(pady=5, fill='both', expand=True)
 
-    # Vertical scrollbar for the listbox
     listbox_scrollbar = ttk.Scrollbar(listbox_frame, orient='vertical')
     listbox_scrollbar.pack(side='right', fill='y')
 
-    # The results listbox, attached to the scrollbar
+    # Make the listbox smaller: width=60, height=15
     results_listbox = tk.Listbox(
-        listbox_frame,
-        width=80, height=10,
+        listbox_frame, 
+        width=60, height=15, 
         yscrollcommand=listbox_scrollbar.set
     )
     results_listbox.pack(side='left', fill='both', expand=True)
 
     listbox_scrollbar.config(command=results_listbox.yview)
 
-    # 2) SCROLLABLE TEXT WIDGET
+    # Frame to hold the text widget + scrollbar
     text_frame = ttk.Frame(search_tab)
     text_frame.pack(pady=5, fill='both', expand=True)
 
     text_scrollbar = ttk.Scrollbar(text_frame, orient='vertical')
     text_scrollbar.pack(side='right', fill='y')
 
+    # Make the text box smaller: width=60, height=15
     file_content_text = tk.Text(
         text_frame,
-        wrap='word', width=80, height=30,
+        wrap='word', width=60, height=15,
         yscrollcommand=text_scrollbar.set
     )
     file_content_text.pack(side='left', fill='both', expand=True)
@@ -2025,12 +2023,9 @@ def create_search_tab(notebook):
 
     text_scrollbar.config(command=file_content_text.yview)
 
-    # ---------------------------
-    # Functions
-    # ---------------------------
-
-    def search_files():
-        """Search 'work_orders' folder (case-insensitive) for the query and populate the listbox."""
+    # ------------- Functions -------------
+    def live_search():
+        """Perform a case-insensitive search each time the user types in the entry."""
         results_listbox.delete(0, tk.END)
         file_content_text.config(state='normal')
         file_content_text.delete('1.0', tk.END)
@@ -2038,20 +2033,17 @@ def create_search_tab(notebook):
 
         query = search_entry.get().strip()
         if not query:
-            messagebox.showinfo("No Input", "Please enter an AutoDocRef to search.")
-            return
-
+            return  # If empty, just clear out (no message box)
+        
         work_orders_folder = os.path.join(os.getcwd(), 'work_orders')
         if not os.path.exists(work_orders_folder):
-            messagebox.showerror("Error", f"The folder '{work_orders_folder}' does not exist.")
-            return
+            return  # Silently ignore or show an error if you prefer
 
         matches = []
         for date_folder in os.listdir(work_orders_folder):
             date_path = os.path.join(work_orders_folder, date_folder)
             if os.path.isdir(date_path):
                 for filename in os.listdir(date_path):
-                    # Case-insensitive check
                     if query.lower() in filename.lower():
                         full_path = os.path.join(date_path, filename)
                         matches.append(full_path)
@@ -2060,7 +2052,9 @@ def create_search_tab(notebook):
             for m in matches:
                 results_listbox.insert(tk.END, m)
         else:
-            messagebox.showinfo("No Matches", f"No files found containing '{query}'")
+            # If you’d prefer not to show a message on every keystroke,
+            # you can remove or comment out this messagebox
+            pass
 
     def open_file():
         """Open the selected file from the listbox and display its contents."""
@@ -2098,25 +2092,24 @@ def create_search_tab(notebook):
         else:
             messagebox.showinfo("No Contents", "There is no file text to copy.")
 
-    # DOUBLE-CLICK EVENT -> same as pressing “Open” button
     def on_listbox_double_click(event):
+        """Double-click in the listbox -> open the file."""
         open_file()
 
+    # Bind the live search to each key release in the entry
+    search_entry.bind("<KeyRelease>", lambda event: live_search())
+    # Bind double-click to open file
     results_listbox.bind("<Double-Button-1>", on_listbox_double_click)
 
-    # ---------------------------
-    # Buttons
-    # ---------------------------
-    search_button = ttk.Button(button_frame, text="Search", command=search_files)
-    search_button.pack(side=tk.LEFT, padx=5)
-
-    open_button = ttk.Button(button_frame, text="Open", command=open_file)
-    open_button.pack(side=tk.LEFT, padx=5)
+    # ------------- Buttons Frame (only Copy for now) -------------
+    button_frame = ttk.Frame(search_tab)
+    button_frame.pack(pady=5)
 
     copy_button = ttk.Button(button_frame, text="Copy to Clipboard", command=copy_to_clipboard)
     copy_button.pack(side=tk.LEFT, padx=5)
 
     return search_tab
+
 
 # Define the list of available themes
 theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'simplex', 'vapor']
