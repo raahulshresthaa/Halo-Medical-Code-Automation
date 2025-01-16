@@ -381,7 +381,8 @@ class PdfButtonHandler:
             # Call the API with the content
             self.process_api_call(content, logic_content, AutoDocRef, clinic)
 
-            create_work_order_file(AutoDocRef, form_type_for_filename)
+            create_work_order_file(AutoDocRef, form_type_for_filename, data_dict=fields_data)
+
             print(f"Created a work order file automatically for AutoDocRef: {AutoDocRef} and form type: {form_type_for_filename}")
 
         except Exception as e:
