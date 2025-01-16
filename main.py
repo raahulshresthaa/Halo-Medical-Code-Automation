@@ -1672,7 +1672,7 @@ class PdfButtonHandler:
                 passed_codes['modular boots'] += 1
             if content_dict.get('trainers', '') == 'selected':
                 passed_codes['modular sports'] += 1
-
+                
         # Check boa/velcro 
         if content_dict.get('boa', '') == 'selected':
             passed_codes['twist fasten'] += 1
