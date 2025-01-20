@@ -38,7 +38,7 @@ def get_form_type_from_model_id(model_id):
     mapping = {
         'InsoleReaderFullV3': 'insole',
         'AfoReaderV7': 'afo',
-        'BespokeReaderFullV1': 'bespoke',
+        'BespokeReaderFullV2': 'bespoke',
         'ModularReaderFullV3': 'modular'
     }
     return mapping.get(model_id, 'unknown')
@@ -341,7 +341,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'BespokeReaderFullV1':
+            elif model_id == 'BespokeReaderFullV2':
                 logic_file_name = 'bespoke_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
@@ -744,8 +744,8 @@ class PdfButtonHandler:
             passed_codes['A16'] += right_a16_count
 
         sockets_type_a = {
-            'sockets left type': 'A37A',
-            'sockets right type': 'A37A'
+            'left socket type': 'A37A',
+            'right socket type': 'A37A'
         }
 
         for key, code in sockets_type_a.items():
@@ -755,8 +755,8 @@ class PdfButtonHandler:
                 passed_codes[code] += 1
 
         sockets_type_b = {
-            'sockets left type': 'A37B',
-            'sockets right type': 'A37B'
+            'left socket type': 'A37B',
+            'right socket type': 'A37B'
         }
 
         for key, code in sockets_type_b.items():
@@ -765,10 +765,10 @@ class PdfButtonHandler:
 
         # Wedges
         wedges_heel_keys = [
-            'wedges left heel medial',
-            'wedges left heel lateral',
-            'wedges right heel medial',
-            'wedges right heel lateral',
+            'left wedges heel medial',
+            'left wedges heel lateral',
+            'right wedges heel medial',
+            'right wedges heel lateral',
         ]
 
         for key in wedges_heel_keys:
@@ -776,10 +776,10 @@ class PdfButtonHandler:
                 passed_codes['A31'] += 1
 
         wedges_sole_keys = [
-            'wedges left sole medial',
-            'wedges left sole lateral',
-            'wedges right sole medial',
-            'wedges right sole lateral',
+            'left wedges sole medial',
+            'left wedges sole lateral',
+            'right wedges sole medial',
+            'right wedges sole lateral',
         ]
 
         for key in wedges_sole_keys:
@@ -788,10 +788,10 @@ class PdfButtonHandler:
 
         # Floated
         floated_heel_keys = [
-            'floated left heel medial',
-            'floated left heel lateral',
-            'floated right heel medial',
-            'floated right heel lateral',
+            'left floated heel medial',
+            'left floated heel lateral',
+            'right floated heel medial',
+            'right floated heel lateral',
         ]
 
         for key in floated_heel_keys:
@@ -799,10 +799,10 @@ class PdfButtonHandler:
                 passed_codes['A31'] += 1
 
         floated_sole_keys = [
-            'floated left sole medial',
-            'floated left sole lateral',
-            'floated right sole medial',
-            'floated right sole lateral',
+            'left floated sole medial',
+            'left floated sole lateral',
+            'right floated sole medial',
+            'right floated sole lateral',
         ]
 
         for key in floated_sole_keys:
@@ -828,21 +828,21 @@ class PdfButtonHandler:
                     passed_codes['A12A'] += 1
 
         # Elongations
-        elongations_keys = ['elongations left type', 'elongations right type']
+        elongations_keys = ['left elongations type', 'right elongations type']
         for key in elongations_keys:
             if content_dict.get(key, '') in ('full', 'half'):
                 passed_codes['A31'] += 1
 
         # Rocker
-        rocker_keys = ['rocker left type', 'rocker right type']
+        rocker_keys = ['left rocker type', 'right rocker type']
         for key in rocker_keys:
             if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
                 passed_codes['A19'] += 1
 
         # Straps
         for side in ['left', 'right']:
-            strap_type_key = f'straps {side} type'
-            strap_double_decker_key = f'straps {side} double decker'
+            strap_type_key = f'{side} strap type'
+            strap_double_decker_key = f'{side} double decker'
 
             strap_type = content_dict.get(strap_type_key, '')
             strap_double_decker = content_dict.get(strap_double_decker_key, '')
@@ -2342,7 +2342,7 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 model_ids = {
     'Insoles': 'InsoleReaderFullV3',
     'AFOs': 'AfoReaderV7',
-    'Bespoke': 'BespokeReaderFullV1',
+    'Bespoke': 'BespokeReaderFullV2',
     'Modular': 'ModularReaderFullV3'
 }
 model_id_var = tk.StringVar(value='InsoleReaderFullV3')
