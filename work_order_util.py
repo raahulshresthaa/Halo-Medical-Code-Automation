@@ -2,6 +2,14 @@
 import os
 import datetime
 
+def sanitize_filename_part(val):
+    """
+    Removes any characters from val that aren't alphanumeric, underscore, or dash.
+    Returns 'unknown' if everything is stripped out.
+    """
+    sanitized = ''.join(c for c in val if c.isalnum() or c in ('_', '-'))
+    return sanitized if sanitized else 'unknown'
+
 def build_work_ticket(data_dict):
     """
     Builds a multi-stage work ticket (modelling, shaping, additions/modification,
@@ -90,6 +98,7 @@ def create_work_order_file(auto_doc_ref, form_type, data_dict=None):
     
     By default, writes a work ticket built from the extracted data (if provided).
     """
+    safe_ref = sanitize_filename_part(auto_doc_ref)
 
     # 1. Generate today's date string (e.g. '2025-01-08')
     date_str = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -102,8 +111,8 @@ def create_work_order_file(auto_doc_ref, form_type, data_dict=None):
     if not os.path.exists(date_folder_path):
         os.makedirs(date_folder_path)
 
-    # 4. Build the file name, e.g. "work_order_02342_insole.txt"
-    file_name = f"work_order_{auto_doc_ref}_{form_type}.txt"
+    # 4. Build the file name
+    file_name = f"work_order_{safe_ref}_{form_type}.txt"
     file_path = os.path.join(date_folder_path, file_name)
 
     # Optionally build the ticket if data_dict is given
