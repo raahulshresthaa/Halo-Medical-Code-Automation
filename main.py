@@ -38,7 +38,7 @@ def get_form_type_from_model_id(model_id):
     mapping = {
         'InsoleReaderFullV3': 'insole',
         'AfoReaderV7': 'afo',
-        'BespokeReaderFullV3': 'bespoke',
+        'BespokeReaderFullV4': 'bespoke',
         'ModularReaderFullV3': 'modular'
     }
     return mapping.get(model_id, 'unknown')
@@ -341,7 +341,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'BespokeReaderFullV3':
+            elif model_id == 'BespokeReaderFullV4':
                 logic_file_name = 'bespoke_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
@@ -2342,7 +2342,7 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 model_ids = {
     'Insoles': 'InsoleReaderFullV3',
     'AFOs': 'AfoReaderV7',
-    'Bespoke': 'BespokeReaderFullV3',
+    'Bespoke': 'BespokeReaderFullV4',
     'Modular': 'ModularReaderFullV3'
 }
 model_id_var = tk.StringVar(value='InsoleReaderFullV3')
