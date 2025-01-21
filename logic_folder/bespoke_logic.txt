@@ -1,2 +1,2 @@
 Start by saying "Bespoke logic selected successfully"
-Then just repeat the the list of passed codes on a single line do not change anything
+Then just repeat the the list of passed codes on a each on a new line do not change anything

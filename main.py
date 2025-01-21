@@ -128,7 +128,7 @@ class PdfButtonHandler:
             response = openai.ChatCompletion.create(
                 model="gpt-4o-2024-08-06",  # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nWrite your full working out and then write **Final Codes:** and output the final codes on a single line, including the passed codes."},
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nWrite your full working out and then write **Final Codes:** and output the final codes each on a new line, including the passed codes."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
@@ -1661,11 +1661,11 @@ class PdfButtonHandler:
 
         # If style is recognized use style lists
         if style in sport_styles:
-            passed_codes['modular sports'] += 1
+            passed_codes['Modular Sports'] += 1
         elif style in shoe_styles:
-            passed_codes['modular shoes'] += 1
+            passed_codes['Modular Shoes'] += 1
         elif style in boot_styles:
-            passed_codes['modular boots'] += 1
+            passed_codes['Modular Boots'] += 1
         else:
             # --- ADDED WARNING LOGIC HERE ---
             # The style wasn't found in sport, shoe, or boot sets, so fallback to tick boxes.
@@ -1673,13 +1673,13 @@ class PdfButtonHandler:
             fallback_styles_used = []
 
             if content_dict.get('shoes', '') == 'selected':
-                passed_codes['modular shoes'] += 1
+                passed_codes['Modular Shoes'] += 1
                 fallback_styles_used.append('shoes')
             if content_dict.get('boots', '') == 'selected':
-                passed_codes['modular boots'] += 1
+                passed_codes['Modular Boots'] += 1
                 fallback_styles_used.append('boots')
             if content_dict.get('trainers', '') == 'selected':
-                passed_codes['modular sports'] += 1
+                passed_codes['Modular Sports'] += 1
                 fallback_styles_used.append('trainers')
 
             if fallback_styles_used:
@@ -1936,8 +1936,8 @@ class PdfButtonHandler:
         }
 
         modular_filter_codes = {
-            '6mm', 'Pattern', 'BNS62', 'modular shoes', 'modular boots',
-            'modular sports', 'twist fasten', 'velcro', 'B34', 'B33', 'B8',
+            '6mm', 'Pattern', 'BNS62', 'Modular Shoes', 'Modular Boots',
+            'Modular Sports', 'twist fasten', 'velcro', 'B34', 'B33', 'B8',
             'B30', 'B31', 'B25', 'B17', 'B18', 'B19'
         }
 
