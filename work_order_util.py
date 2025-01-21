@@ -47,7 +47,6 @@ def build_work_ticket(data_dict):
     # 3) Additions / Modification
     if data_dict.get("left 1st met head", "").lower() == "selected":
         stages["Additions/Modification"].append("Add left 1st met head relief.")
-    # (Add more logic as needed...)
 
     # 4) Sticking
     top_cover = data_dict.get("insole top cover material", "").lower()
@@ -103,14 +102,14 @@ def create_work_order_file(auto_doc_ref, form_type, data_dict=None):
     file_name = f"work_order_{safe_ref}_{form_type}.csv"
     file_path = os.path.join(date_folder_path, file_name)
 
-    # Optionally build the ticket if data_dict is given
-    work_ticket_text = "test complete, work order written to successfully\n"
+    # Optionally build the ticket if data_dict is given; otherwise just produce an empty
     if data_dict:
-        instructions = build_work_ticket(data_dict)
-        work_ticket_text += "\n" + instructions
+        work_ticket_text = build_work_ticket(data_dict)
+    else:
+        work_ticket_text = ""
 
     # Split the full text into individual lines
-    lines_to_write = work_ticket_text.split("\n")
+    lines_to_write = work_ticket_text.split("\n") if work_ticket_text else []
 
     # 5. Write out a CSV (one line of text per row)
     with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
