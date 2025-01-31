@@ -16,7 +16,7 @@ from collections import defaultdict
 from work_order_util import create_work_order_file
 
 # Version number
-VERSION = "5.0.0-dev"
+VERSION = "5.0.0-alpha"
 
 # To fix blurriness on some displays
 try:
@@ -2493,6 +2493,21 @@ theme_combobox.bind('<<ComboboxSelected>>', change_theme)
 # SEARCH WORK ORDERS TAB
 # ---------------------------
 search_tab = create_search_tab(notebook)
+
+# search work orders warning
+# Now bind the event to show the warning upon switching to the Search tab
+def on_tab_selected(event):
+    selected_tab_text = event.widget.tab(event.widget.index("current"), "text")
+    if selected_tab_text == "Search Work Orders":
+        messagebox.showwarning(
+            "Feature WIP",
+            "Warning: The 'Search Work Orders' feature is still a work in progress!"
+        )
+
+notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
+
+# Start the GUI event loop
+root.mainloop()
 
 # Start the GUI event loop
 root.mainloop()
