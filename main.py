@@ -13,9 +13,10 @@ import sys
 import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
 from collections import defaultdict
+from work_order_util import create_work_order_file
 
 # Version number
-VERSION = "4.2.1-alpha"
+VERSION = "5.0.0-alpha"
 
 # To fix blurriness on some displays
 try:
@@ -27,6 +28,20 @@ except Exception:
 # Azure Form Recognizer imports
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.formrecognizer import DocumentAnalysisClient
+
+ 
+def get_form_type_from_model_id(model_id):
+    """
+    Returns a friendly string for naming files, 
+    based on the provided model_id.
+    """
+    mapping = {
+        'InsoleReaderFullV3': 'insole',
+        'AfoReaderV7': 'afo',
+        'BespokeReaderFullV4': 'bespoke',
+        'ModularReaderFullV3': 'modular'
+    }
+    return mapping.get(model_id, 'unknown')
 
 # --- PdfButtonHandler Class Definition ---
 
@@ -113,7 +128,7 @@ class PdfButtonHandler:
             response = openai.ChatCompletion.create(
                 model="gpt-4o-2024-08-06",  # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nWrite your full working out and then write **Final Codes:** and output the final codes on a single line, including the passed codes."},
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nWrite your full working out and then write **Final Codes:** and output the final codes each on a new line, including the passed codes."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
@@ -134,13 +149,16 @@ class PdfButtonHandler:
             # Debug print to check the content of price_codes
             print(f"Price codes received: {price_codes}")
 
+            model_id = self.model_id_var.get()
+            form_type_for_filename = get_form_type_from_model_id(model_id)
+
             # Get the current date and time
             current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
             # Determine if we should check for base and special base
             model_id = self.model_id_var.get()
-            if model_id == 'insoleFormV5':
+            if model_id == 'InsoleReaderFullV3':
                 # Check for base in the extracted content and get the query message
                 query_message = self.check_for_base(content)
 
@@ -157,7 +175,7 @@ class PdfButtonHandler:
             self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes, combined_messages)
 
             # Write the price codes, auto doc reference, clinic, Azure data, and messages to the log file
-            self.write_to_log_file(price_codes, AutoDocRef, clinic, content, combined_messages)
+            self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
 
         except Exception as e:
             # Show error message in the main thread
@@ -168,7 +186,7 @@ class PdfButtonHandler:
             # Re-enable the upload button
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
-    def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, messages=None):
+    def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, form_type, messages=None):
         try:
             result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
             if not os.path.exists(result_logs_folder):
@@ -188,7 +206,7 @@ class PdfButtonHandler:
                 sanitized_auto_doc_ref = 'log'
 
             # Use the auto_doc_ref as the filename
-            log_file_name = f"{sanitized_auto_doc_ref}.txt"
+            log_file_name = f"results_log_{sanitized_auto_doc_ref}_{form_type}.txt"
             log_file_path = os.path.join(date_folder_path, log_file_name)
 
             with open(log_file_path, 'w', encoding='utf-8') as log_file:
@@ -244,6 +262,9 @@ class PdfButtonHandler:
             model_id = self.model_id_var.get()
             print(f"Using model ID: {model_id}")  # Debug print
 
+            #   Define form_type_for_filename here
+            form_type_for_filename = get_form_type_from_model_id(model_id)
+
             # Analyze the PDF using Azure Form Recognizer
             with open(pdf_file_path, "rb") as pdf_file:
                 poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
@@ -269,7 +290,7 @@ class PdfButtonHandler:
             # Logic file mapping based on model_id and form_type
             logic_file_name = None
 
-            if model_id == 'insoleFormV5':
+            if model_id == 'InsoleReaderFullV3':
                 # Determine form_type based on extracted data
                 form_type = self.determine_form_type(fields_data)
                 if not form_type:
@@ -320,7 +341,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'BespokeReaderV4':
+            elif model_id == 'BespokeReaderFullV4':
                 logic_file_name = 'bespoke_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
@@ -333,7 +354,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'ModularReaderV7':
+            elif model_id == 'ModularReaderFullV3':
                 logic_file_name = 'modular_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
 
@@ -360,6 +381,10 @@ class PdfButtonHandler:
             # Call the API with the content
             self.process_api_call(content, logic_content, AutoDocRef, clinic)
 
+            create_work_order_file(AutoDocRef, form_type_for_filename, data_dict=fields_data)
+
+            print(f"Created a work order file automatically for AutoDocRef: {AutoDocRef} and form type: {form_type_for_filename}")
+
         except Exception as e:
             # Show error message in the main thread
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the PDF file: {str(e)}")
@@ -383,18 +408,16 @@ class PdfButtonHandler:
         # Assuming form_type is indicated by keys like 'tci test' or 'simple test' etc.
         form_type = None
         for key, value in data.items():
-            if key.lower() == 'tci' and value.lower() == 'selected':
+            if key.lower() == 'insole type tci' and value.lower() == 'selected':
                 form_type = 'tci'
                 break
-            elif key.lower() == 'tci test' and value.lower() == 'selected':
-                form_type = 'tci'
-            elif key.lower() == 'simple' and value.lower() == 'selected':
+            elif key.lower() == 'insole type simple' and value.lower() == 'selected':
                 form_type = 'simple'
                 break
-            elif key.lower() == 'hand mould' and value.lower() == 'selected':
+            elif key.lower() == 'insole type hand mould' and value.lower() == 'selected':
                 form_type = 'handmold'
                 break
-            elif key.lower() == 'cradle' and value.lower() == 'selected':
+            elif key.lower() == 'insole type cradle' and value.lower() == 'selected':
                 form_type = 'cradle'
                 break
             elif key.lower() == 'afo' and value.lower() == 'selected':
@@ -721,8 +744,8 @@ class PdfButtonHandler:
             passed_codes['A16'] += right_a16_count
 
         sockets_type_a = {
-            'sockets left type': 'A37A',
-            'sockets right type': 'A37A'
+            'left socket type': 'A37A',
+            'right socket type': 'A37A'
         }
 
         for key, code in sockets_type_a.items():
@@ -732,8 +755,8 @@ class PdfButtonHandler:
                 passed_codes[code] += 1
 
         sockets_type_b = {
-            'sockets left type': 'A37B',
-            'sockets right type': 'A37B'
+            'left socket type': 'A37B',
+            'right socket type': 'A37B'
         }
 
         for key, code in sockets_type_b.items():
@@ -742,10 +765,10 @@ class PdfButtonHandler:
 
         # Wedges
         wedges_heel_keys = [
-            'wedges left heel medial',
-            'wedges left heel lateral',
-            'wedges right heel medial',
-            'wedges right heel lateral',
+            'left wedges heel medial',
+            'left wedges heel lateral',
+            'right wedges heel medial',
+            'right wedges heel lateral',
         ]
 
         for key in wedges_heel_keys:
@@ -753,10 +776,10 @@ class PdfButtonHandler:
                 passed_codes['A31'] += 1
 
         wedges_sole_keys = [
-            'wedges left sole medial',
-            'wedges left sole lateral',
-            'wedges right sole medial',
-            'wedges right sole lateral',
+            'left wedges sole medial',
+            'left wedges sole lateral',
+            'right wedges sole medial',
+            'right wedges sole lateral',
         ]
 
         for key in wedges_sole_keys:
@@ -765,10 +788,10 @@ class PdfButtonHandler:
 
         # Floated
         floated_heel_keys = [
-            'floated left heel medial',
-            'floated left heel lateral',
-            'floated right heel medial',
-            'floated right heel lateral',
+            'left floated heel medial',
+            'left floated heel lateral',
+            'right floated heel medial',
+            'right floated heel lateral',
         ]
 
         for key in floated_heel_keys:
@@ -776,10 +799,10 @@ class PdfButtonHandler:
                 passed_codes['A31'] += 1
 
         floated_sole_keys = [
-            'floated left sole medial',
-            'floated left sole lateral',
-            'floated right sole medial',
-            'floated right sole lateral',
+            'left floated sole medial',
+            'left floated sole lateral',
+            'right floated sole medial',
+            'right floated sole lateral',
         ]
 
         for key in floated_sole_keys:
@@ -805,21 +828,21 @@ class PdfButtonHandler:
                     passed_codes['A12A'] += 1
 
         # Elongations
-        elongations_keys = ['elongations left type', 'elongations right type']
+        elongations_keys = ['left elongations type', 'right elongations type']
         for key in elongations_keys:
             if content_dict.get(key, '') in ('full', 'half'):
                 passed_codes['A31'] += 1
 
         # Rocker
-        rocker_keys = ['rocker left type', 'rocker right type']
+        rocker_keys = ['left rocker type', 'right rocker type']
         for key in rocker_keys:
             if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
                 passed_codes['A19'] += 1
 
         # Straps
         for side in ['left', 'right']:
-            strap_type_key = f'straps {side} type'
-            strap_double_decker_key = f'straps {side} double decker'
+            strap_type_key = f'{side} strap type'
+            strap_double_decker_key = f'{side} double decker'
 
             strap_type = content_dict.get(strap_type_key, '')
             strap_double_decker = content_dict.get(strap_double_decker_key, '')
@@ -880,7 +903,7 @@ class PdfButtonHandler:
             passed_codes['B54A'] += 1
 
         # Pair Handling for normal codes
-        if content_dict.get('pair', '') == 'selected':
+        if content_dict.get('insole pair', '') == 'selected':
             codes_to_double_general = [
                 'A1K', 'A18A', 'Twist Fasten', 'A6'
             ]
@@ -976,11 +999,11 @@ class PdfButtonHandler:
 
         # Determine insole type early for medway logic
         insole_type = None
-        if content_dict.get('tci test', '') == 'selected' or content_dict.get('cradle', '') == 'selected':
+        if content_dict.get('insole type tci', '') == 'selected' or content_dict.get('cradle', '') == 'selected':
             insole_type = 'tci'
-        elif content_dict.get('simple', '') == 'selected':
+        elif content_dict.get('insole type simple', '') == 'selected':
             insole_type = 'simple'
-        elif content_dict.get('hand mould', '') == 'selected':
+        elif content_dict.get('insole type hand mould', '') == 'selected':
             insole_type = 'handmould'
 
         # --- Medway Tariff Logic ---
@@ -1065,12 +1088,12 @@ class PdfButtonHandler:
 
         # Postings
         posting_keys_left = [
-            'left medial rearfoot', 'left lateral rearfoot',
-            'left medial forefoot', 'left lateral forefoot',
+            'left medial rearfoot posting', 'left lateral rearfoot posting',
+            'left medial forefoot posting', 'left lateral forefoot posting',
         ]
         posting_keys_right = [
-            'right medial rearfoot', 'right lateral rearfoot',
-            'right medial forefoot', 'right lateral forefoot',
+            'right medial rearfoot posting', 'right lateral rearfoot posting',
+            'right medial forefoot posting', 'right lateral forefoot posting',
         ]
 
         left_postings_count = 0
@@ -1086,7 +1109,7 @@ class PdfButtonHandler:
                 right_postings_count += 1
                 passed_codes['B56'] += 1
 
-        insole_right_as_left = content_dict.get('right as left', '') == 'selected'
+        insole_right_as_left = content_dict.get('right as left insole modification', '') == 'selected'
 
         # Right as Left for modifications
         if insole_right_as_left and ((left_modifications_count == 0 and right_modifications_count > 0) or
@@ -1101,8 +1124,8 @@ class PdfButtonHandler:
 
         # Additions
         addition_positions = [
-            '1st addition left', '2nd addition left', '3rd addition left', '4th addition left',
-            '1st addition right', '2nd addition right', '3rd addition right', '4th addition right'
+            'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
+            'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition'
         ]
 
         addition_code_mapping = {
@@ -1138,7 +1161,7 @@ class PdfButtonHandler:
             x += 1
         if content_dict.get('lining to full', '') == 'selected':
             x += 1
-        if content_dict.get('top cover material', '') == 'spenco (green)':
+        if content_dict.get('insole top cover material', '') == 'spenco (green)':
             x += 1
         if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
             x += 1
@@ -1621,35 +1644,60 @@ class PdfButtonHandler:
 
         style = content_dict.get('styles', '').lower()
 
-        sport_styles = {'sneaker', 'greenock', 'greeock', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'olympic',
-            'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'} 
+        sport_styles = {
+            'sneaker', 'greenock', 'greeock', 'colwyn', 'lineham', 'hove', 'plymouth', 
+            'drayton', 'olympic', 'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'
+        } 
 
         shoe_styles = {
             'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
             'truro', 'hendon', 'stirling', 'exeter', 'chester', 'shelby'
         }
 
-        # Currently empty — add any boot names you want here
-        boot_styles = {'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
-    'dundee', 'brigg', 'elgin', 'highland'
-}
+        boot_styles = {
+            'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
+            'dundee', 'brigg', 'elgin', 'highland'
+        }
 
         # If style is recognized use style lists
         if style in sport_styles:
-            passed_codes['modular sports'] += 1
+            passed_codes['Modular Sports'] += 1
         elif style in shoe_styles:
-            passed_codes['modular shoes'] += 1
+            passed_codes['Modular Shoes'] += 1
         elif style in boot_styles:
-            passed_codes['modular boots'] += 1
-
-        # If style not found use tick box
+            passed_codes['Modular Boots'] += 1
         else:
+            # --- ADDED WARNING LOGIC HERE ---
+            # The style wasn't found in sport, shoe, or boot sets, so fallback to tick boxes.
+            # We'll also build a warning message to show the user that we are “guessing.”
+            fallback_styles_used = []
+
             if content_dict.get('shoes', '') == 'selected':
-                passed_codes['modular shoes'] += 1
+                passed_codes['Modular Shoes'] += 1
+                fallback_styles_used.append('shoes')
             if content_dict.get('boots', '') == 'selected':
-                passed_codes['modular boots'] += 1
+                passed_codes['Modular Boots'] += 1
+                fallback_styles_used.append('boots')
             if content_dict.get('trainers', '') == 'selected':
-                passed_codes['modular sports'] += 1
+                passed_codes['Modular Sports'] += 1
+                fallback_styles_used.append('trainers')
+
+            if fallback_styles_used:
+                # Create a warning message letting the user know we didn't detect the style
+                warning_message = (
+                    f"Footwear style not detected!\n"
+                    f"• Entered style: '{style}' may be spelled incorrectly.\n"
+                    f"• Falling back to tick-box selections: {', '.join(fallback_styles_used)}"
+                )
+                # Show the pop-up in the same way you handle other warnings
+                self.root.after(0, messagebox.showinfo, "Warning", warning_message)
+            else:
+                # If no tick boxes are also selected, you might want a different warning or default assumption.
+                warning_message = (
+                    f"Footwear style '{style}' not recognized, and no tick boxes selected. "
+                    f"Please verify the footwear style."
+                )
+                self.root.after(0, messagebox.showinfo, "Warning", warning_message)
 
         # Check boa/velcro 
         if content_dict.get('boa', '') == 'selected':
@@ -1888,8 +1936,8 @@ class PdfButtonHandler:
         }
 
         modular_filter_codes = {
-            '6mm', 'Pattern', 'BNS62', 'modular shoes', 'modular boots',
-            'modular sports', 'twist fasten', 'velcro', 'B34', 'B33', 'B8',
+            '6mm', 'Pattern', 'BNS62', 'Modular Shoes', 'Modular Boots',
+            'Modular Sports', 'twist fasten', 'velcro', 'B34', 'B33', 'B8',
             'B30', 'B31', 'B25', 'B17', 'B18', 'B19'
         }
 
@@ -1917,6 +1965,151 @@ class PdfButtonHandler:
             return None
 
 # --- Main Application Setup ---
+def create_search_tab(notebook):
+    """
+    Creates a new tab in the provided ttk.Notebook for searching
+    through the 'work_orders' folder by AutoDocRef (case-insensitive),
+    with smaller scrollable listbox and text box,
+    automatic searching on each keystroke,
+    and double-click to open files.
+    """
+    import tkinter as tk
+    from tkinter import ttk, messagebox
+    import os
+
+    # Create a frame for the 'Search Work Orders' tab
+    search_tab = ttk.Frame(notebook)
+    notebook.add(search_tab, text="Search Work Orders")
+
+    # Label + Entry
+    search_label = ttk.Label(search_tab, text="Enter AutoDocRef (live search):")
+    search_label.pack(pady=5)
+
+    search_entry = ttk.Entry(search_tab, width=30)
+    search_entry.pack(pady=5)
+
+    # Frame to hold the listbox + scrollbar
+    listbox_frame = ttk.Frame(search_tab)
+    listbox_frame.pack(pady=5, fill='both', expand=True)
+
+    listbox_scrollbar = ttk.Scrollbar(listbox_frame, orient='vertical')
+    listbox_scrollbar.pack(side='right', fill='y')
+
+    # Make the listbox smaller: width=60, height=15
+    results_listbox = tk.Listbox(
+        listbox_frame, 
+        width=60, height=15, 
+        yscrollcommand=listbox_scrollbar.set
+    )
+    results_listbox.pack(side='left', fill='both', expand=True)
+
+    listbox_scrollbar.config(command=results_listbox.yview)
+
+    # Frame to hold the text widget + scrollbar
+    text_frame = ttk.Frame(search_tab)
+    text_frame.pack(pady=5, fill='both', expand=True)
+
+    text_scrollbar = ttk.Scrollbar(text_frame, orient='vertical')
+    text_scrollbar.pack(side='right', fill='y')
+
+    # Make the text box smaller: width=60, height=15
+    file_content_text = tk.Text(
+        text_frame,
+        wrap='word', width=60, height=15,
+        yscrollcommand=text_scrollbar.set
+    )
+    file_content_text.pack(side='left', fill='both', expand=True)
+    file_content_text.config(state='disabled')
+
+    text_scrollbar.config(command=file_content_text.yview)
+
+    # ------------- Functions -------------
+    def live_search():
+        """Perform a case-insensitive search each time the user types in the entry."""
+        results_listbox.delete(0, tk.END)
+        file_content_text.config(state='normal')
+        file_content_text.delete('1.0', tk.END)
+        file_content_text.config(state='disabled')
+
+        query = search_entry.get().strip()
+        if not query:
+            return  # If empty, just clear out (no message box)
+        
+        work_orders_folder = os.path.join(os.getcwd(), 'work_orders')
+        if not os.path.exists(work_orders_folder):
+            return  # Silently ignore or show an error if you prefer
+
+        matches = []
+        for date_folder in os.listdir(work_orders_folder):
+            date_path = os.path.join(work_orders_folder, date_folder)
+            if os.path.isdir(date_path):
+                for filename in os.listdir(date_path):
+                    if query.lower() in filename.lower():
+                        full_path = os.path.join(date_path, filename)
+                        matches.append(full_path)
+
+        if matches:
+            for m in matches:
+                results_listbox.insert(tk.END, m)
+        else:
+            # If you’d prefer not to show a message on every keystroke,
+            # you can remove or comment out this messagebox
+            pass
+
+    def open_file():
+        """Open the selected file from the listbox and display its contents."""
+        selection = results_listbox.curselection()
+        if not selection:
+            messagebox.showinfo("No File Selected", "Please select a file from the list.")
+            return
+
+        selected_file = results_listbox.get(selection[0])
+
+        if not os.path.isfile(selected_file):
+            messagebox.showerror("Error", f"File does not exist: {selected_file}")
+            return
+
+        try:
+            with open(selected_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            file_content_text.config(state='normal')
+            file_content_text.delete('1.0', tk.END)
+            file_content_text.insert(tk.END, content)
+            file_content_text.config(state='disabled')
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open file:\n{str(e)}")
+
+    def copy_to_clipboard():
+        """Copy the displayed file text to the clipboard."""
+        file_content_text.config(state='normal')
+        contents = file_content_text.get('1.0', tk.END).strip()
+        file_content_text.config(state='disabled')
+
+        if contents:
+            search_tab.clipboard_clear()
+            search_tab.clipboard_append(contents)
+            messagebox.showinfo("Copied", "File contents copied to clipboard.")
+        else:
+            messagebox.showinfo("No Contents", "There is no file text to copy.")
+
+    def on_listbox_double_click(event):
+        """Double-click in the listbox -> open the file."""
+        open_file()
+
+    # Bind the live search to each key release in the entry
+    search_entry.bind("<KeyRelease>", lambda event: live_search())
+    # Bind double-click to open file
+    results_listbox.bind("<Double-Button-1>", on_listbox_double_click)
+
+    # ------------- Buttons Frame (only Copy for now) -------------
+    button_frame = ttk.Frame(search_tab)
+    button_frame.pack(pady=5)
+
+    copy_button = ttk.Button(button_frame, text="Copy to Clipboard", command=copy_to_clipboard)
+    copy_button.pack(side=tk.LEFT, padx=5)
+
+    return search_tab
+
 
 # Define the list of available themes
 theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'simplex', 'vapor']
@@ -2061,31 +2254,40 @@ def change_theme(event):
 # Define the custom font for labels (if not already defined)
 label_font = ('Calibri', 11)
 
+# ---------------------------------------------------------------------
+# Create a Notebook so we can have 2 tabs: Main PDF Processing + Search
+# ---------------------------------------------------------------------
+notebook = ttk.Notebook(root)
+notebook.pack(expand=True, fill='both')
+
+# ---------------------------
+# MAIN PDF PROCESSING TAB
+# ---------------------------
+main_tab = ttk.Frame(notebook)
+notebook.add(main_tab, text="Main PDF Processing")
+
 # Load the logo image
 try:
     logo_img = Image.open(logo_file_path)
     logo_img = logo_img.resize((200, 100), Image.LANCZOS)
     logo_photo = ImageTk.PhotoImage(logo_img)
-    root.logo_photo = logo_photo  # Keep a reference to prevent garbage collection
+    root.logo_photo = logo_photo  # Keep a reference to prevent GC
 
-    # Create a label to display the logo using ttk.Label
-    logo_label = ttk.Label(root, image=logo_photo)
+    # Place the logo in the main_tab
+    logo_label = ttk.Label(main_tab, image=logo_photo)
     logo_label.pack(pady=10)
 except Exception as e:
     messagebox.showerror("Error", f"Error loading logo: {str(e)}")
 
-# Add a bold title below the logo using ttk.Label
-title_label = ttk.Label(root, text="Code Automation Program", font=("Calibri", 16, "bold"))
+# Title label in main_tab
+title_label = ttk.Label(main_tab, text="Code Automation Program", font=("Calibri", 16, "bold"))
 title_label.pack(pady=5)
 
-# Define the custom font for the labels
-label_font = ('Calibri', 11)  # You can adjust the font size as needed
-
-# Create a frame for the info boxes
-info_frame = ttk.Frame(root)
+# Info frame in main_tab
+info_frame = ttk.Frame(main_tab)
 info_frame.pack(pady=10)
 
-# Create labels and entries for AutoDocRef, Clinic, Date and Time with the larger font
+# Create labels and entries for AutoDocRef, Clinic, Date/Time
 auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef:', font=label_font)
 auto_doc_ref_entry = ttk.Entry(info_frame, width=30)
 clinic_label = ttk.Label(info_frame, text='Clinic:', font=label_font)
@@ -2093,7 +2295,6 @@ clinic_entry = ttk.Entry(info_frame, width=30)
 datetime_label = ttk.Label(info_frame, text='Date and Time:', font=label_font)
 datetime_entry = ttk.Entry(info_frame, width=30)
 
-# Arrange them in a grid layout
 auto_doc_ref_label.grid(row=0, column=0, padx=5, pady=5)
 auto_doc_ref_entry.grid(row=1, column=0, padx=5, pady=5)
 clinic_label.grid(row=0, column=1, padx=5, pady=5)
@@ -2101,65 +2302,52 @@ clinic_entry.grid(row=1, column=1, padx=5, pady=5)
 datetime_label.grid(row=0, column=2, padx=5, pady=5)
 datetime_entry.grid(row=1, column=2, padx=5, pady=5)
 
-# Create a frame to hold the result text widget and scrollbar
-result_frame = ttk.Frame(root)
+# Create a frame to hold the result text widget
+result_frame = ttk.Frame(main_tab)
 result_frame.pack(pady=10, anchor='center')
 
-# Create a text widget inside the result_frame to display the results
+# Create a text widget inside result_frame
 result_text = tk.Text(result_frame, wrap='word', height=25, width=80)
 result_text.grid(row=0, column=0)
 
-# Create a vertical scrollbar linked to the result_text widget
+# Vertical scrollbar for result_text
 result_scrollbar = ttk.Scrollbar(result_frame, orient='vertical', command=result_text.yview)
 result_scrollbar.grid(row=0, column=1, sticky='ns')
-
-# Configure the text widget to use the scrollbar
 result_text['yscrollcommand'] = result_scrollbar.set
-
 result_text.config(state='disabled')  # Make it read-only
 
-# Make the result_text widget a drop target
+# Make the result_text a drop target
 result_text.drop_target_register(DND_FILES)
 
-# Function to handle dropped files
+# The drop event
 def handle_drop(event):
-    # event.data contains the list of files dropped
-    # It may contain multiple files separated by spaces or newlines
     files = root.tk.splitlist(event.data)
     pdf_files = [f for f in files if f.lower().endswith('.pdf')]
     if pdf_files:
         for pdf_file in pdf_files:
-            # Disable the upload button to prevent multiple clicks
             pdf_handler.upload_pdf_button.config(state='disabled')
             try:
-                # Show the loading pop-up with animation
                 show_loading_popup()
-
-                # Start processing each PDF file in a separate thread
                 threading.Thread(target=pdf_handler.process_pdf_and_call_api, args=(pdf_file,)).start()
             except Exception as e:
                 messagebox.showerror("Error", f"Error processing the file: {str(e)}")
-                pdf_handler.upload_pdf_button.config(state='normal')  # Re-enable the upload button
-                close_loading_popup()  # Ensure the loading pop-up is closed if an error occurs
+                pdf_handler.upload_pdf_button.config(state='normal')
+                close_loading_popup()
     else:
         messagebox.showinfo("No PDF Files", "Please drop PDF files only.")
 
-# Bind the drop event to the handle_drop function
 result_text.dnd_bind('<<Drop>>', handle_drop)
 
-# Define model IDs (replace with your actual model IDs)
+# Model IDs
 model_ids = {
-    'Insoles': 'insoleFormV5',  # model id's
-    'AFOs': 'AfoReaderV7',  
-    'Bespoke': 'BespokeReaderV4',
-    'Modular': 'ModularReaderV7'  # New entry for Modular
+    'Insoles': 'InsoleReaderFullV3',
+    'AFOs': 'AfoReaderV7',
+    'Bespoke': 'BespokeReaderFullV4',
+    'Modular': 'ModularReaderFullV3'
 }
+model_id_var = tk.StringVar(value='InsoleReaderFullV3')
 
-# Set up the model_id_var with default value
-model_id_var = tk.StringVar(value='insoleFormV5')  # Set the default model ID
-
-# Create a frame for the model selection
-model_frame = ttk.Frame(root)
+model_frame = ttk.Frame(main_tab)
 model_frame.pack(pady=10)
 
 model_label = ttk.Label(model_frame, text='Select Form Type:', font=label_font)
@@ -2174,63 +2362,48 @@ for model_name, model_id_value in model_ids.items():
     )
     radio_button.pack(side='left', padx=5)
 
-# Function to show the loading pop-up with moving dots animation on a new line
+# The loading popup and associated functions
 def show_loading_popup():
     global loading_popup, loading_label, dot_index, base_message
     loading_popup = Toplevel(root)
     loading_popup.title("Loading...")
-
-    # Set icon on loading pop-up
     icon_image_loading = load_icon_image(icon_path, size=(32, 32))
     if icon_image_loading:
         loading_popup.iconphoto(False, icon_image_loading)
-        loading_popup.icon_image = icon_image_loading  # Keep a reference
+        loading_popup.icon_image = icon_image_loading
 
-    # Make the window non-resizable
     loading_popup.resizable(False, False)
-    loading_popup.protocol("WM_DELETE_WINDOW", lambda: None)  # Disable the close button
+    loading_popup.protocol("WM_DELETE_WINDOW", lambda: None)
 
-    # Position the window in the center of the root window
-    root.update_idletasks()  # Update "requested size" from geometry manager
+    root.update_idletasks()
     x = root.winfo_x() + (root.winfo_width() // 2) - (300 // 2)
     y = root.winfo_y() + (root.winfo_height() // 2) - (100 // 2)
     loading_popup.geometry(f"300x100+{x}+{y}")
 
-    # Make the window stay on top of the root window
     loading_popup.transient(root)
     loading_popup.grab_set()
 
-    # Set initial base message
     base_message = "Please wait, reading the file"
-
-    # Add a label to display the loading message with dots on a new line
     loading_label = ttk.Label(loading_popup, text=f"{base_message}\n", font=("Calibri", 12, "bold"))
     loading_label.pack(expand=True, pady=20)
 
-    dot_index = 0  # Initialize the dot counter
-    animate_dots()  # Start the animation
-
-    # Disable the main window while loading
+    dot_index = 0
+    animate_dots()
     root.attributes('-disabled', True)
 
-# Function to animate the moving dots
 def animate_dots():
     global dot_index, base_message
     dots = ['.', '..', '...', '']
-    # Update the label text
     loading_label.config(text=f"{base_message}\n{dots[dot_index]}")
-    dot_index = (dot_index + 1) % len(dots)  # Loop through the dots
-    # Update every 500ms (0.5 seconds)
+    dot_index = (dot_index + 1) % len(dots)
     loading_popup.after(500, animate_dots)
 
-# Function to close the loading pop-up
 def close_loading_popup():
     loading_popup.destroy()
-    root.attributes('-disabled', False)  # Re-enable the main window
-    root.focus_force()  # Bring the main window back to focus
+    root.attributes('-disabled', False)
+    root.focus_force()
 
 def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, messages=None):
-    # Update the entries
     auto_doc_ref_entry.config(state=tk.NORMAL)
     auto_doc_ref_entry.delete(0, tk.END)
     auto_doc_ref_entry.insert(0, AutoDocRef)
@@ -2243,55 +2416,36 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, message
 
     clinic_entry.config(state=tk.NORMAL)
     clinic_entry.delete(0, tk.END)
-    if clinic:
-        clinic_entry.insert(0, clinic)
-    else:
-        clinic_entry.insert(0, "N/A")
+    clinic_entry.insert(0, clinic if clinic else "N/A")
     clinic_entry.config(state='readonly')
 
-    # Display the price codes in the result_text, centered
-    result_text.config(state=tk.NORMAL)  # Enable editing temporarily
-    result_text.delete('1.0', tk.END)  # Clear previous content
+    result_text.config(state=tk.NORMAL)
+    result_text.delete('1.0', tk.END)
 
-    # Configure tags
     result_text.tag_configure('center', justify='center')
     result_text.tag_configure('bold', font=('Calibri', 12, 'bold'))
-    result_text.tag_configure('bold', font=('Calibri', 12, 'bold'))
-    # You can adjust font sizes as needed
 
-    # Split the price_codes into lines
     lines = price_codes.split('\n')
-
     for line in lines:
         stripped_line = line.strip()
-        # Check for bold syntax (**text**)
         if stripped_line.startswith('**') and stripped_line.endswith('**'):
             content = stripped_line.strip('*')
             result_text.insert(tk.END, content + '\n', ('center', 'bold'))
-        # Check for italic syntax (*text*)
         elif stripped_line.startswith('*') and stripped_line.endswith('*'):
             content = stripped_line.strip('*')
             result_text.insert(tk.END, content + '\n', ('center', 'bold'))
         else:
             result_text.insert(tk.END, line + '\n', 'center')
 
-    # If there are messages, insert them below the price codes
     if messages:
-        # Add a separator or newline
         result_text.insert(tk.END, "\n\n")
-        # Configure the 'warning' tag for messages (you can adjust the font or color as needed)
         result_text.tag_configure('warning', justify='center', foreground='red', font=('Calibri', 12, 'bold'))
-        # Insert messages with the 'warning' tag
         result_text.insert(tk.END, messages, 'warning')
 
-    # Scroll to the end of the text
     result_text.see(tk.END)
+    result_text.config(state=tk.DISABLED)
 
-    result_text.config(state=tk.DISABLED)  # Disable editing again
-
-# --- Instantiate PdfButtonHandler and Setup GUI ---
-
-# Create an instance of PdfButtonHandler
+# Instantiate PdfButtonHandler
 pdf_handler = PdfButtonHandler(
     root=root,
     result_text=result_text,
@@ -2304,44 +2458,56 @@ pdf_handler = PdfButtonHandler(
     model_id_var=model_id_var
 )
 
-# Create the upload PDF button
-upload_pdf_button = ttk.Button(root, text="Upload PDF", command=pdf_handler.upload_pdf_file)
+upload_pdf_button = ttk.Button(main_tab, text="Upload PDF", command=pdf_handler.upload_pdf_file)
 upload_pdf_button.pack(pady=10)
 
-# Set the button reference in the handler
 pdf_handler.set_upload_pdf_button(upload_pdf_button)
 
-# Create an exit button using ttk.Button
-exit_button = ttk.Button(root, text="Exit", command=root.quit)
+exit_button = ttk.Button(main_tab, text="Exit", command=root.quit)
 exit_button.pack(pady=10)
 
-# Create a bottom frame to hold the theme selection dropdown and version label
-bottom_frame = ttk.Frame(root)
+# The bottom frame for theme selection
+bottom_frame = ttk.Frame(main_tab)
 bottom_frame.pack(side='bottom', fill='x', padx=10, pady=10)
 
-# Create a label and Combobox for theme selection
 theme_label = ttk.Label(bottom_frame, text='Theme:')
 theme_label.pack(side='left', padx=(0, 5))
 
-# Set the theme variable to the selected theme
 theme_var = tk.StringVar(value=selected_theme)
 theme_combobox = ttk.Combobox(
     bottom_frame, textvariable=theme_var, values=theme_list, state='readonly'
 )
 theme_combobox.pack(side='left')
 
-# Add a spacer frame to push the version label to the right
 spacer = ttk.Frame(bottom_frame)
 spacer.pack(side='left', expand=True, fill='x')
 
-# Create a label for the version number using the VERSION variable
 version_label = ttk.Label(
     bottom_frame, text=f"Version {VERSION}", font=("Calibri", 10)
 )
 version_label.pack(side='right')
 
-# Bind the selection change event
 theme_combobox.bind('<<ComboboxSelected>>', change_theme)
+
+# ---------------------------
+# SEARCH WORK ORDERS TAB
+# ---------------------------
+search_tab = create_search_tab(notebook)
+
+# search work orders warning
+# Now bind the event to show the warning upon switching to the Search tab
+def on_tab_selected(event):
+    selected_tab_text = event.widget.tab(event.widget.index("current"), "text")
+    if selected_tab_text == "Search Work Orders":
+        messagebox.showwarning(
+            "Feature WIP",
+            "Warning: The 'Search Work Orders' feature is still a work in progress!"
+        )
+
+notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
+
+# Start the GUI event loop
+root.mainloop()
 
 # Start the GUI event loop
 root.mainloop()
