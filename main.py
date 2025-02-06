@@ -14,6 +14,10 @@ import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
 from collections import defaultdict
 from work_order_util import create_work_order_file
+import matplotlib
+matplotlib.use("TkAgg")
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Version number
 VERSION = "5.1.0-dev"
@@ -2110,6 +2114,85 @@ def create_search_tab(notebook):
 
     return search_tab
 
+def create_analysis_tab(notebook):
+    """
+    Creates a new tab in the provided ttk.Notebook that reads the 'result_logs' folder,
+    aggregates the number of log files per day, and displays a line chart and a bar chart.
+    """
+    analysis_tab = ttk.Frame(notebook)
+    notebook.add(analysis_tab, text="Results Analysis")
+    
+    # Function to get data: count files in each dated folder under result_logs
+    def get_log_data():
+        data = {}
+        result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
+        if os.path.exists(result_logs_folder):
+            # Sort folders to get chronological order (assuming folder names are dates)
+            for folder in sorted(os.listdir(result_logs_folder)):
+                folder_path = os.path.join(result_logs_folder, folder)
+                if os.path.isdir(folder_path):
+                    count = len([f for f in os.listdir(folder_path)
+                                 if os.path.isfile(os.path.join(folder_path, f))])
+                    data[folder] = count
+        return data
+
+    # Get the initial data
+    data = get_log_data()
+    dates = list(data.keys())
+    counts = list(data.values())
+
+    # Create a matplotlib Figure with two subplots (line and bar charts)
+    fig, (ax_line, ax_bar) = plt.subplots(2, 1, figsize=(8, 6))
+    fig.tight_layout(pad=3.0)
+
+    # Plot the line chart
+    ax_line.plot(dates, counts, marker='o', linestyle='-', color='blue')
+    ax_line.set_title("Log Files by Day (Line Chart)")
+    ax_line.set_xlabel("Date")
+    ax_line.set_ylabel("Number of Log Files")
+    ax_line.tick_params(axis='x', rotation=45)
+
+    # Plot the bar chart
+    ax_bar.bar(dates, counts, color='green')
+    ax_bar.set_title("Log Files by Day (Bar Chart)")
+    ax_bar.set_xlabel("Date")
+    ax_bar.set_ylabel("Number of Log Files")
+    ax_bar.tick_params(axis='x', rotation=45)
+
+    # Embed the matplotlib figure in the Tkinter tab
+    canvas = FigureCanvasTkAgg(fig, master=analysis_tab)
+    canvas.draw()
+    canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+    # (Optional) A refresh button to update the charts if new log files are added
+    def refresh_charts():
+        new_data = get_log_data()
+        new_dates = list(new_data.keys())
+        new_counts = list(new_data.values())
+        # Clear the previous plots
+        ax_line.clear()
+        ax_bar.clear()
+
+        # Replot the line chart
+        ax_line.plot(new_dates, new_counts, marker='o', linestyle='-', color='blue')
+        ax_line.set_title("Log Files by Day (Line Chart)")
+        ax_line.set_xlabel("Date")
+        ax_line.set_ylabel("Number of Log Files")
+        ax_line.tick_params(axis='x', rotation=45)
+
+        # Replot the bar chart
+        ax_bar.bar(new_dates, new_counts, color='green')
+        ax_bar.set_title("Log Files by Day (Bar Chart)")
+        ax_bar.set_xlabel("Date")
+        ax_bar.set_ylabel("Number of Log Files")
+        ax_bar.tick_params(axis='x', rotation=45)
+
+        canvas.draw()
+
+    refresh_button = ttk.Button(analysis_tab, text="Refresh", command=refresh_charts)
+    refresh_button.pack(pady=5)
+
+    return analysis_tab
 
 # Define the list of available themes
 theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'simplex', 'vapor']
@@ -2493,6 +2576,10 @@ theme_combobox.bind('<<ComboboxSelected>>', change_theme)
 # SEARCH WORK ORDERS TAB
 # ---------------------------
 search_tab = create_search_tab(notebook)
+# ---------------------------
+# RESULTS ANALYSIS TAB
+# ---------------------------
+analysis_tab = create_analysis_tab(notebook)
 
 # search work orders warning
 # Now bind the event to show the warning upon switching to the Search tab
