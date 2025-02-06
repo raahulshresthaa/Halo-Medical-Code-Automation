@@ -16,7 +16,7 @@ from collections import defaultdict
 from work_order_util import create_work_order_file
 
 # Version number
-VERSION = "5.0.0-alpha"
+VERSION = "5.1.0-dev"
 
 # To fix blurriness on some displays
 try:
