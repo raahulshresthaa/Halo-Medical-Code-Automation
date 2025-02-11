@@ -2618,11 +2618,11 @@ pdf_handler = PdfButtonHandler(
     model_id_var=model_id_var
 )
 
-upload_pdf_button = ttk.Button(main_tab, text="Upload PDF", command=pdf_handler.upload_pdf_file)
-upload_pdf_button.pack(pady=10)
-
 copy_codes_button = ttk.Button(main_tab, text="Copy to Clipboard", command=copy_final_codes)
 copy_codes_button.pack(pady=5)
+
+upload_pdf_button = ttk.Button(main_tab, text="Upload PDF", command=pdf_handler.upload_pdf_file)
+upload_pdf_button.pack(pady=10)
 
 pdf_handler.set_upload_pdf_button(upload_pdf_button)
 
