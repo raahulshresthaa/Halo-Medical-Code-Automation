@@ -297,13 +297,15 @@ class PdfButtonHandler:
             if model_id == 'InsoleReaderFullV3':
                 # Determine form_type based on extracted data
                 form_type = self.determine_form_type(fields_data)
+
+                # If still None, show popup. If 'other', skip the popup and default to 'tci'.
                 if not form_type:
                     query_message = "No form type found in the extracted data. Please raise a query."
-                    self.root.after(0, messagebox.showinfo, "Query", query_message)          
-
-                    # Instead of returning, default to TCI so that we can still generate codes
-                    form_type = 'tci'  
-
+                    self.root.after(0, messagebox.showinfo, "Query", query_message)
+                    form_type = 'tci'
+                elif form_type == 'other':
+                    # If 'insole type other' was present, skip popup & default to TCI (or your chosen fallback).
+                    form_type = 'tci'
 
                 # Sanitize form_type
                 form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
@@ -406,31 +408,42 @@ class PdfButtonHandler:
                 if field_value and str(field_value).lower() not in ['none', 'unselected']:
                     fields_data[name.strip()] = field_value.strip()
         return fields_data
-
+        
     def determine_form_type(self, data):
-        """Determine the form type based on the extracted data."""
-        # Assuming form_type is indicated by keys like 'tci test' or 'simple test' etc.
+        """
+        Determine the form type based on the extracted data.
+        (Now also checks for 'insole type other' if no standard form is found)
+        """
         form_type = None
+
         for key, value in data.items():
-            if key.lower() == 'insole type tci' and value.lower() == 'selected':
+            key_lower = key.lower()
+            value_lower = value.lower()
+            if key_lower == 'insole type tci' and value_lower == 'selected':
                 form_type = 'tci'
                 break
-            elif key.lower() == 'insole type simple' and value.lower() == 'selected':
+            elif key_lower == 'insole type simple' and value_lower == 'selected':
                 form_type = 'simple'
                 break
-            elif key.lower() == 'insole type hand mould' and value.lower() == 'selected':
+            elif key_lower == 'insole type hand mould' and value_lower == 'selected':
                 form_type = 'handmold'
                 break
-            elif key.lower() == 'insole type cradle' and value.lower() == 'selected':
+            elif key_lower == 'insole type cradle' and value_lower == 'selected':
                 form_type = 'cradle'
                 break
-            elif key.lower() == 'afo' and value.lower() == 'selected':
+            elif key_lower == 'afo' and value_lower == 'selected':
                 form_type = 'afo'
                 break
-            elif key.lower() == 'kafo' and value.lower() == 'selected':
+            elif key_lower == 'kafo' and value_lower == 'selected':
                 form_type = 'kafo'
                 break
-            # Add other form types as needed
+
+        # -- New: If we found nothing, check if 'insole type other' has a value
+        if not form_type:
+            other_value = data.get('insole type other', '').strip().lower()
+            if other_value and other_value != 'unselected':
+                # We'll treat "other" as a valid form type and skip the popup
+                form_type = 'other'
         return form_type
 
     def update_loading_message(self, new_message):
