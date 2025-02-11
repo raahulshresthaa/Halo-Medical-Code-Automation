@@ -18,6 +18,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import time
 
 # Version number
 VERSION = "5.1.0-dev"
@@ -2582,6 +2583,10 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, message
     result_text.see(tk.END)
     result_text.config(state=tk.DISABLED)
 
+        # Automatically copy the final codes if auto-watch is enabled
+    if auto_watch_var.get():
+        copy_final_codes()
+
 def copy_final_codes():
     """
     Copies all text from the last occurrence of 'Final Codes'
@@ -2630,6 +2635,76 @@ pdf_handler = PdfButtonHandler(
     display_results=display_results,
     model_id_var=model_id_var
 )
+auto_watch_var = tk.BooleanVar(value=False)
+
+def on_auto_watch_toggled():
+    """When the checkbox is ticked ON, we skip any existing PDFs in Downloads."""
+    if auto_watch_var.get():
+        # user just turned the checkbox ON
+        downloads_folder = os.path.join(os.path.expanduser("~"), "Downloads")
+        if os.path.isdir(downloads_folder):
+            # gather all current .pdf files
+            existing_pdfs = {
+                f for f in os.listdir(downloads_folder)
+                if f.lower().endswith('.pdf')
+            }
+            # mark them as “already seen”
+            known_downloads.update(existing_pdfs)
+
+# We'll track which files we've seen so we don't re-process them
+known_downloads = set()
+def watch_downloads_folder():
+    """Periodically checks the Downloads folder for the newest PDF,
+    and processes it if auto_watch_var is True and it's new."""
+    # Only proceed if the checkbox is enabled
+    if auto_watch_var.get():
+        # Define the path to Downloads (adjust if needed)
+        downloads_folder = os.path.join(os.path.expanduser("~"), "Downloads")
+
+        if os.path.isdir(downloads_folder):
+            # Gather all .pdf files in Downloads
+            pdf_files = [
+                f for f in os.listdir(downloads_folder)
+                if f.lower().endswith('.pdf')
+            ]
+            if pdf_files:
+                # Sort them by last modification time
+                pdf_files.sort(
+                    key=lambda f: os.path.getmtime(os.path.join(downloads_folder, f))
+                )
+                
+                # newest_pdf is last in the list
+                newest_pdf = pdf_files[-1]
+                pdf_path = os.path.join(downloads_folder, newest_pdf)
+
+                # Only process if we haven't seen it before
+                if newest_pdf not in known_downloads:
+                    try:
+                        # Mark it as 'seen' so we don't reprocess
+                        known_downloads.add(newest_pdf)
+
+                        # We'll disable the Upload button so it doesn't conflict
+                        pdf_handler.upload_pdf_button.config(state='disabled')
+                        # Show loading
+                        show_loading_popup()
+                        # Start a thread to process this file
+                        threading.Thread(
+                            target=pdf_handler.process_pdf_and_call_api,
+                            args=(pdf_path,)
+                        ).start()
+                    except Exception as e:
+                        print(f"Error opening new PDF: {pdf_path}, {e}")
+
+    # Schedule the next check in 1 ? seconds
+    root.after(1_000, watch_downloads_folder)
+
+auto_watch_check = ttk.Checkbutton(
+    main_tab,
+    text="Auto-detect new PDF in Downloads (beta)",
+    variable=auto_watch_var,
+    command=on_auto_watch_toggled
+)
+auto_watch_check.pack(pady=5)
 
 copy_codes_button = ttk.Button(main_tab, text="Copy to Clipboard", command=copy_final_codes)
 copy_codes_button.pack(pady=5)
@@ -2686,8 +2761,8 @@ def on_tab_selected(event):
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 
-# Start the GUI event loop
-root.mainloop()
+# Start watching the Downloads folder in the background
+watch_downloads_folder()
 
 # Start the GUI event loop
 root.mainloop()
