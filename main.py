@@ -2569,6 +2569,42 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, message
     result_text.see(tk.END)
     result_text.config(state=tk.DISABLED)
 
+def copy_final_codes():
+    """
+    Copies all text from the last occurrence of 'Final Codes'
+    (case-sensitive) through the end of the result_text widget,
+    and flashes the button instead of showing a popup.
+    """
+    full_text = result_text.get("1.0", tk.END)
+
+    # Find the last occurrence of "Final Codes"
+    last_index = full_text.rfind("Final Codes")
+    if last_index == -1:
+        # No flash or popup – optionally you could flash in a different color or show a brief label
+        return
+
+    # Everything from 'Final Codes' to the end of the text
+    final_codes_text = full_text[last_index:]
+
+    # Copy to clipboard
+    root.clipboard_clear()
+    root.clipboard_append(final_codes_text)
+
+    # Flash the button: create a temporary style with “inverted” colors
+    original_style = copy_codes_button.cget("style")
+    style.configure(
+        "Flash.TButton",
+        background=style.colors.fg,     # or any color you like
+        foreground=style.colors.bg      # or any color you like
+    )
+    copy_codes_button.configure(style="Flash.TButton")
+
+    # Revert after 300ms
+    def revert_style():
+        copy_codes_button.configure(style=original_style)
+
+    root.after(300, revert_style)
+
 # Instantiate PdfButtonHandler
 pdf_handler = PdfButtonHandler(
     root=root,
@@ -2584,6 +2620,9 @@ pdf_handler = PdfButtonHandler(
 
 upload_pdf_button = ttk.Button(main_tab, text="Upload PDF", command=pdf_handler.upload_pdf_file)
 upload_pdf_button.pack(pady=10)
+
+copy_codes_button = ttk.Button(main_tab, text="Copy to Clipboard", command=copy_final_codes)
+copy_codes_button.pack(pady=5)
 
 pdf_handler.set_upload_pdf_button(upload_pdf_button)
 
