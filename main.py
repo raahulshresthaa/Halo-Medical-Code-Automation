@@ -2710,12 +2710,12 @@ copy_codes_button = ttk.Button(main_tab, text="Copy to Clipboard", command=copy_
 copy_codes_button.pack(pady=5)
 
 upload_pdf_button = ttk.Button(main_tab, text="Upload PDF", command=pdf_handler.upload_pdf_file)
-upload_pdf_button.pack(pady=10)
+upload_pdf_button.pack(pady=5)
 
 pdf_handler.set_upload_pdf_button(upload_pdf_button)
 
 exit_button = ttk.Button(main_tab, text="Exit", command=root.quit)
-exit_button.pack(pady=10)
+exit_button.pack(pady=5)
 
 # The bottom frame for theme selection
 bottom_frame = ttk.Frame(main_tab)
