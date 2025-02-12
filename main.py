@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import time
 from analysis_tab import create_analysis_tab
-
+import analysis_tab
 # Version number
 VERSION = "5.1.0-dev"
 
@@ -2388,7 +2388,6 @@ def change_theme(event):
     style.configure("Analysis.TFrame", background=style.colors.bg)
 
 # Then re-draw the chart with new colors
-    analysis_refresh_chart()
 
 # Define the custom font for labels (if not already defined)
 label_font = ('Calibri', 11)
@@ -2747,8 +2746,19 @@ theme_combobox.bind('<<ComboboxSelected>>', change_theme)
 search_tab = create_search_tab(notebook)
 # ---------------------------
 # RESULTS ANALYSIS TAB
-analysis_tab, analysis_refresh_chart = create_analysis_tab(notebook, style)
+analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 
+def toggle_multi_mode():
+    new_state = not analysis_handles["is_multi_mode"]()
+    analysis_handles["set_multi_mode"](new_state)
+    analysis_handles["refresh_chart"]()
+
+toggle_button = ttk.Button(
+    analysis_tab,
+    text="Toggle Multi-Line Mode",
+    command=toggle_multi_mode
+)
+toggle_button.pack(pady=5)
 
 # search work orders warning
 # Now bind the event to show the warning upon switching to the Search tab
