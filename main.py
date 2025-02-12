@@ -1,3 +1,4 @@
+# main.py
 import os
 import openai
 import base64
@@ -19,6 +20,7 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import time
+from analysis_tab import create_analysis_tab
 
 # Version number
 VERSION = "5.1.0-dev"
@@ -2127,7 +2129,6 @@ def create_search_tab(notebook):
     copy_button.pack(side=tk.LEFT, padx=5)
 
     return search_tab
-def create_analysis_tab(notebook):
     """
     Creates a new tab in the provided ttk.Notebook that reads the 'result_logs' folder,
     aggregates the number of log files per day, and displays a line chart.
@@ -2746,8 +2747,8 @@ theme_combobox.bind('<<ComboboxSelected>>', change_theme)
 search_tab = create_search_tab(notebook)
 # ---------------------------
 # RESULTS ANALYSIS TAB
-# ---------------------------
-analysis_tab = create_analysis_tab(notebook)
+analysis_tab, analysis_refresh_chart = create_analysis_tab(notebook, style)
+
 
 # search work orders warning
 # Now bind the event to show the warning upon switching to the Search tab
