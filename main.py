@@ -1179,7 +1179,7 @@ class PdfButtonHandler:
             x += 1
         if content_dict.get('lining to sulcus', '') == 'selected':
             x += 1
-        if content_dict.get('lining to full', '') == 'selected':
+        if content_dict.get('lining full', '') == 'selected':
             x += 1
         if content_dict.get('insole top cover material', '') == 'spenco (green)':
             x += 1
