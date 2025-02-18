@@ -1278,6 +1278,9 @@ def on_tab_selected(event):
             "Feature WIP",
             "Warning: The 'Search Work Orders' feature is still a work in progress!"
         )
+    elif selected_tab_text == "Results Analysis":
+        # Recalculate the analysis tab whenever it is clicked
+        analysis_handles["refresh_chart"]()
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 
