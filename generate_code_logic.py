@@ -582,7 +582,7 @@ def generate_insole_codes(self, content):
         base = content_dict.get('base', '').strip().lower()
         print(f"Base value: '{base}'")  # For debugging
 
-        if content_dict.get('poron', '').lower() == 'selected':
+        if content_dict.get('base poron', '').lower() == 'selected':
             passed_codes['B40B'] += 1
 
         # 2) Otherwise, use the base logic

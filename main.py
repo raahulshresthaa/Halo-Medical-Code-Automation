@@ -643,7 +643,6 @@ def create_search_tab(notebook):
     aggregates the number of log files per day, and displays a line chart.
     The chart’s background (and the tab’s background) follow the current ttkbootstrap theme.
     """
-
     # 1) Create a special style for our analysis frame
     #    This is optional, but it allows us to name it 'Analysis.TFrame' and reconfigure it later.
     style.configure("Analysis.TFrame", background=style.colors.bg)
@@ -842,8 +841,6 @@ def load_icon_image(icon_path, size=(32, 32)):
     except Exception as e:
         messagebox.showerror("Error", f"Error loading icon: {str(e)}")
         return None
-
-# Set up the GUI window with the selected theme
 
 # Initialize TkinterDnD root window
 root = TkinterDnD.Tk()
