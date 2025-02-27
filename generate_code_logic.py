@@ -555,25 +555,64 @@ def generate_insole_codes(self, content):
                 if is_pair:
                     passed_codes['MEDBNS72'] *= 2
                 return 'MEDBNS72' if passed_codes['MEDBNS72'] == 1 else f'MEDBNS72 x{passed_codes["MEDBNS72"]}'
+            
+        # --- Tariff Logic for Other Clinics ---
+        base = content_dict.get('base', '').strip().lower()
 
-        # Tariff checks for other clinics
-        if clinic_name in tariff_tci_clinics:
+        # 1) Tariff Polyprop Clinics
+        if clinic_name in tariff_polyprop_clinics:
+            if base == 'polypropylene':
+                passed_codes['Tariff Polyprop'] += 1
+                if is_pair:
+                    passed_codes['Tariff Polyprop'] *= 2
+                return (
+                    'Tariff Polyprop'
+                    if passed_codes['Tariff Polyprop'] == 1
+                    else f"Tariff Polyprop x{passed_codes['Tariff Polyprop']}"
+                )
+            else:
+                # Fallback to TCI
+                passed_codes['Tariff TCI'] += 1
+                if is_pair:
+                    passed_codes['Tariff TCI'] *= 2
+                return (
+                    'Tariff TCI'
+                    if passed_codes['Tariff TCI'] == 1
+                    else f"Tariff TCI x{passed_codes['Tariff TCI']}"
+                )
+
+        # 2) Tariff Simple Clinics
+        elif clinic_name in tariff_simple_clinics:
+            if insole_type == 'simple':
+                passed_codes['Tariff Simple'] += 1
+                if is_pair:
+                    passed_codes['Tariff Simple'] *= 2
+                return (
+                    'Tariff Simple'
+                    if passed_codes['Tariff Simple'] == 1
+                    else f"Tariff Simple x{passed_codes['Tariff Simple']}"
+                )
+            else:
+                # Fallback to TCI
+                passed_codes['Tariff TCI'] += 1
+                if is_pair:
+                    passed_codes['Tariff TCI'] *= 2
+                return (
+                    'Tariff TCI'
+                    if passed_codes['Tariff TCI'] == 1
+                    else f"Tariff TCI x{passed_codes['Tariff TCI']}"
+                )
+
+        # 3) Tariff TCI Clinics
+        elif clinic_name in tariff_tci_clinics:
             passed_codes['Tariff TCI'] += 1
             if is_pair:
                 passed_codes['Tariff TCI'] *= 2
-            return 'Tariff TCI' if passed_codes['Tariff TCI'] == 1 else 'Tariff TCI x2'
-
-        elif clinic_name in tariff_simple_clinics:
-            passed_codes['Tariff Simple'] += 1
-            if is_pair:
-                passed_codes['Tariff Simple'] *= 2
-            return 'Tariff Simple' if passed_codes['Tariff Simple'] == 1 else f'Tariff Simple x{passed_codes["Tariff Simple"]}'
-
-        elif clinic_name in tariff_polyprop_clinics:
-            passed_codes['Tariff Polyprop'] += 1
-            if is_pair:
-                passed_codes['Tariff Polyprop'] *= 2
-            return 'Tariff Polyprop' if passed_codes['Tariff Polyprop'] == 1 else f'Tariff Polyprop x{passed_codes["Tariff Polyprop"]}'
+            return (
+                'Tariff TCI'
+                if passed_codes['Tariff TCI'] == 1
+                else f"Tariff TCI x{passed_codes['Tariff TCI']}"
+            )
 
         # Normal logic if no immediate tariff matched
         from collections import defaultdict
@@ -872,7 +911,7 @@ def generate_afo_codes(self, content):
             'metatarsal button': 'B41',
             'neuro plate': 'D8/A',
             'toe lift': 'D8/U',
-            'pcro values': 'D8/D'
+            'pcro values': 'D8/B'
         }
 
         for feature, code in pcro_features.items():
