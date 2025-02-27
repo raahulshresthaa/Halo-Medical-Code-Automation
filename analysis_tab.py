@@ -18,7 +18,7 @@ def create_analysis_tab(notebook, style):
 
     style.configure("Analysis.TFrame", background=style.colors.bg)
     analysis_tab = ttk.Frame(notebook, style="Analysis.TFrame")
-    notebook.add(analysis_tab, text="Results Analysis")
+    notebook.add(analysis_tab, text="Usage Analysis")
 
     multi_mode = False
 
