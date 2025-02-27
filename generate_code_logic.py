@@ -539,11 +539,8 @@ def generate_insole_codes(self, content):
             insole_type = 'simple'
         elif content_dict.get('insole type hand mould', '') == 'selected':
             insole_type = 'handmould'
-
+            
         # --- Medway Tariff Logic ---
-        # If clinic is 'medway':
-        # - MEDBNS71 for simple
-        # - MEDBNS72 for others
         if clinic_name == 'medway':
             if insole_type == 'simple':
                 passed_codes['MEDBNS71'] += 1
@@ -555,13 +552,16 @@ def generate_insole_codes(self, content):
                 if is_pair:
                     passed_codes['MEDBNS72'] *= 2
                 return 'MEDBNS72' if passed_codes['MEDBNS72'] == 1 else f'MEDBNS72 x{passed_codes["MEDBNS72"]}'
-            
-        # --- Tariff Logic for Other Clinics ---
+
+        # Now unify the three tariff checks in a single block:
         base = content_dict.get('base', '').strip().lower()
 
-        # 1) Tariff Polyprop Clinics
-        if clinic_name in tariff_polyprop_clinics:
-            if base == 'polypropylene':
+        # Create a combined set of all tariff clinics
+        all_tariff_clinics = set(tariff_polyprop_clinics + tariff_simple_clinics + tariff_tci_clinics)
+
+        if clinic_name in all_tariff_clinics:
+            # 1) If the clinic allows polyprop & base == 'polypropylene'
+            if clinic_name in tariff_polyprop_clinics and base == 'polypropylene':
                 passed_codes['Tariff Polyprop'] += 1
                 if is_pair:
                     passed_codes['Tariff Polyprop'] *= 2
@@ -570,20 +570,9 @@ def generate_insole_codes(self, content):
                     if passed_codes['Tariff Polyprop'] == 1
                     else f"Tariff Polyprop x{passed_codes['Tariff Polyprop']}"
                 )
-            else:
-                # Fallback to TCI
-                passed_codes['Tariff TCI'] += 1
-                if is_pair:
-                    passed_codes['Tariff TCI'] *= 2
-                return (
-                    'Tariff TCI'
-                    if passed_codes['Tariff TCI'] == 1
-                    else f"Tariff TCI x{passed_codes['Tariff TCI']}"
-                )
 
-        # 2) Tariff Simple Clinics
-        elif clinic_name in tariff_simple_clinics:
-            if insole_type == 'simple':
+            # 2) Else if the clinic allows "simple" & insole_type == 'simple'
+            elif clinic_name in tariff_simple_clinics and insole_type == 'simple':
                 passed_codes['Tariff Simple'] += 1
                 if is_pair:
                     passed_codes['Tariff Simple'] *= 2
@@ -592,8 +581,9 @@ def generate_insole_codes(self, content):
                     if passed_codes['Tariff Simple'] == 1
                     else f"Tariff Simple x{passed_codes['Tariff Simple']}"
                 )
-            else:
-                # Fallback to TCI
+
+            # 3) Else if the clinic is in the TCI list
+            elif clinic_name in tariff_tci_clinics:
                 passed_codes['Tariff TCI'] += 1
                 if is_pair:
                     passed_codes['Tariff TCI'] *= 2
@@ -603,16 +593,10 @@ def generate_insole_codes(self, content):
                     else f"Tariff TCI x{passed_codes['Tariff TCI']}"
                 )
 
-        # 3) Tariff TCI Clinics
-        elif clinic_name in tariff_tci_clinics:
-            passed_codes['Tariff TCI'] += 1
-            if is_pair:
-                passed_codes['Tariff TCI'] *= 2
-            return (
-                'Tariff TCI'
-                if passed_codes['Tariff TCI'] == 1
-                else f"Tariff TCI x{passed_codes['Tariff TCI']}"
-            )
+        # If we get here, then the clinic isn't in any of those lists, or no conditions matched:
+        # Continue with your normal "base logic" here.
+        #
+        # (the rest of your normal logic follows...)
 
         # Normal logic if no immediate tariff matched
         from collections import defaultdict
