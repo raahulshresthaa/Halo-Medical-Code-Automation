@@ -5,7 +5,6 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import ttkbootstrap as ttk
-
 import mplcursors  # for hover tooltips
 
 def create_analysis_tab(notebook, style):
@@ -14,12 +13,17 @@ def create_analysis_tab(notebook, style):
     the 'result_logs' folder, and displays EITHER:
       - Single-line total logs/day,
       - OR 4 separate lines (insole, bespoke, afo, modular).
+
+    It offers a "Toggle Multi-Line Mode" button that switches between
+    the two modes. The background and colors follow the current ttkbootstrap theme.
     """
 
+    # 1) Create the main tab frame
     style.configure("Analysis.TFrame", background=style.colors.bg)
     analysis_tab = ttk.Frame(notebook, style="Analysis.TFrame")
     notebook.add(analysis_tab, text="Results Analysis")
 
+    # 2) Internal state: single-line vs multi-line
     multi_mode = False
 
     def set_multi_mode(value: bool):
@@ -29,10 +33,15 @@ def create_analysis_tab(notebook, style):
     def is_multi_mode():
         return multi_mode
 
-    # Single-line data gatherer
+    # 3) Data gatherers
+
     def get_log_data_single():
         """
-        Returns { 'YYYY-MM-DD': count_of_files_that_day }
+        Returns a dict:
+            {
+                'YYYY-MM-DD': total_file_count_that_day,
+                ...
+            }
         """
         data = {}
         result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
@@ -47,10 +56,18 @@ def create_analysis_tab(notebook, style):
                     data[folder] = count
         return data
 
-    # Multi-line data gatherer
     def get_log_data_multi():
         """
-        Returns { 'YYYY-MM-DD': {'insole': x, 'bespoke': y, 'afo': z, 'modular': w} }
+        Returns a dict:
+            {
+                'YYYY-MM-DD': {
+                    'insole': x,
+                    'bespoke': y,
+                    'afo': z,
+                    'modular': w
+                },
+                ...
+            }
         """
         data = {}
         result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
@@ -73,52 +90,61 @@ def create_analysis_tab(notebook, style):
                     data[folder] = cat_counts
         return data
 
-    # Create figure + axes
+    # 4) Create the Matplotlib figure/axes
     fig, ax = plt.subplots(figsize=(8, 6))
     fig.patch.set_facecolor(style.colors.bg)
     ax.set_facecolor(style.colors.bg)
 
-    canvas = FigureCanvasTkAgg(fig, master=analysis_tab)
+    # 5) Create two frames: controls (top), chart (bottom)
+    controls_frame = ttk.Frame(analysis_tab)
+    controls_frame.pack(side='top', fill='x')
+
+    chart_frame = ttk.Frame(analysis_tab)
+    chart_frame.pack(side='top', fill='both', expand=True)
+
+    # 6) Place the figure canvas inside the chart frame
+    canvas = FigureCanvasTkAgg(fig, master=chart_frame)
     canvas.draw()
     canvas.get_tk_widget().pack(side='top', fill='both', expand=True)
 
-    # We'll store metadata for each plotted line in a dict: {line_object: (dates_list, counts_list)}
+    # 7) We keep a dictionary for line hover info: {line: (dates_str, counts_list)}
     lines_metadata = {}
 
     def refresh_chart():
+        """
+        Clears and redraws the chart in either single-line or multi-line mode.
+        Also sets up hover annotations via mplcursors.
+        """
         ax.clear()
 
-        # Re-apply background
+        # Re-apply the theme background
         fig.patch.set_facecolor(style.colors.bg)
         ax.set_facecolor(style.colors.bg)
 
-        lines_metadata.clear()  # so we don’t accumulate from previous calls
+        lines_metadata.clear()
         plotted_lines = []
 
+        # Single-line mode or multi-line mode?
         if not is_multi_mode():
-            # Single-line mode
+            # --- Single-Line Mode ---
             data_dict = get_log_data_single()
-            # Sort by date string, or keep as-is
             dates_str = list(data_dict.keys())
             counts = [data_dict[d] for d in dates_str]
 
-            # We'll plot integer x-values: 0..N-1
             xvals = range(len(dates_str))
-
             (line,) = ax.plot(xvals, counts, marker='o', linestyle='-',
                               color=style.colors.primary, label='All Logs')
             plotted_lines.append(line)
 
-            # Save metadata so we can lookup date_str in the hover
+            # Store metadata for hover
             lines_metadata[line] = (dates_str, counts)
 
             ax.set_title("Total Logs by Day", color=style.colors.fg)
 
         else:
-            # Multi-line mode
+            # --- Multi-Line Mode ---
             data_dict = get_log_data_multi()
             dates_str = list(data_dict.keys())
-            # e.g. ['2023-06-01', '2023-06-02', ...]
 
             # Build arrays for each category
             insole_counts  = []
@@ -133,7 +159,6 @@ def create_analysis_tab(notebook, style):
                 afo_counts.append(cat_counts['afo'])
                 modular_counts.append(cat_counts['modular'])
 
-            # xvals is 0..N-1
             xvals = range(len(dates_str))
 
             line1, = ax.plot(xvals, insole_counts,  marker='o', linestyle='-',
@@ -147,7 +172,7 @@ def create_analysis_tab(notebook, style):
 
             plotted_lines.extend([line1, line2, line3, line4])
 
-            # Save for hover
+            # Save hover info
             lines_metadata[line1] = (dates_str, insole_counts)
             lines_metadata[line2] = (dates_str, bespoke_counts)
             lines_metadata[line3] = (dates_str, afo_counts)
@@ -156,41 +181,45 @@ def create_analysis_tab(notebook, style):
             ax.set_title("Logs by Day (Multi-Line)", color=style.colors.fg)
             ax.legend(facecolor=style.colors.bg, edgecolor=style.colors.fg)
 
-        # Hide x-axis ticks so it appears blank
-        ax.set_xticks([])
-
-        # Y-axis style
+        # Customize x/y axes
+        ax.set_xticks([])  # Hide x-axis ticks for a clean look
         ax.set_ylabel("Number of Log Files", color=style.colors.fg)
         ax.tick_params(axis='y', colors=style.colors.fg)
         for spine in ax.spines.values():
             spine.set_edgecolor(style.colors.fg)
 
-        # Use mplcursors with snap=True to ensure picking exact data points
+        # Enable hover annotations
         cursor = mplcursors.cursor(plotted_lines, hover=True)
 
         @cursor.connect("add")
         def on_add(sel):
-            # The line object that was hovered
             line = sel.artist
-            # Our stored (dates_str, counts) for that line
-            dates_str, counts = lines_metadata[line]
+            dates, counts = lines_metadata[line]
+            i = int(round(sel.index))
+            i = max(0, min(i, len(dates) - 1))
 
-            # This is the "index" along that line, usually a float
-            i = sel.index
-
-            # We'll round/clamp it to an integer in [0, len-1]
-            i_rounded = int(round(i))
-            i_rounded = max(0, min(i_rounded, len(dates_str) - 1))
-
-            # Build the annotation text
-            date_label  = dates_str[i_rounded]
-            count_label = counts[i_rounded]
-            sel.annotation.set_text(f"{date_label}\nCount: {count_label}")
+            sel.annotation.set_text(f"{dates[i]}\nCount: {counts[i]}")
 
         canvas.draw()
 
+    # 8) Define the toggle function for the button
+    def toggle_multi_mode():
+        new_state = not is_multi_mode()
+        set_multi_mode(new_state)
+        refresh_chart()
+
+    # 9) Create the toggle button in the controls frame
+    toggle_button = ttk.Button(
+        controls_frame,
+        text="Toggle Multi-Line Mode",
+        command=toggle_multi_mode
+    )
+    toggle_button.pack(side='left', padx=5, pady=5)
+
+    # 10) Initial draw
     refresh_chart()
 
+    # Return the tab widget and a dictionary of useful callbacks
     return analysis_tab, {
         'refresh_chart': refresh_chart,
         'set_multi_mode': set_multi_mode,
