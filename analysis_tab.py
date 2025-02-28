@@ -132,8 +132,14 @@ def create_analysis_tab(notebook, style):
             counts = [data_dict[d] for d in dates_str]
 
             xvals = range(len(dates_str))
-            (line,) = ax.plot(xvals, counts, marker='o', linestyle='-',
-                              color=style.colors.primary, label='All Logs')
+            (line,) = ax.plot(
+                xvals,
+                counts,
+                marker='o',
+                linestyle='-',
+                color=style.colors.primary,
+                label='All Logs'  # <--- We give this line a label
+            )
             plotted_lines.append(line)
 
             # Store metadata for hover
@@ -161,14 +167,39 @@ def create_analysis_tab(notebook, style):
 
             xvals = range(len(dates_str))
 
-            line1, = ax.plot(xvals, insole_counts,  marker='o', linestyle='-',
-                             color=style.colors.primary, label='Insole')
-            line2, = ax.plot(xvals, bespoke_counts, marker='o', linestyle='-',
-                             color=style.colors.info,    label='Bespoke')
-            line3, = ax.plot(xvals, afo_counts,     marker='o', linestyle='-',
-                             color=style.colors.warning, label='AFO')
-            line4, = ax.plot(xvals, modular_counts, marker='o', linestyle='-',
-                             color=style.colors.success, label='Modular')
+            # PLOT each category with a label and a color from the theme
+            line1, = ax.plot(
+                xvals,
+                insole_counts,
+                marker='o',
+                linestyle='-',
+                color=style.colors.primary,
+                label='Insole'
+            )
+            line2, = ax.plot(
+                xvals,
+                bespoke_counts,
+                marker='o',
+                linestyle='-',
+                color=style.colors.info,
+                label='Bespoke'
+            )
+            line3, = ax.plot(
+                xvals,
+                afo_counts,
+                marker='o',
+                linestyle='-',
+                color=style.colors.warning,
+                label='AFO'
+            )
+            line4, = ax.plot(
+                xvals,
+                modular_counts,
+                marker='o',
+                linestyle='-',
+                color=style.colors.success,
+                label='Modular'
+            )
 
             plotted_lines.extend([line1, line2, line3, line4])
 
@@ -179,7 +210,6 @@ def create_analysis_tab(notebook, style):
             lines_metadata[line4] = (dates_str, modular_counts)
 
             ax.set_title("Logs by Day (Multi-Line)", color=style.colors.fg)
-            ax.legend(facecolor=style.colors.bg, edgecolor=style.colors.fg)
 
         # Customize x/y axes
         ax.set_xticks([])  # Hide x-axis ticks for a clean look
@@ -187,6 +217,14 @@ def create_analysis_tab(notebook, style):
         ax.tick_params(axis='y', colors=style.colors.fg)
         for spine in ax.spines.values():
             spine.set_edgecolor(style.colors.fg)
+
+        # If there are labeled lines, draw the legend using the theme
+        if plotted_lines:
+            legend = ax.legend(facecolor=style.colors.bg, edgecolor=style.colors.fg)
+            # Make legend text match the theme's foreground color
+            if legend:
+                for text in legend.get_texts():
+                    text.set_color(style.colors.fg)
 
         # Enable hover annotations
         cursor = mplcursors.cursor(plotted_lines, hover=True)
