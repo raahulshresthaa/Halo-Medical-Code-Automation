@@ -1065,7 +1065,7 @@ def on_auto_watch_toggled():
     global downloads_username  # Access the global username variable
     if auto_watch_var.get():  # If the checkbox is checked (turned on)
         # Prompt user for their username
-        username = simpledialog.askstring("Username Required", "Please enter your username for the Downloads folder path:")
+        username = simpledialog.askstring("Username Required", "Please enter your first.lastname for the Downloads folder path:")
         if username:  # If a username was provided
             downloads_username = username  # Store it globally
             # Construct the network path using the username
