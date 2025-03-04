@@ -29,7 +29,7 @@ from generate_code_logic import (
     generate_modular_codes
 )
 # Version number
-VERSION = "5.1.0-alpha"
+VERSION = "5.1.1-alpha"
 
 # To fix blurriness on some displays
 try:
@@ -1057,50 +1057,54 @@ def on_auto_watch_toggled():
 
 # We'll track which files we've seen so we don't re-process them
 known_downloads = set()
+# Store the username for the network Downloads folder path, initially None
+downloads_username = None
+
+def on_auto_watch_toggled():
+    """Handle the auto-watch checkbox toggle: prompt for username when enabled."""
+    global downloads_username  # Access the global username variable
+    if auto_watch_var.get():  # If the checkbox is checked (turned on)
+        # Prompt user for their username
+        username = simpledialog.askstring("Username Required", "Please enter your username for the Downloads folder path:")
+        if username:  # If a username was provided
+            downloads_username = username  # Store it globally
+            # Construct the network path using the username
+            downloads_folder = f"\\\\halo-dc\\folderredirects$\\{downloads_username}\\Downloads"
+            if os.path.isdir(downloads_folder):  # Check if the folder exists
+                # Gather all current PDFs to mark them as already seen
+                existing_pdfs = {
+                    f for f in os.listdir(downloads_folder)
+                    if f.lower().endswith('.pdf')
+                }
+                known_downloads.update(existing_pdfs)  # Update the set of known files
+            else:  # If the folder doesn’t exist
+                messagebox.showwarning("Warning", f"Downloads folder not found at {downloads_folder}")
+                auto_watch_var.set(False)  # Disable auto-watch
+        else:  # If user cancels or enters nothing
+            messagebox.showwarning("Warning", "Username is required for auto-watch feature.")
+            auto_watch_var.set(False)  # Disable auto-watch
+
 def watch_downloads_folder():
-    """Periodically checks the Downloads folder for the newest PDF,
-    and processes it if auto_watch_var is True and it's new."""
-    # Only proceed if the checkbox is enabled
-    if auto_watch_var.get():
-        # Define the path to Downloads (adjust if needed)
-        downloads_folder = os.path.join(os.path.expanduser("~"), "Downloads")
-
-        if os.path.isdir(downloads_folder):
-            # Gather all .pdf files in Downloads
-            pdf_files = [
-                f for f in os.listdir(downloads_folder)
-                if f.lower().endswith('.pdf')
-            ]
-            if pdf_files:
-                # Sort them by last modification time
-                pdf_files.sort(
-                    key=lambda f: os.path.getmtime(os.path.join(downloads_folder, f))
-                )
-                
-                # newest_pdf is last in the list
-                newest_pdf = pdf_files[-1]
-                pdf_path = os.path.join(downloads_folder, newest_pdf)
-
-                # Only process if we haven't seen it before
-                if newest_pdf not in known_downloads:
-                    try:
-                        # Mark it as 'seen' so we don't reprocess
-                        known_downloads.add(newest_pdf)
-
-                        # We'll disable the Upload button so it doesn't conflict
-                        pdf_handler.upload_pdf_button.config(state='disabled')
-                        # Show loading
-                        show_loading_popup()
-                        # Start a thread to process this file
-                        threading.Thread(
-                            target=pdf_handler.process_pdf_and_call_api,
-                            args=(pdf_path,)
-                        ).start()
-                    except Exception as e:
-                        print(f"Error opening new PDF: {pdf_path}, {e}")
-
-    # Schedule the next check in 1 ? seconds
-    root.after(1_000, watch_downloads_folder)
+    if auto_watch_var.get() and downloads_username is not None:  # Only proceed if username is set
+        downloads_folder = f"\\\\halo-dc\\folderredirects$\\{downloads_username}\\Downloads"
+        print(f"Checking folder: {downloads_folder}")
+        if not os.path.exists(downloads_folder):
+            print(f"Folder does not exist: {downloads_folder}")
+            messagebox.showwarning("Warning", f"Downloads folder not found at {downloads_folder}")
+            return
+        pdf_files = [f for f in os.listdir(downloads_folder) if f.lower().endswith('.pdf')]
+        print(f"Found {len(pdf_files)} PDF files")
+        if pdf_files:
+            pdf_files.sort(key=lambda f: os.path.getmtime(os.path.join(downloads_folder, f)))
+            newest_pdf = pdf_files[-1]
+            pdf_path = os.path.join(downloads_folder, newest_pdf)
+            if newest_pdf not in known_downloads:
+                print(f"Processing new PDF: {pdf_path}")
+                known_downloads.add(newest_pdf)
+                pdf_handler.show_loading_popup()
+                pdf_handler.upload_pdf_button.config(state='disabled')
+                threading.Thread(target=pdf_handler.process_pdf_and_call_api, args=(pdf_path,)).start()
+    root.after(1000, watch_downloads_folder)
 
 auto_watch_check = ttk.Checkbutton(
     main_tab,
