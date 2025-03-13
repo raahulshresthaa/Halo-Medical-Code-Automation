@@ -56,7 +56,7 @@ def build_work_ticket(form_type, data_dict):
         data_dict (dict): Dictionary containing form data
     
     Returns:
-        str: A multi-line string with instructions for each stage
+        dict: A dictionary mapping stages to their instructions
     """
     # Validate form_type
     if form_type not in BASE_INSTRUCTIONS:
@@ -111,21 +111,7 @@ def build_work_ticket(form_type, data_dict):
         if data_dict.get("urgent", "").lower() == "selected":
             stages["Finishing Room"].append("Prioritize finishing due to URGENT status.")
 
-    # Build the final text output
-    lines = []
-    lines.append("WORK TICKET INSTRUCTIONS\n")
-    for stage_name in ["Model Room", "Pattern Room", "Clicking/Closing Room", 
-                       "Finishing Room", "Insole Room", "AFTER FITTING"]:
-        lines.append(f"{stage_name.upper()}:")
-        instructions = stages.get(stage_name, [])
-        if instructions:
-            for step in instructions:
-                lines.append(f"  - {step}")
-        else:
-            lines.append("  (No instructions for this stage)")
-        lines.append("")  # Blank line after each stage
-
-    return "\n".join(lines)
+    return stages
 
 def create_work_order_file(auto_doc_ref, form_type, data_dict=None):
     """
@@ -157,20 +143,25 @@ def create_work_order_file(auto_doc_ref, form_type, data_dict=None):
     file_name = f"work_order_{safe_ref}_{form_type}.csv"
     file_path = os.path.join(date_folder_path, file_name)
 
-    # Build the ticket if data_dict is provided; otherwise produce an empty string
+    # Build the ticket if data_dict is provided; otherwise use empty instructions
     if data_dict:
-        work_ticket_text = build_work_ticket(form_type, data_dict)
+        stages = build_work_ticket(form_type, data_dict)
     else:
-        work_ticket_text = ""
+        stages = {stage: [] for stage in ["Model Room", "Pattern Room", "Clicking/Closing Room", 
+                                         "Finishing Room", "Insole Room", "AFTER FITTING"]}
 
-    # Split the full text into individual lines
-    lines_to_write = work_ticket_text.split("\n") if work_ticket_text else []
-
-    # Write out a CSV (one line of text per row)
+    # Write out a CSV with stages in column A and instructions in column D
     with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile)
-        for line in lines_to_write:
-            writer.writerow([line])
+        # Write each stage and its instructions
+        for stage_name in ["Model Room", "Pattern Room", "Clicking/Closing Room", 
+                           "Finishing Room", "Insole Room", "AFTER FITTING"]:
+            instructions = stages.get(stage_name, [])
+            if instructions:
+                for instruction in instructions:
+                    writer.writerow([stage_name, "", "", instruction])
+            else:
+                writer.writerow([stage_name, "", "", "(No instructions for this stage)"])
 
     # Print the file path
     print(f"Work order CSV created at: {file_path}")
