@@ -499,7 +499,7 @@ def create_search_tab(notebook):
     Creates a new tab in the provided ttk.Notebook for searching
     through the 'work_orders' folder by AutoDocRef (case-insensitive),
     with smaller scrollable listbox and text box,
-    automatic searching on each keystroke,
+    automatic searching with debouncing on each keystroke,
     and double-click to open files.
     """
     import tkinter as tk
@@ -553,37 +553,46 @@ def create_search_tab(notebook):
     text_scrollbar.config(command=file_content_text.yview)
 
     # ------------- Functions -------------
+    search_after_id = None
+
     def live_search():
-        """Perform a case-insensitive search each time the user types in the entry."""
+        """Handle keystrokes with debouncing for live search."""
+        nonlocal search_after_id
+        query = search_entry.get().strip()
+        if not query:
+            # Immediately clear the listbox if the query is empty
+            results_listbox.delete(0, tk.END)
+            file_content_text.config(state='normal')
+            file_content_text.delete('1.0', tk.END)
+            file_content_text.config(state='disabled')
+            if search_after_id:
+                root.after_cancel(search_after_id)
+            search_after_id = None
+        else:
+            # Cancel any pending search and schedule a new one
+            if search_after_id:
+                root.after_cancel(search_after_id)
+            search_after_id = root.after(300, perform_search)
+
+    def perform_search():
+        """Perform the case-insensitive search after the debounce delay."""
         results_listbox.delete(0, tk.END)
         file_content_text.config(state='normal')
         file_content_text.delete('1.0', tk.END)
         file_content_text.config(state='disabled')
 
-        query = search_entry.get().strip()
-        if not query:
-            return  # If empty, just clear out (no message box)
-        
+        query = search_entry.get().strip().lower()
         work_orders_folder = os.path.join(os.getcwd(), 'work_orders')
         if not os.path.exists(work_orders_folder):
-            return  # Silently ignore or show an error if you prefer
+            return
 
-        matches = []
         for date_folder in os.listdir(work_orders_folder):
             date_path = os.path.join(work_orders_folder, date_folder)
             if os.path.isdir(date_path):
                 for filename in os.listdir(date_path):
-                    if query.lower() in filename.lower():
+                    if query in filename.lower():
                         full_path = os.path.join(date_path, filename)
-                        matches.append(full_path)
-
-        if matches:
-            for m in matches:
-                results_listbox.insert(tk.END, m)
-        else:
-            # If you’d prefer not to show a message on every keystroke,
-            # you can remove or comment out this messagebox
-            pass
+                        results_listbox.insert(tk.END, full_path)
 
     def open_file():
         """Open the selected file from the listbox and display its contents."""
