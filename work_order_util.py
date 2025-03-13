@@ -3,39 +3,39 @@ import os
 import datetime
 import csv
 
-# Define base instructions for each form_type and stage
+# Define base instructions for each form_type and new stages
 BASE_INSTRUCTIONS = {
     "insole": {
-        "Modelling": ["Prepare insole base"],
-        "Shaping": ["Shape according to standard insole template"],
-        "Additions/Modification": [],
-        "Sticking": [],
-        "Finishing": [],
-        "Quality Check": ["Check insole dimensions"]
+        "Model Room": ["Prepare insole model"],
+        "Pattern Room": ["Create pattern for insole"],
+        "Clicking/Closing Room": [],
+        "Finishing Room": [],
+        "Insole Room": ["Assemble insole components"],
+        "AFTER FITTING": ["Verify insole fit"]
     },
     "modular": {
-        "Modelling": ["Assemble modular components"],
-        "Shaping": ["Adjust modular parts as needed"],
-        "Additions/Modification": [],
-        "Sticking": [],
-        "Finishing": [],
-        "Quality Check": ["Verify modular assembly"]
+        "Model Room": ["Prepare modular model"],
+        "Pattern Room": ["Create pattern for modular parts"],
+        "Clicking/Closing Room": [],
+        "Finishing Room": [],
+        "Insole Room": ["Assemble modular components"],
+        "AFTER FITTING": ["Verify modular assembly"]
     },
     "bespoke": {
-        "Modelling": ["Custom modelling for bespoke item"],
-        "Shaping": ["Shape according to bespoke specifications"],
-        "Additions/Modification": [],
-        "Sticking": [],
-        "Finishing": [],
-        "Quality Check": ["Ensure bespoke requirements are met"]
+        "Model Room": ["Prepare bespoke model"],
+        "Pattern Room": ["Create pattern for bespoke item"],
+        "Clicking/Closing Room": [],
+        "Finishing Room": [],
+        "Insole Room": ["Assemble bespoke components"],
+        "AFTER FITTING": ["Verify bespoke fit"]
     },
     "afo": {
-        "Modelling": ["Prepare AFO base"],
-        "Shaping": ["Shape AFO according to patient measurements"],
-        "Additions/Modification": [],
-        "Sticking": [],
-        "Finishing": [],
-        "Quality Check": ["Check AFO fit and function"]
+        "Model Room": ["Prepare AFO model"],
+        "Pattern Room": ["Create pattern for AFO"],
+        "Clicking/Closing Room": [],
+        "Finishing Room": [],
+        "Insole Room": ["Assemble AFO components"],
+        "AFTER FITTING": ["Verify AFO fit"]
     }
 }
 
@@ -64,61 +64,58 @@ def build_work_ticket(form_type, data_dict):
     
     # Initialize stages with base instructions for the given form_type
     stages = {stage: list(BASE_INSTRUCTIONS[form_type].get(stage, [])) 
-              for stage in ["Modelling", "Shaping", "Additions/Modification", 
-                            "Sticking", "Finishing", "Quality Check"]}
+              for stage in ["Model Room", "Pattern Room", "Clicking/Closing Room", 
+                            "Finishing Room", "Insole Room", "AFTER FITTING"]}
 
     # Add specific instructions based on form_type and data_dict
     if form_type == "insole":
         if data_dict.get("base carbon fibre", "").lower() == "selected":
-            stages["Modelling"].append("Use carbon fibre as the base material.")
+            stages["Model Room"].append("Use carbon fibre as the base material.")
         if data_dict.get("base poron", "").lower() == "selected":
-            stages["Modelling"].append("Use poron for the base material.")
+            stages["Model Room"].append("Use poron for the base material.")
         if data_dict.get("insole length three quarters", "").lower() == "selected":
-            stages["Shaping"].append("Trim the insole to three-quarters length.")
+            stages["Pattern Room"].append("Trim the pattern to three-quarters length.")
         if data_dict.get("heel cup medium", "").lower() == "selected":
-            stages["Shaping"].append("Form a medium heel cup.")
+            stages["Pattern Room"].append("Form a medium heel cup in pattern.")
         if data_dict.get("left 1st met head", "").lower() == "selected":
-            stages["Additions/Modification"].append("Add left 1st met head relief.")
+            stages["Clicking/Closing Room"].append("Add left 1st met head relief during clicking.")
         top_cover = data_dict.get("insole top cover material", "").lower()
         if "spenco (green)" in top_cover:
-            stages["Sticking"].append("Adhere Spenco (Green) top cover.")
+            stages["Finishing Room"].append("Adhere Spenco (Green) top cover.")
         if data_dict.get("urgent", "").lower() == "selected":
-            stages["Finishing"].append("Prioritize finishing due to URGENT status.")
+            stages["Finishing Room"].append("Prioritize finishing due to URGENT status.")
         if "fascial accommodation" in "\n".join(data_dict.keys()).lower():
-            stages["Quality Check"].append("Check fascial accommodation is correct.")
+            stages["AFTER FITTING"].append("Check fascial accommodation is correct.")
 
     elif form_type == "modular":
-        # Example logic for modular (customize as needed)
         if data_dict.get("modular component A", "").lower() == "selected":
-            stages["Modelling"].append("Include component A in the assembly.")
+            stages["Model Room"].append("Include component A in the model.")
         if data_dict.get("adjustable joint", "").lower() == "selected":
-            stages["Shaping"].append("Incorporate adjustable joint.")
+            stages["Pattern Room"].append("Incorporate adjustable joint in pattern.")
         if data_dict.get("urgent", "").lower() == "selected":
-            stages["Finishing"].append("Prioritize finishing due to URGENT status.")
+            stages["Finishing Room"].append("Prioritize finishing due to URGENT status.")
 
     elif form_type == "bespoke":
-        # Example logic for bespoke (customize as needed)
         if data_dict.get("custom design", "").lower() == "selected":
-            stages["Modelling"].append("Follow custom design specifications.")
+            stages["Model Room"].append("Follow custom design specifications.")
         if data_dict.get("client measurements", ""):
-            stages["Shaping"].append(f"Shape to client measurements: {data_dict['client measurements']}")
+            stages["Pattern Room"].append(f"Shape pattern to client measurements: {data_dict['client measurements']}")
         if data_dict.get("urgent", "").lower() == "selected":
-            stages["Finishing"].append("Prioritize finishing due to URGENT status.")
+            stages["Finishing Room"].append("Prioritize finishing due to URGENT status.")
 
     elif form_type == "afo":
-        # Example logic for AFO (customize as needed)
         if data_dict.get("afo type", "").lower() == "solid":
-            stages["Modelling"].append("Use solid AFO design.")
+            stages["Model Room"].append("Use solid AFO design.")
         if data_dict.get("patient height", ""):
-            stages["Shaping"].append(f"Adjust height to {data_dict['patient height']} cm.")
+            stages["Pattern Room"].append(f"Adjust pattern height to {data_dict['patient height']} cm.")
         if data_dict.get("urgent", "").lower() == "selected":
-            stages["Finishing"].append("Prioritize finishing due to URGENT status.")
+            stages["Finishing Room"].append("Prioritize finishing due to URGENT status.")
 
     # Build the final text output
     lines = []
     lines.append("WORK TICKET INSTRUCTIONS\n")
-    for stage_name in ["Modelling", "Shaping", "Additions/Modification", 
-                       "Sticking", "Finishing", "Quality Check"]:
+    for stage_name in ["Model Room", "Pattern Room", "Clicking/Closing Room", 
+                       "Finishing Room", "Insole Room", "AFTER FITTING"]:
         lines.append(f"{stage_name.upper()}:")
         instructions = stages.get(stage_name, [])
         if instructions:
