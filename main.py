@@ -29,7 +29,7 @@ from generate_code_logic import (
     generate_modular_codes
 )
 # Version number
-VERSION = "5.2.0-dev"
+VERSION = "5.1.2-dev"
 
 # To fix blurriness on some displays
 try:
