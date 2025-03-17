@@ -49,7 +49,7 @@ def get_form_type_from_model_id(model_id):
     based on the provided model_id.
     """
     mapping = {
-        'InsoleReaderFullV5': 'insole',
+        'InsoleFullReaderV5': 'insole',
         'AfoReaderV7': 'afo',
         'BespokeReaderFullV4': 'bespoke',
         'ModularReaderFullV3': 'modular'
@@ -171,7 +171,7 @@ class PdfButtonHandler:
 
             # Determine if we should check for base and special base
             model_id = self.model_id_var.get()
-            if model_id == 'InsoleReaderFullV5':
+            if model_id == 'InsoleFullReaderV5':
                 # Check for base in the extracted content and get the query message
                 query_message = self.check_for_base(content)
 
@@ -303,7 +303,7 @@ class PdfButtonHandler:
             # Logic file mapping based on model_id and form_type
             logic_file_name = None
 
-            if model_id == 'InsoleReaderFullV5':
+            if model_id == 'InsoleFullReaderV5':
                 # Determine form_type based on extracted data
                 form_type = self.determine_form_type(fields_data)
 
@@ -891,12 +891,12 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 
 # Model IDs
 model_ids = {
-    'Insoles': 'InsoleReaderFullV5',
+    'Insoles': 'InsoleFullReaderV5',
     'AFOs': 'AfoReaderV7',
     'Bespoke': 'BespokeReaderFullV4',
     'Modular': 'ModularReaderFullV3'
 }
-model_id_var = tk.StringVar(value='InsoleReaderFullV5')
+model_id_var = tk.StringVar(value='InsoleFullReaderV5')
 
 model_frame = ttk.Frame(main_tab)
 model_frame.pack(pady=10)
