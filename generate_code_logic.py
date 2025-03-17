@@ -8,9 +8,9 @@ def generate_bespoke_codes(self, content):
         passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
         # Define lists of clinics for each insole tariff code (edit these lists as needed)
-        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington']
-        tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington']
-        tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington']
+        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough']
+        tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough']
+        tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough']
 
         # Define list of clinics for Tariff Bespoke
         tariff_bespoke_clinics = ['bury cdc', 'east surrey', 'sudbury', 'w.s.h', 'ws', 'wsh']
@@ -509,11 +509,11 @@ def generate_insole_codes(self, content):
 
         # Define lists of clinics for each insole tariff code (edit these lists as needed)
         tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington']
+                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough']
         tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington']
+                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough']
         tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington']
+                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough']
 
         # Split the content into lines
         lines = content.split('\n')
@@ -1095,11 +1095,11 @@ def generate_modular_codes(self, content):
 
         # Define lists of clinics for each insole tariff code (edit these lists as needed)
         tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington']
+                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough']
         tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington']
+                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough']
         tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington']
+                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough']
 
         # Define list of clinics for Tariff Modular
         tariff_modular_clinics = ['bury cdc', 'east surrey', 'sudbury', 'w.s.h', 'ws', 'wsh']
