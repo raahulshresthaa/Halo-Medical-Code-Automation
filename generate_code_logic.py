@@ -393,27 +393,21 @@ def generate_bespoke_codes(self, content):
                 passed_codes['A40'] += 1
 
         # Insole coding section - MATHS!
-        x = 0
+        x = 1
         if insole_type == 'simple':
             x -= 1
-        if content_dict.get('lining to shell', '') == 'selected':
-            x += 1
-        if content_dict.get('lining to sulcus', '') == 'selected':
-            x += 1
-        if content_dict.get('lining full', '') == 'selected':
-            x += 1
         if content_dict.get('insole top cover material', '') == 'spenco (green)':
             x += 1
         if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
             x += 1
 
-        if x >= 2:
+        if x >= 3:
             code = 'A44C' if insole_type == 'cradle' else 'B55C'
             passed_codes[code] += 1
-        elif x == 1:
+        elif x == 2:
             code = 'A44B' if insole_type == 'cradle' else 'B55B'
             passed_codes[code] += 1
-        elif x == 0:
+        elif x == 1:
             code = 'A44A' if insole_type == 'cradle' else 'B55A'
             passed_codes[code] += 1
 
@@ -709,26 +703,30 @@ def generate_insole_codes(self, content):
                     print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
 
         # Insole coding - MATHS
-        x = 0
+        x = 1
+        print(f"Initial value: x = {x}")
+
         if insole_type == 'simple':
             x -= 1
-        if content_dict.get('lining to shell', '') == 'selected':
-            x += 1
-        if content_dict.get('lining to sulcus', '') == 'selected':
-            x += 1
-        if content_dict.get('lining full', '') == 'selected':
-            x += 1
+            print(f"After insole_type 'simple' check: x = {x}")
+
         if content_dict.get('insole top cover material', '') == 'spenco (green)':
             x += 1
+            print(f"After spenco check: x = {x}")
+
         if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
             x += 1
+            print(f"After base check: x = {x}")
 
-        if x >= 2:
+        if x >= 3:
             passed_codes['B55C'] += 1
-        elif x == 1:
+            print(f"x >= 3, incrementing B55C: {passed_codes['B55C']}")
+        elif x == 2:
             passed_codes['B55B'] += 1
-        elif x == 0:
+            print(f"x == 2, incrementing B55B: {passed_codes['B55B']}")
+        elif x == 1:
             passed_codes['B55A'] += 1
+            print(f"x == 1, incrementing B55A: {passed_codes['B55A']}")
 
         # CLCH Simple Logic
         if clinic_name == 'clch' and insole_type == 'simple':
@@ -1436,27 +1434,21 @@ def generate_modular_codes(self, content):
                 passed_codes[code] += 1
 
         # Insole coding section - MATHS!
-        x = 0
+        x = 1
         if insole_type == 'simple':
             x -= 1
-        if content_dict.get('lining to shell', '') == 'selected':
-            x += 1
-        if content_dict.get('lining to sulcus', '') == 'selected':
-            x += 1
-        if content_dict.get('lining full', '') == 'selected':
-            x += 1
         if content_dict.get('insole top cover material', '') == 'spenco (green)':
             x += 1
         if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
             x += 1
 
-        if x >= 2:
+        if x >= 3:
             code = 'A44C' if insole_type == 'cradle' else 'B55C'
             passed_codes[code] += 1
-        elif x == 1:
+        elif x == 2:
             code = 'A44B' if insole_type == 'cradle' else 'B55B'
             passed_codes[code] += 1
-        elif x == 0:
+        elif x == 1:
             code = 'A44A' if insole_type == 'cradle' else 'B55A'
             passed_codes[code] += 1
 
