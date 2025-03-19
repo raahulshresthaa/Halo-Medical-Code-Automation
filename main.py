@@ -38,6 +38,10 @@ try:
 except Exception:
     pass
 
+# Add this new function here
+def on_closing():
+    exit_button.invoke()
+
 # Azure Form Recognizer imports
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.formrecognizer import DocumentAnalysisClient
@@ -1134,6 +1138,9 @@ pdf_handler.set_upload_pdf_button(upload_pdf_button)
 exit_button = ttk.Button(main_tab, text="Exit", command=root.quit)
 exit_button.pack(pady=5)
 
+# Make 'X' button trigger the same action as the "Exit" button
+root.protocol("WM_DELETE_WINDOW", on_closing)
+
 # The bottom frame for theme selection
 bottom_frame = ttk.Frame(main_tab)
 bottom_frame.pack(side='bottom', fill='x', padx=10, pady=10)
@@ -1165,18 +1172,6 @@ search_tab = create_search_tab(notebook)
 # RESULTS ANALYSIS TAB
 analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 
-"""def toggle_multi_mode():
-    new_state = not analysis_handles["is_multi_mode"]()
-    analysis_handles["set_multi_mode"](new_state)
-    analysis_handles["refresh_chart"]()
-
-toggle_button = ttk.Button(
-    analysis_tab,
-    text="Toggle Multi-Line Mode",
-    command=toggle_multi_mode
-)
-toggle_button.pack(pady=5)
-"""
 # search work orders warning
 # Now bind the event to show the warning upon switching to the Search tab
 def on_tab_selected(event):
