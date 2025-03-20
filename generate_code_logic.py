@@ -396,6 +396,12 @@ def generate_bespoke_codes(self, content):
         x = 1
         if insole_type == 'simple':
             x -= 1
+        if content_dict.get('lining to shell', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to sulcus', '') == 'selected':
+            x += 1
+        if content_dict.get('lining full', '') == 'selected':
+            x += 1
         if content_dict.get('insole top cover material', '') == 'spenco (green)':
             x += 1
         if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
@@ -709,6 +715,13 @@ def generate_insole_codes(self, content):
         if insole_type == 'simple':
             x -= 1
             print(f"After insole_type 'simple' check: x = {x}")
+
+        if content_dict.get('lining to shell', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to sulcus', '') == 'selected':
+            x += 1
+        if content_dict.get('lining full', '') == 'selected':
+            x += 1
 
         if content_dict.get('insole top cover material', '') == 'spenco (green)':
             x += 1
@@ -1437,6 +1450,12 @@ def generate_modular_codes(self, content):
         x = 1
         if insole_type == 'simple':
             x -= 1
+        if content_dict.get('lining to shell', '') == 'selected':
+            x += 1
+        if content_dict.get('lining to sulcus', '') == 'selected':
+            x += 1
+        if content_dict.get('lining full', '') == 'selected':
+            x += 1
         if content_dict.get('insole top cover material', '') == 'spenco (green)':
             x += 1
         if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
