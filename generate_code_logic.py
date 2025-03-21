@@ -396,6 +396,8 @@ def generate_bespoke_codes(self, content):
         x = 1
         if insole_type == 'simple':
             x -= 1
+        if content_dict.get('insole top cover length', '') == 'not required':
+            x -= 1
         if content_dict.get('lining to shell', '') == 'selected':
             x += 1
         if content_dict.get('lining to sulcus', '') == 'selected':
@@ -715,7 +717,8 @@ def generate_insole_codes(self, content):
         if insole_type == 'simple':
             x -= 1
             print(f"After insole_type 'simple' check: x = {x}")
-
+        if content_dict.get('insole top cover length', '') == 'not required':
+            x -= 1
         if content_dict.get('lining to shell', '') == 'selected':
             x += 1
         if content_dict.get('lining to sulcus', '') == 'selected':
@@ -1449,6 +1452,8 @@ def generate_modular_codes(self, content):
         # Insole coding section - MATHS!
         x = 1
         if insole_type == 'simple':
+            x -= 1
+        if content_dict.get('insole top cover length', '') == 'not required':
             x -= 1
         if content_dict.get('lining to shell', '') == 'selected':
             x += 1
