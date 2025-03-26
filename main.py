@@ -29,7 +29,7 @@ from generate_code_logic import (
     generate_modular_codes
 )
 # Version number
-VERSION = "5.1.3-alpha"
+VERSION = "5.1.4-alpha"
 
 # To fix blurriness on some displays
 try:
@@ -300,6 +300,9 @@ class PdfButtonHandler:
             content = self.parse_extracted_data(fields_data)
             print(f"Extracted content: {content}")
 
+            if model_id == 'InsoleFullReaderV6' and self.is_carbon_selected(content):
+                self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
+
             # Extract AutoDocRef and Clinic from the data
             AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
             clinic = fields_data.get('Clinic', 'N/A')
@@ -496,6 +499,10 @@ class PdfButtonHandler:
             return query_message
         else:
             return None  # No query needed
+
+    def is_carbon_selected(self, content):
+        content_lower = content.lower()
+        return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
 # --- Main Application Setup ---
 def create_search_tab(notebook):
