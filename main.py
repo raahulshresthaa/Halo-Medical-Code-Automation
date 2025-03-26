@@ -298,10 +298,13 @@ class PdfButtonHandler:
 
             # Convert extracted data to text format
             content = self.parse_extracted_data(fields_data)
-            print(f"Extracted content: {content}")
+            print(f"Extracted content:\n{content}")
 
-            if model_id == 'InsoleFullReaderV6' and self.is_carbon_selected(content):
-                self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
+            if model_id == 'InsoleFullReaderV6':
+                if "insole type other" in fields_data:
+                    self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
+                if self.is_carbon_selected(content):
+                    self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
 
             # Extract AutoDocRef and Clinic from the data
             AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
