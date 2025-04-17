@@ -29,7 +29,7 @@ from generate_code_logic import (
     generate_modular_codes
 )
 # Version number
-VERSION = "5.1.1-alpha"
+VERSION = "5.1.6-alpha"
 
 # To fix blurriness on some displays
 try:
@@ -37,6 +37,10 @@ try:
     windll.shcore.SetProcessDpiAwareness(1)
 except Exception:
     pass
+
+# Add this new function here
+def on_closing():
+    exit_button.invoke()
 
 # Azure Form Recognizer imports
 from azure.core.credentials import AzureKeyCredential
@@ -49,7 +53,7 @@ def get_form_type_from_model_id(model_id):
     based on the provided model_id.
     """
     mapping = {
-        'InsoleReaderFullV3': 'insole',
+        'InsoleFullReaderV6': 'insole',
         'AfoReaderV7': 'afo',
         'BespokeReaderFullV4': 'bespoke',
         'ModularReaderFullV3': 'modular'
@@ -171,7 +175,7 @@ class PdfButtonHandler:
 
             # Determine if we should check for base and special base
             model_id = self.model_id_var.get()
-            if model_id == 'InsoleReaderFullV3':
+            if model_id == 'InsoleFullReaderV6':
                 # Check for base in the extracted content and get the query message
                 query_message = self.check_for_base(content)
 
@@ -294,7 +298,13 @@ class PdfButtonHandler:
 
             # Convert extracted data to text format
             content = self.parse_extracted_data(fields_data)
-            print(f"Extracted content: {content}")
+            print(f"Extracted content:\n{content}")
+
+            if model_id == 'InsoleFullReaderV6':
+                if "insole type other" in fields_data:
+                    self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
+                if self.is_carbon_selected(content):
+                    self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
 
             # Extract AutoDocRef and Clinic from the data
             AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
@@ -303,7 +313,7 @@ class PdfButtonHandler:
             # Logic file mapping based on model_id and form_type
             logic_file_name = None
 
-            if model_id == 'InsoleReaderFullV3':
+            if model_id == 'InsoleFullReaderV6':
                 # Determine form_type based on extracted data
                 form_type = self.determine_form_type(fields_data)
 
@@ -493,13 +503,17 @@ class PdfButtonHandler:
         else:
             return None  # No query needed
 
+    def is_carbon_selected(self, content):
+        content_lower = content.lower()
+        return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
+
 # --- Main Application Setup ---
 def create_search_tab(notebook):
     """
     Creates a new tab in the provided ttk.Notebook for searching
     through the 'work_orders' folder by AutoDocRef (case-insensitive),
     with smaller scrollable listbox and text box,
-    automatic searching on each keystroke,
+    automatic searching with debouncing on each keystroke,
     and double-click to open files.
     """
     import tkinter as tk
@@ -553,37 +567,46 @@ def create_search_tab(notebook):
     text_scrollbar.config(command=file_content_text.yview)
 
     # ------------- Functions -------------
+    search_after_id = None
+
     def live_search():
-        """Perform a case-insensitive search each time the user types in the entry."""
+        """Handle keystrokes with debouncing for live search."""
+        nonlocal search_after_id
+        query = search_entry.get().strip()
+        if not query:
+            # Immediately clear the listbox if the query is empty
+            results_listbox.delete(0, tk.END)
+            file_content_text.config(state='normal')
+            file_content_text.delete('1.0', tk.END)
+            file_content_text.config(state='disabled')
+            if search_after_id:
+                root.after_cancel(search_after_id)
+            search_after_id = None
+        else:
+            # Cancel any pending search and schedule a new one
+            if search_after_id:
+                root.after_cancel(search_after_id)
+            search_after_id = root.after(300, perform_search)
+
+    def perform_search():
+        """Perform the case-insensitive search after the debounce delay."""
         results_listbox.delete(0, tk.END)
         file_content_text.config(state='normal')
         file_content_text.delete('1.0', tk.END)
         file_content_text.config(state='disabled')
 
-        query = search_entry.get().strip()
-        if not query:
-            return  # If empty, just clear out (no message box)
-        
+        query = search_entry.get().strip().lower()
         work_orders_folder = os.path.join(os.getcwd(), 'work_orders')
         if not os.path.exists(work_orders_folder):
-            return  # Silently ignore or show an error if you prefer
+            return
 
-        matches = []
         for date_folder in os.listdir(work_orders_folder):
             date_path = os.path.join(work_orders_folder, date_folder)
             if os.path.isdir(date_path):
                 for filename in os.listdir(date_path):
-                    if query.lower() in filename.lower():
+                    if query in filename.lower():
                         full_path = os.path.join(date_path, filename)
-                        matches.append(full_path)
-
-        if matches:
-            for m in matches:
-                results_listbox.insert(tk.END, m)
-        else:
-            # If you’d prefer not to show a message on every keystroke,
-            # you can remove or comment out this messagebox
-            pass
+                        results_listbox.insert(tk.END, full_path)
 
     def open_file():
         """Open the selected file from the listbox and display its contents."""
@@ -882,12 +905,12 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 
 # Model IDs
 model_ids = {
-    'Insoles': 'InsoleReaderFullV3',
+    'Insoles': 'InsoleFullReaderV6',
     'AFOs': 'AfoReaderV7',
     'Bespoke': 'BespokeReaderFullV4',
     'Modular': 'ModularReaderFullV3'
 }
-model_id_var = tk.StringVar(value='InsoleReaderFullV3')
+model_id_var = tk.StringVar(value='InsoleFullReaderV6')
 
 model_frame = ttk.Frame(main_tab)
 model_frame.pack(pady=10)
@@ -1125,6 +1148,9 @@ pdf_handler.set_upload_pdf_button(upload_pdf_button)
 exit_button = ttk.Button(main_tab, text="Exit", command=root.quit)
 exit_button.pack(pady=5)
 
+# Make 'X' button trigger the same action as the "Exit" button
+root.protocol("WM_DELETE_WINDOW", on_closing)
+
 # The bottom frame for theme selection
 bottom_frame = ttk.Frame(main_tab)
 bottom_frame.pack(side='bottom', fill='x', padx=10, pady=10)
@@ -1156,18 +1182,6 @@ search_tab = create_search_tab(notebook)
 # RESULTS ANALYSIS TAB
 analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 
-"""def toggle_multi_mode():
-    new_state = not analysis_handles["is_multi_mode"]()
-    analysis_handles["set_multi_mode"](new_state)
-    analysis_handles["refresh_chart"]()
-
-toggle_button = ttk.Button(
-    analysis_tab,
-    text="Toggle Multi-Line Mode",
-    command=toggle_multi_mode
-)
-toggle_button.pack(pady=5)
-"""
 # search work orders warning
 # Now bind the event to show the warning upon switching to the Search tab
 def on_tab_selected(event):

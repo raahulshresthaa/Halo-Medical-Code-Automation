@@ -6,3 +6,4 @@ If velcro code is passed and any of the following styles are selected then multi
 And if it is any of these following styles multiply by 3: Bumper, Whitby, Perth, Elgin
 ie if you have velcro x2, and have to multiply by 2 then it would be velcro x4
 However do not add a velcro code if the clinic is medway
+Then if it says 'make x2' (or something similar) in either the cradle details section or the additional information section in which case double all of the codes ie b55b x2 would go to b55b x4,
