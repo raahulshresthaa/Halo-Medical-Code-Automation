@@ -1,16 +1,50 @@
-#NavApi.py
 import requests
 from requests_ntlm import HttpNtlmAuth
 import json
 import urllib.parse
 import re
 import datetime
+import os
+import base64
+import tkinter as tk
+from tkinter import simpledialog, messagebox
+import sys
 
-# --- NAV Configuration ---
-nav_url = "http://HALO-APP-UKUS.HALO.local:7048/TEST_DynamicsNAV110/ODataV4"
-company = "TEST Medfac UK"
-username = "HALO\\hamish.donaldson"
-password = "" #add password here
+def read_nav_config_file(filename, config_name):
+    file_path = os.path.join(os.getcwd(), filename)
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, 'rb') as f:
+                encoded_data = f.read()
+                decoded_data = base64.b64decode(encoded_data).decode('utf-8').strip()
+            if not decoded_data:
+                raise ValueError(f"{config_name} file is empty.")
+            return decoded_data
+        except Exception as e:
+            messagebox.showerror("Error", f"Error reading {config_name}: {str(e)}")
+            sys.exit()
+    else:
+        # Prompt the user to enter the config value
+        value = simpledialog.askstring(f"{config_name} Required", f"Please enter your {config_name}:")
+        if not value:
+            messagebox.showerror("Error", f"No {config_name} entered. The application will exit.")
+            sys.exit()
+        # Write the new config value to the file
+        write_nav_config_file(filename, value.strip())
+        return value.strip()
+
+def write_nav_config_file(filename, value):
+    file_path = os.path.join(os.getcwd(), filename)
+    encoded_data = base64.b64encode(value.encode('utf-8'))
+    with open(file_path, 'wb') as f:
+        f.write(encoded_data)
+    print(f"{filename} saved to {file_path}")
+
+# Read NAV configuration from files
+nav_url = read_nav_config_file('nav_url.txt', 'NAV URL')
+company = read_nav_config_file('nav_company.txt', 'NAV Company')
+username = read_nav_config_file('nav_username.txt', 'NAV Username')
+password = read_nav_config_file('nav_password.txt', 'NAV Password')
 
 encoded_company = urllib.parse.quote(company)
 headers = {
