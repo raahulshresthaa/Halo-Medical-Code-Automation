@@ -47,6 +47,14 @@ company = read_nav_config_file('nav_company.txt', 'NAV Company')
 username = read_nav_config_file('nav_username.txt', 'NAV Username')
 password = read_nav_config_file('nav_password.txt', 'NAV Password')
 
+#For debugging connection issues with authorisation 
+"""print(f"NAV URL: {nav_url}")
+print(f"repr(NAV URL): {repr(nav_url)}")
+print(f"Company: {company}")
+print(f"repr(Company): {repr(company)}")
+print(repr(username))  
+print(repr(password))  """
+
 encoded_company = urllib.parse.quote(company)
 headers = {
     "Content-Type": "application/json",
@@ -63,6 +71,8 @@ def create_sales_order(sell_to_customer_no):
     if response.status_code != 200:
         print("❌ Failed to get last SOAI order number")
         print(response.status_code, response.text)
+        print(f"Status Code: {response.status_code}")
+        print(f"Response Text: {response.text}")
         return False
     
     last_soai = response.json()['value'][0]['No']
@@ -169,5 +179,5 @@ def create_sales_order(sell_to_customer_no):
                 print(json.dumps(response.json(), indent=4))
             except:
                 print(response.text)
-    
+
     return True
