@@ -94,16 +94,16 @@ def create_sales_order(sell_to_customer_no):
     order_data = {
         "No": next_no,
         "Sell_to_Customer_No": sell_to_customer_no,
-        "Order_Date": "2025-04-16",
-        "Posting_Date": "2025-04-16",
-        "Document_Date": "2025-04-16",
-        "External_Document_No": external_doc_no,
-        "Order_Category_Code": "MILLED INSOLES",
-        "Prescriber": "GB-CONT02946",
-        "Send_For": "Send for Finish",
-        "Supporting_Items_Arrived_Date": today,
-        "PO_Requested_Date": today,
-        "PO_Requested_Date": today
+        "Original_Order_Date": "2025-04-16",#creation date
+        "Order_Date": "2025-04-16", # system date ie today
+        "Document_Date": "2025-04-16", #system date again
+        "Order_Category_Code": "MILLED INSOLES", # form type - adjust later after insoles 
+        "Prescriber": "GB-CONT02946", # clincian name map
+        "Send_For": "Send for Finish", 
+        "Supporting_Items_Arrived_Date": today, # only test env
+        "PO_Requested_Date": today, # only test env
+        "PO_Requested_Date": today # only test env
+        #patient name = patient name from azure
     }
     
     post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
@@ -120,7 +120,7 @@ def create_sales_order(sell_to_customer_no):
     medical_details = [
         {
             "Operation": "Model Room",
-            "Medical_Detail_Text": "Tes for Fin"
+            "Medical_Detail_Text": "Tes for Fin" 
         },
         {
             "Operation": "Pattern Room",
@@ -153,14 +153,15 @@ def create_sales_order(sell_to_customer_no):
                 print(response.text)
     
     # --- Step 5: Add Sales Order Lines ---
+    
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
-    item_nos = ["B54A", "B54C", "B55A"]
+    item_nos = ["B54A", "B54C", "B55A"] # will need to mapped in a database 
     print(f"📦 Adding {len(item_nos)} Sales Order Line(s) to: {next_no}")
     base_line_no = 10000
     
     for i, item_no in enumerate(item_nos):
         line_data = {
-            "Document_Type": "Order",
+            "Document_Type": "Order", 
             "Document_No": next_no,
             "Line_No": base_line_no + i * 10000 * 2, # needs to be x2 since the description runs across 2 lines
             "Type": "Item",
