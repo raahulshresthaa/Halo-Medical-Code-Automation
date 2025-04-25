@@ -116,10 +116,10 @@ def create_sales_order(sell_to_customer_no):
         print(create_response.status_code, create_response.text)
         return False
     
-    # --- Step 4: Add Medical Details ---
+    # --- Step 4: Add Medical Details ---   (work ticket) 
     medical_details = [
-        {
-            "Operation": "Model Room",
+        { 
+            "Operation": "Model Room", #dump azure data under "Operation": "Special Instruction"
             "Medical_Detail_Text": "Tes for Fin" 
         },
         {
