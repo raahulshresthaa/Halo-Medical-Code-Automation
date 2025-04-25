@@ -10,6 +10,7 @@ from PIL import Image, ImageTk
 import datetime
 import threading
 import sys
+import sqlite3
 # Import TkinterDnD for drag-and-drop functionality
 import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -178,7 +179,6 @@ class PdfButtonHandler:
             if model_id == 'InsoleFullReaderV6':
                 # Check for base in the extracted content and get the query message
                 query_message = self.check_for_base(content)
-
             else:
                 query_message = None
 
@@ -193,6 +193,25 @@ class PdfButtonHandler:
 
             # Write the price codes, auto doc reference, clinic, Azure data, and messages to the log file
             self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
+
+            # Query the database for Sell_to_Customer_No based on clinic
+            db_path = os.path.join(os.getcwd(), 'databases', 'sales_orders.db')
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT Sell_to_Customer_No FROM sales_orders WHERE Docuware_Clinic_Name = ?", (clinic,))
+            result = cursor.fetchone()
+            conn.close()
+
+            if result:
+                customer_no = result[0]
+                from NavApi import create_sales_order
+                success = create_sales_order(customer_no)
+                if success:
+                    print("Sales order created successfully.")
+                else:
+                    print("Failed to create sales order.")
+            else:
+                self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nKick this to data upload for manual review.")
 
         except Exception as e:
             # Show error message in the main thread
