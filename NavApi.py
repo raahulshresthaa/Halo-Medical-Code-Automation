@@ -62,7 +62,7 @@ headers = {
 }
 auth = HttpNtlmAuth(username, password)
 
-def create_sales_order(sell_to_customer_no):
+def create_sales_order(sell_to_customer_no, prescriber):
     # --- Step 1: Get last SOAI number ---
     filter_soai = "$filter=startswith(No,'GB-SOAI')&$orderby=No desc&$top=1"
     get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soai}"
@@ -71,8 +71,6 @@ def create_sales_order(sell_to_customer_no):
     if response.status_code != 200:
         print("❌ Failed to get last SOAI order number")
         print(response.status_code, response.text)
-        print(f"Status Code: {response.status_code}")
-        print(f"Response Text: {response.text}")
         return False
     
     last_soai = response.json()['value'][0]['No']
@@ -94,16 +92,16 @@ def create_sales_order(sell_to_customer_no):
     order_data = {
         "No": next_no,
         "Sell_to_Customer_No": sell_to_customer_no,
-        "Original_Order_Date": "2025-04-16",#creation date
-        "Order_Date": "2025-04-16", # system date ie today
-        "Document_Date": "2025-04-16", #system date again
-        "Order_Category_Code": "MILLED INSOLES", # form type - adjust later after insoles 
-        "Prescriber": "GB-CONT02946", # clincian name map
-        "Send_For": "Send for Finish", 
-        "Supporting_Items_Arrived_Date": today, # only test env
-        "PO_Requested_Date": today, # only test env
-        "PO_Requested_Date": today # only test env
-        #patient name = patient name from azure
+        "Original_Order_Date": "2025-04-16",  # creation date
+        "Order_Date": "2025-04-16",  # system date ie today
+        "Document_Date": "2025-04-16",  # system date again
+        "Order_Category_Code": "MILLED INSOLES",  # form type - adjust later after insoles
+        "Prescriber": prescriber,  # use the passed prescriber
+        "Send_For": "Send for Finish",
+        "Supporting_Items_Arrived_Date": today,  # only test env
+        "PO_Requested_Date": today,  # only test env
+        # Removed duplicate "PO_Requested_Date"
+        # patient name = patient name from azure
     }
     
     post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"

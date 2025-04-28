@@ -194,24 +194,54 @@ class PdfButtonHandler:
             # Write the price codes, auto doc reference, clinic, Azure data, and messages to the log file
             self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
 
+            # Extract clinician from content
+            clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
+            if clinician_line:
+                clinician = clinician_line.split(':', 1)[1].strip()
+            else:
+                clinician = None
+
             # Query the database for Sell_to_Customer_No based on clinic
             db_path = os.path.join(os.getcwd(), 'databases', 'sales_orders.db')
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT Sell_to_Customer_No FROM sales_orders WHERE Docuware_Clinic_Name = ?", (clinic,))
-            result = cursor.fetchone()
+            clinic_result = cursor.fetchone()
             conn.close()
 
-            if result:
-                customer_no = result[0]
+            if clinic_result:
+                customer_no = clinic_result[0]
+            else:
+                customer_no = None
+                self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nKick this to data upload for manual review.")
+
+            # Query the database for NAV Contact No based on clinician
+            if clinician:
+                clinician_db_path = os.path.join(os.getcwd(), 'databases', 'clinician_nav_contacts.db')
+                conn = sqlite3.connect(clinician_db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
+                clinician_result = cursor.fetchone()
+                conn.close()
+
+                if clinician_result:
+                    prescriber = clinician_result[0]
+                    print(f"Clinician Number: {prescriber}")
+                else:
+                    prescriber = None
+                    self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Please Kick to data upload for manual upload.")
+            else:
+                prescriber = None
+                self.root.after(0, messagebox.showinfo, "Clinician Not Found", "Clinician field not found in the extracted data.")
+
+            # Only proceed if both customer_no and prescriber are found
+            if customer_no and prescriber:
                 from NavApi import create_sales_order
-                success = create_sales_order(customer_no)
+                success = create_sales_order(customer_no, prescriber)
                 if success:
                     print("Sales order created successfully.")
                 else:
                     print("Failed to create sales order.")
-            else:
-                self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nKick this to data upload for manual review.")
 
         except Exception as e:
             # Show error message in the main thread
