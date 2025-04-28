@@ -102,6 +102,7 @@ def create_sales_order(sell_to_customer_no, prescriber):
         "PO_Requested_Date": today,  # only test env
         # Removed duplicate "PO_Requested_Date"
         # patient name = patient name from azure
+        # requested delivery date = order date +14 days 
     }
     
     post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
