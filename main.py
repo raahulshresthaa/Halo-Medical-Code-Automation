@@ -29,6 +29,10 @@ from generate_code_logic import (
     generate_afo_codes,
     generate_modular_codes
 )
+from NavApi import create_sales_order
+import messagebox
+
+
 # Version number
 VERSION = "6.0.0-alpha"
 
@@ -173,7 +177,6 @@ class PdfButtonHandler:
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
             # Check for base in the extracted content if using InsoleFullReaderV7
-            model_id = self.model_id_var.get()
             if model_id == 'InsoleFullReaderV7':
                 query_message = self.check_for_base(content)
             else:
@@ -193,7 +196,7 @@ class PdfButtonHandler:
             clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
             clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
 
-            # Get the script's directory
+            # Get the script's directory (assuming main.py is in the project root)
             script_dir = os.path.dirname(os.path.abspath(__file__))
             print(f"Script directory: {script_dir}")
 
@@ -214,7 +217,7 @@ class PdfButtonHandler:
             if not customer_no:
                 self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nKick this to data upload for manual review.")
 
-            # Query the clinician_contacts database
+            # Query the clinician_contacts database using a similar path
             if clinician:
                 clinician_db_path = os.path.join(script_dir, 'databases', 'clinician_nav_contacts.db')
                 print(f"Clinician database path: {clinician_db_path}")
@@ -239,7 +242,6 @@ class PdfButtonHandler:
 
             # Create sales order if both customer_no and prescriber are found
             if customer_no and prescriber:
-                from NavApi import create_sales_order
                 success = create_sales_order(customer_no, prescriber)
                 print("Sales order created successfully." if success else "Failed to create sales order.")
 
