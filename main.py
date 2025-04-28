@@ -54,7 +54,7 @@ def get_form_type_from_model_id(model_id):
     based on the provided model_id.
     """
     mapping = {
-        'InsoleFullReaderV6': 'insole',
+        'InsoleFullReaderV7': 'insole',
         'AfoReaderV7': 'afo',
         'BespokeReaderFullV4': 'bespoke',
         'ModularReaderFullV3': 'modular'
@@ -176,7 +176,7 @@ class PdfButtonHandler:
 
             # Determine if we should check for base and special base
             model_id = self.model_id_var.get()
-            if model_id == 'InsoleFullReaderV6':
+            if model_id == 'InsoleFullReaderV7':
                 # Check for base in the extracted content and get the query message
                 query_message = self.check_for_base(content)
             else:
@@ -319,7 +319,7 @@ class PdfButtonHandler:
             content = self.parse_extracted_data(fields_data)
             print(f"Extracted content:\n{content}")
 
-            if model_id == 'InsoleFullReaderV6':
+            if model_id == 'InsoleFullReaderV7':
                 if "insole type other" in fields_data:
                     self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
                 if self.is_carbon_selected(content):
@@ -332,7 +332,7 @@ class PdfButtonHandler:
             # Logic file mapping based on model_id and form_type
             logic_file_name = None
 
-            if model_id == 'InsoleFullReaderV6':
+            if model_id == 'InsoleFullReaderV7':
                 # Determine form_type based on extracted data
                 form_type = self.determine_form_type(fields_data)
 
@@ -924,12 +924,12 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 
 # Model IDs
 model_ids = {
-    'Insoles': 'InsoleFullReaderV6',
+    'Insoles': 'InsoleFullReaderV7',
     'AFOs': 'AfoReaderV7',
     'Bespoke': 'BespokeReaderFullV4',
     'Modular': 'ModularReaderFullV3'
 }
-model_id_var = tk.StringVar(value='InsoleFullReaderV6')
+model_id_var = tk.StringVar(value='InsoleFullReaderV7')
 
 model_frame = ttk.Frame(main_tab)
 model_frame.pack(pady=10)
