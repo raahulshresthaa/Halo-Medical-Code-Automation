@@ -92,6 +92,7 @@ def create_sales_order(sell_to_customer_no, prescriber):
         "Send_For": "Send for Finish",
         "Supporting_Items_Arrived_Date": today,  # only test env
         "PO_Requested_Date": today,  # only test env
+        # requested delivery date = order date +14 days 
     }
     
     post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
