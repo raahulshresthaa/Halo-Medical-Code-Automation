@@ -163,8 +163,6 @@ class PdfButtonHandler:
         try:
             # Get the price codes by sending the content, logic, and file context to OpenAI
             price_codes = self.get_price_codes_from_content(content, logic_content)
-
-            # Debug print to check the content of price_codes
             print(f"Price codes received: {price_codes}")
 
             model_id = self.model_id_var.get()
@@ -174,94 +172,81 @@ class PdfButtonHandler:
             current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-            # Determine if we should check for base and special base
+            # Check for base in the extracted content if using InsoleFullReaderV7
             model_id = self.model_id_var.get()
             if model_id == 'InsoleFullReaderV7':
-                # Check for base in the extracted content and get the query message
                 query_message = self.check_for_base(content)
             else:
                 query_message = None
 
             # Combine all messages
-            messages = []
-            if query_message:
-                messages.append(query_message)
+            messages = [query_message] if query_message else []
             combined_messages = '\n'.join(messages) if messages else None
 
-            # Update the GUI with the results (must be done in the main thread)
+            # Update the GUI with the results
             self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes, combined_messages)
 
-            # Write the price codes, auto doc reference, clinic, Azure data, and messages to the log file
+            # Write to the log file
             self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
 
             # Extract clinician from content
             clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
-            if clinician_line:
-                clinician = clinician_line.split(':', 1)[1].strip()
-            else:
-                clinician = None
+            clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
 
             # Get the script's directory
             script_dir = os.path.dirname(os.path.abspath(__file__))
             print(f"Script directory: {script_dir}")
 
-            # Query the database for Sell_to_Customer_No based on clinic
+            # Query the sales_orders database
             db_path = os.path.join(script_dir, 'databases', 'sales_orders.db')
             print(f"Sales orders database path: {db_path}")
             if not os.path.exists(db_path):
-                print(f"Error: Sales orders database file not found at {db_path}")
-                raise FileNotFoundError(f"Sales orders database file not found at {db_path}")
+                error_msg = f"Error: Sales orders database file not found at {db_path}"
+                print(error_msg)
+                raise FileNotFoundError(error_msg)
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT Sell_to_Customer_No FROM sales_orders WHERE Docuware_Clinic_Name = ?", (clinic,))
             clinic_result = cursor.fetchone()
             conn.close()
 
-            if clinic_result:
-                customer_no = clinic_result[0]
-            else:
-                customer_no = None
+            customer_no = clinic_result[0] if clinic_result else None
+            if not customer_no:
                 self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nKick this to data upload for manual review.")
 
-            # Query the database for NAV Contact No based on clinician
+            # Query the clinician_contacts database
             if clinician:
                 clinician_db_path = os.path.join(script_dir, 'databases', 'clinician_nav_contacts.db')
                 print(f"Clinician database path: {clinician_db_path}")
                 if not os.path.exists(clinician_db_path):
-                    print(f"Error: Clinician database file not found at {clinician_db_path}")
-                    raise FileNotFoundError(f"Clinician database file not found at {clinician_db_path}")
+                    error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
+                    print(error_msg)
+                    raise FileNotFoundError(error_msg)
                 conn = sqlite3.connect(clinician_db_path)
                 cursor = conn.cursor()
                 cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
                 clinician_result = cursor.fetchone()
                 conn.close()
 
-                if clinician_result:
-                    prescriber = clinician_result[0]
+                prescriber = clinician_result[0] if clinician_result else None
+                if prescriber:
                     print(f"Clinician Number: {prescriber}")
                 else:
-                    prescriber = None
-                    self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Please Kick to data upload for manual upload.")
+                    self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Please kick to data upload for manual upload.")
             else:
                 prescriber = None
                 self.root.after(0, messagebox.showinfo, "Clinician Not Found", "Clinician field not found in the extracted data.")
 
-            # Only proceed if both customer_no and prescriber are found
+            # Create sales order if both customer_no and prescriber are found
             if customer_no and prescriber:
                 from NavApi import create_sales_order
                 success = create_sales_order(customer_no, prescriber)
-                if success:
-                    print("Sales order created successfully.")
-                else:
-                    print("Failed to create sales order.")
+                print("Sales order created successfully." if success else "Failed to create sales order.")
 
         except Exception as e:
-            # Show error message in the main thread
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
         finally:
-            # Close the loading pop-up when done
             self.root.after(0, self.close_loading_popup)
-            # Re-enable the upload button
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
     def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, form_type, messages=None):
