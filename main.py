@@ -201,8 +201,16 @@ class PdfButtonHandler:
             else:
                 clinician = None
 
+            # Get the script's directory
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            print(f"Script directory: {script_dir}")
+
             # Query the database for Sell_to_Customer_No based on clinic
-            db_path = os.path.join(os.getcwd(), 'databases', 'sales_orders.db')
+            db_path = os.path.join(script_dir, 'databases', 'sales_orders.db')
+            print(f"Sales orders database path: {db_path}")
+            if not os.path.exists(db_path):
+                print(f"Error: Sales orders database file not found at {db_path}")
+                raise FileNotFoundError(f"Sales orders database file not found at {db_path}")
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT Sell_to_Customer_No FROM sales_orders WHERE Docuware_Clinic_Name = ?", (clinic,))
@@ -217,7 +225,11 @@ class PdfButtonHandler:
 
             # Query the database for NAV Contact No based on clinician
             if clinician:
-                clinician_db_path = os.path.join(os.getcwd(), 'databases', 'clinician_nav_contacts.db')
+                clinician_db_path = os.path.join(script_dir, 'databases', 'clinician_nav_contacts.db')
+                print(f"Clinician database path: {clinician_db_path}")
+                if not os.path.exists(clinician_db_path):
+                    print(f"Error: Clinician database file not found at {clinician_db_path}")
+                    raise FileNotFoundError(f"Clinician database file not found at {clinician_db_path}")
                 conn = sqlite3.connect(clinician_db_path)
                 cursor = conn.cursor()
                 cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
