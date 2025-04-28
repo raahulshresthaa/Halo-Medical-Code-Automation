@@ -98,6 +98,7 @@ class PdfButtonHandler:
             endpoint=self.endpoint,
             credential=AzureKeyCredential(self.key)
         )
+        self.result_text.tag_configure('success', foreground='green', font=('Calibri', 12, 'bold'))
 
     def set_upload_pdf_button(self, button):
         self.upload_pdf_button = button
@@ -245,11 +246,27 @@ class PdfButtonHandler:
                 success = create_sales_order(customer_no, prescriber)
                 print("Sales order created successfully." if success else "Failed to create sales order.")
 
+                        # Create sales order if both customer_no and prescriber are found
+            if customer_no and prescriber:
+                sales_order_no = create_sales_order(customer_no, prescriber)
+                if sales_order_no:
+                    print("Sales order created successfully.")
+                    success_message = f"\n{'-'*50}\nSuccessfully posted to sales order number: {sales_order_no}"
+                    self.root.after(0, lambda: self.append_to_result_text(success_message))
+                else:
+                    print("Failed to create sales order.")
+                    
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
         finally:
             self.root.after(0, self.close_loading_popup)
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+
+    def append_to_result_text(self, message, tag='success'):
+        self.result_text.config(state=tk.NORMAL)
+        self.result_text.insert(tk.END, message + '\n', tag)
+        self.result_text.see(tk.END)
+        self.result_text.config(state=tk.DISABLED)
 
     def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, form_type, messages=None):
         try:

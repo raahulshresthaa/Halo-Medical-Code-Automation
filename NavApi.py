@@ -47,14 +47,6 @@ company = read_nav_config_file('nav_company.txt', 'NAV Company')
 username = read_nav_config_file('nav_username.txt', 'NAV Username')
 password = read_nav_config_file('nav_password.txt', 'NAV Password')
 
-#For debugging connection issues with authorisation 
-"""print(f"NAV URL: {nav_url}")
-print(f"repr(NAV URL): {repr(nav_url)}")
-print(f"Company: {company}")
-print(f"repr(Company): {repr(company)}")
-print(repr(username))  
-print(repr(password))  """
-
 encoded_company = urllib.parse.quote(company)
 headers = {
     "Content-Type": "application/json",
@@ -71,7 +63,7 @@ def create_sales_order(sell_to_customer_no, prescriber):
     if response.status_code != 200:
         print("❌ Failed to get last SOAI order number")
         print(response.status_code, response.text)
-        return False
+        return None
     
     last_soai = response.json()['value'][0]['No']
     print(f"🔍 Last SOAI Order No: {last_soai}")
@@ -80,7 +72,7 @@ def create_sales_order(sell_to_customer_no, prescriber):
     match = re.match(r"(GB-SOAI)(\d+)", last_soai)
     if not match:
         print("❌ Could not parse SOAI number.")
-        return False
+        return None
     
     prefix, number = match.groups()
     next_no = f"{prefix}{int(number)+1:05d}"
@@ -100,24 +92,22 @@ def create_sales_order(sell_to_customer_no, prescriber):
         "Send_For": "Send for Finish",
         "Supporting_Items_Arrived_Date": today,  # only test env
         "PO_Requested_Date": today,  # only test env
-        # Removed duplicate "PO_Requested_Date"
-        # patient name = patient name from azure
     }
     
     post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
     create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
     
-    if create_response.status_code == 201:
-        print(f"✅ Created Sales Order {next_no}")
-    else:
+    if create_response.status_code != 201:
         print("❌ Failed to create sales order header:")
         print(create_response.status_code, create_response.text)
-        return False
+        return None
+    
+    print(f"✅ Created Sales Order {next_no}")
     
     # --- Step 4: Add Medical Details ---   (work ticket) 
     medical_details = [
         { 
-            "Operation": "Model Room", #dump azure data under "Operation": "Special Instruction"
+            "Operation": "Model Room",
             "Medical_Detail_Text": "Tes for Fin" 
         },
         {
@@ -151,7 +141,6 @@ def create_sales_order(sell_to_customer_no, prescriber):
                 print(response.text)
     
     # --- Step 5: Add Sales Order Lines ---
-    
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
     item_nos = ["B54A", "B54C", "B55A"] # will need to mapped in a database 
     print(f"📦 Adding {len(item_nos)} Sales Order Line(s) to: {next_no}")
@@ -179,4 +168,4 @@ def create_sales_order(sell_to_customer_no, prescriber):
             except:
                 print(response.text)
 
-    return True
+    return next_no  # Return the sales order number if successful
