@@ -98,7 +98,11 @@ class PdfButtonHandler:
             endpoint=self.endpoint,
             credential=AzureKeyCredential(self.key)
         )
+
+        # Configure text tags for result_text
         self.result_text.tag_configure('success', foreground='green', font=('Calibri', 12, 'bold'))
+        self.result_text.tag_configure('error', foreground='red', font=('Calibri', 12, 'bold'))
+        self.result_text.tag_configure('info', foreground='blue', font=('Calibri', 12, 'bold'))
 
     def set_upload_pdf_button(self, button):
         self.upload_pdf_button = button
@@ -190,72 +194,95 @@ class PdfButtonHandler:
             # Update the GUI with the results
             self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes, combined_messages)
 
-            # Write to the log file
-            self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
+            # Write to the log file and capture the log file path
+            log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
 
-            # Extract clinician from content
-            clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
-            clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
+            # Only perform clinician-related checks for insoles
+            if model_id == 'InsoleFullReaderV7':
+                # Extract clinician from content
+                clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
+                clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
 
-            # Get the script's directory (assuming main.py is in the project root)
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            print(f"Script directory: {script_dir}")
+                # Get the script's directory (assuming main.py is in the project root)
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                print(f"Script directory: {script_dir}")
 
-            # Query the sales_orders database
-            db_path = os.path.join(script_dir, 'databases', 'sales_orders.db')
-            print(f"Sales orders database path: {db_path}")
-            if not os.path.exists(db_path):
-                error_msg = f"Error: Sales orders database file not found at {db_path}"
-                print(error_msg)
-                raise FileNotFoundError(error_msg)
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT Sell_to_Customer_No FROM sales_orders WHERE Docuware_Clinic_Name = ?", (clinic,))
-            clinic_result = cursor.fetchone()
-            conn.close()
-
-            customer_no = clinic_result[0] if clinic_result else None
-            if not customer_no:
-                self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nKick this to data upload for manual review.")
-
-            # Query the clinician_contacts database using a similar path
-            if clinician:
-                clinician_db_path = os.path.join(script_dir, 'databases', 'clinician_nav_contacts.db')
-                print(f"Clinician database path: {clinician_db_path}")
-                if not os.path.exists(clinician_db_path):
-                    error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
+                # Query the sales_orders database
+                db_path = os.path.join(script_dir, 'databases', 'sales_orders.db')
+                print(f"Sales orders database path: {db_path}")
+                if not os.path.exists(db_path):
+                    error_msg = f"Error: Sales orders database file not found at {db_path}"
                     print(error_msg)
                     raise FileNotFoundError(error_msg)
-                conn = sqlite3.connect(clinician_db_path)
+                conn = sqlite3.connect(db_path)
                 cursor = conn.cursor()
-                cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
-                clinician_result = cursor.fetchone()
+                cursor.execute("SELECT Sell_to_Customer_No FROM sales_orders WHERE Docuware_Clinic_Name = ?", (clinic,))
+                clinic_result = cursor.fetchone()
                 conn.close()
 
-                prescriber = clinician_result[0] if clinician_result else None
-                if prescriber:
-                    print(f"Clinician Number: {prescriber}")
+                customer_no = clinic_result[0] if clinic_result else None
+                if not customer_no:
+                    message = f"Customer not found for clinic: {clinic}"
+                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                    if log_file_path:
+                        with open(log_file_path, 'a', encoding='utf-8') as f:
+                            f.write(f"\n[ERROR] {message}\n")
+                    self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nKick this to data upload for manual review.")
+
+                # Query the clinician_contacts database using a similar path
+                if clinician:
+                    clinician_db_path = os.path.join(script_dir, 'databases', 'clinician_nav_contacts.db')
+                    print(f"Clinician database path: {clinician_db_path}")
+                    if not os.path.exists(clinician_db_path):
+                        error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
+                        print(error_msg)
+                        raise FileNotFoundError(error_msg)
+                    conn = sqlite3.connect(clinician_db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
+                    clinician_result = cursor.fetchone()
+                    conn.close()
+
+                    prescriber = clinician_result[0] if clinician_result else None
+                    if not prescriber:
+                        message = f"Prescriber not found for clinician: {clinician}"
+                        self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                        if log_file_path:
+                            with open(log_file_path, 'a', encoding='utf-8') as f:
+                                f.write(f"\n[ERROR] {message}\n")
+                        self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Please kick to data upload for manual upload.")
                 else:
-                    self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Please kick to data upload for manual upload.")
+                    message = "Clinician field not found in the extracted data."
+                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                    if log_file_path:
+                        with open(log_file_path, 'a', encoding='utf-8') as f:
+                            f.write(f"\n[ERROR] {message}\n")
+                    self.root.after(0, messagebox.showinfo, "Clinician Not Found", "Clinician field not found in the extracted data.")
+
+                # Attempt NAV upload only if both customer_no and prescriber are found
+                if customer_no and prescriber:
+                    success, sales_order_no, error_message = attempt_nav_upload(customer_no, prescriber, log_file_path)
+                    if success:
+                        message = f"Successfully posted to sales order number: {sales_order_no}"
+                        tag = 'success'
+                    else:
+                        message = "Failed to post to NAV. Please kick to data upload for manual uploading."
+                        tag = 'error'
+                    # Append to GUI text box
+                    self.root.after(0, lambda: self.append_to_result_text(message, tag))
+                    # Append to log file
+                    if log_file_path:
+                        with open(log_file_path, 'a', encoding='utf-8') as f:
+                            f.write(f"\n[{tag.upper()}] {message}\n")
             else:
-                prescriber = None
-                self.root.after(0, messagebox.showinfo, "Clinician Not Found", "Clinician field not found in the extracted data.")
+                # For non-insole forms, skip clinician-related checks and NAV upload
+                message = "Sales order posting not applicable for this form type."
+                tag = 'info'
+                self.root.after(0, lambda: self.append_to_result_text(message, tag))
+                if log_file_path:
+                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"\n[INFO] {message}\n")
 
-            # Create sales order if both customer_no and prescriber are found
-            if customer_no and prescriber:
-                success = create_sales_order(customer_no, prescriber)
-                print("Sales order created successfully." if success else "Failed to create sales order.")
-
-                        # Create sales order if both customer_no and prescriber are found
-            if customer_no and prescriber:
-                sales_order_no = create_sales_order(customer_no, prescriber)
-                if sales_order_no:
-                    print("Sales order created successfully.")
-                    success_message = f"\n{'-'*50}\nSuccessfully posted to sales order number: {sales_order_no}"
-                    self.root.after(0, lambda: self.append_to_result_text(success_message))
-                else:
-                    print("Failed to create sales order.")
-                    
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
         finally:
@@ -306,8 +333,10 @@ class PdfButtonHandler:
                 log_file.write(f"PRICE CODES:\n\n{price_codes}\n")
                 log_file.write("-" * 50 + "\n")  # Separator between entries
             print(f"Successfully wrote to log file at {log_file_path}")
+            return log_file_path  # Return the path for later appending
         except Exception as e:
             messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
+        return None  # Return None if there's an error (though this shouldn't happen often)
 
     def parse_extracted_data(self, data_dict):
         """Convert extracted data into a string format suitable for processing."""
@@ -571,6 +600,28 @@ class PdfButtonHandler:
     def is_carbon_selected(self, content):
         content_lower = content.lower()
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
+
+def attempt_nav_upload(customer_no, prescriber, log_file_path=None):
+    """
+    Attempts to create a sales order in NAV for insoles.
+    Returns a tuple: (success, sales_order_no, error_message)
+    - success: True if successful, False otherwise
+    - sales_order_no: The generated sales order number if successful, None otherwise
+    - error_message: Error details if failed, None if successful
+    """
+    try:
+        sales_order_no = create_sales_order(customer_no, prescriber)
+        if sales_order_no:
+            return True, sales_order_no, None
+        else:
+            return False, None, "Failed to create sales order: Unknown error"
+    except Exception as e:
+        error_message = f"Failed to post to NAV: {str(e)}"
+        if log_file_path:
+            with open(log_file_path, 'a', encoding='utf-8') as f:
+                f.write(f"\n[ERROR] {error_message}\n")
+        return False, None, error_message
+    
 
 # --- Main Application Setup ---
 def create_search_tab(notebook):
