@@ -168,48 +168,35 @@ class PdfButtonHandler:
         except Exception as e:
             return f"Error: {str(e)}"
 
-    def process_api_call(self, content, logic_content, AutoDocRef, clinic):
+    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date):
         try:
-            # Get the price codes by sending the content, logic, and file context to OpenAI
             price_codes = self.get_price_codes_from_content(content, logic_content)
             print(f"Price codes received: {price_codes}")
 
             model_id = self.model_id_var.get()
             form_type_for_filename = get_form_type_from_model_id(model_id)
 
-            # Get the current date and time
             current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-            # Check for base in the extracted content if using InsoleFullReaderV7
             if model_id == 'InsoleFullReaderV7':
                 query_message = self.check_for_base(content)
             else:
                 query_message = None
 
-            # Combine all messages
             messages = [query_message] if query_message else []
             combined_messages = '\n'.join(messages) if messages else None
 
-            # Update the GUI with the results
             self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes, combined_messages)
 
-            # Write to the log file and capture the log file path
             log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
 
-            # Only perform clinician-related checks for insoles
             if model_id == 'InsoleFullReaderV7':
-                # Extract clinician from content
                 clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
                 clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
 
-                # Get the script's directory (assuming main.py is in the project root)
-                script_dir = os.path.dirname(os.path.abspath(__file__))
-                print(f"Script directory: {script_dir}")
-
-                # Query the sales_orders database
-                db_path = os.path.join(script_dir, 'databases', 'sales_orders.db')
-                print(f"Sales orders database path: {db_path}")
+                script_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases')
+                db_path = os.path.join(script_dir, 'sales_orders.db')
                 if not os.path.exists(db_path):
                     error_msg = f"Error: Sales orders database file not found at {db_path}"
                     print(error_msg)
@@ -229,10 +216,8 @@ class PdfButtonHandler:
                             f.write(f"\n[ERROR] {message}\n")
                     self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nKick this to data upload for manual review.")
 
-                # Query the clinician_contacts database using a similar path
                 if clinician:
-                    clinician_db_path = os.path.join(script_dir, 'databases', 'clinician_nav_contacts.db')
-                    print(f"Clinician database path: {clinician_db_path}")
+                    clinician_db_path = os.path.join(script_dir, 'clinician_nav_contacts.db')
                     if not os.path.exists(clinician_db_path):
                         error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
                         print(error_msg)
@@ -259,23 +244,24 @@ class PdfButtonHandler:
                             f.write(f"\n[ERROR] {message}\n")
                     self.root.after(0, messagebox.showinfo, "Clinician Not Found", "Clinician field not found in the extracted data.")
 
-                # Attempt NAV upload only if both customer_no and prescriber are found
                 if customer_no and prescriber:
-                    success, sales_order_no, error_message = attempt_nav_upload(customer_no, prescriber, log_file_path)
+                    # Calculate Requested Delivery Date: today + 14 days
+                    today = datetime.date.today()
+                    request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
+                    success, sales_order_no, error_message = attempt_nav_upload(
+                        customer_no, prescriber, creation_date, request_delivery_date, log_file_path
+                    )
                     if success:
                         message = f"Successfully posted to sales order number: {sales_order_no}"
                         tag = 'success'
                     else:
                         message = "Failed to post to NAV. Please kick to data upload for manual uploading."
                         tag = 'error'
-                    # Append to GUI text box
                     self.root.after(0, lambda: self.append_to_result_text(message, tag))
-                    # Append to log file
                     if log_file_path:
                         with open(log_file_path, 'a', encoding='utf-8') as f:
                             f.write(f"\n[{tag.upper()}] {message}\n")
             else:
-                # For non-insole forms, skip clinician-related checks and NAV upload
                 message = "Sales order posting not applicable for this form type."
                 tag = 'info'
                 self.root.after(0, lambda: self.append_to_result_text(message, tag))
@@ -369,28 +355,20 @@ class PdfButtonHandler:
 
     def process_pdf_and_call_api(self, pdf_file_path):
         try:
-            # Get the current model_id
             model_id = self.model_id_var.get()
-            print(f"Using model ID: {model_id}")  # Debug print
-
-            #   Define form_type_for_filename here
+            print(f"Using model ID: {model_id}")
             form_type_for_filename = get_form_type_from_model_id(model_id)
 
-            # Analyze the PDF using Azure Form Recognizer
             with open(pdf_file_path, "rb") as pdf_file:
                 poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
                 result = poller.result()
 
-            # After reading and analyzing the file, update the loading message
             self.root.after(0, self.update_loading_message, "Please wait, calculating the codes")
 
-            # Extract fields from the result
             fields_data = self.extract_fields_from_result(result)
-
             if not fields_data:
                 raise ValueError("No data extracted from the PDF.")
 
-            # Convert extracted data to text format
             content = self.parse_extracted_data(fields_data)
             print(f"Extracted content:\n{content}")
 
@@ -400,48 +378,42 @@ class PdfButtonHandler:
                 if self.is_carbon_selected(content):
                     self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
 
-            # Extract AutoDocRef and Clinic from the data
             AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
             clinic = fields_data.get('Clinic', 'N/A')
+
+            # Extract creation date from fields_data
+            creation_date_str = fields_data.get('creation date', '28/04/2025')  # Default to provided date if not found
+            try:
+                day, month, year = map(int, creation_date_str.split('/'))
+                creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')  # Convert to YYYY-MM-DD
+            except (ValueError, AttributeError):
+                creation_date = datetime.date.today().strftime('%Y-%m-%d')  # Fallback to today if parsing fails
 
             # Logic file mapping based on model_id and form_type
             logic_file_name = None
 
             if model_id == 'InsoleFullReaderV7':
-                # Determine form_type based on extracted data
                 form_type = self.determine_form_type(fields_data)
-
-                # If still None, show popup. If 'other', skip the popup and default to 'tci'.
                 if not form_type:
                     query_message = "No form type found in the extracted data. Please raise a query."
                     self.root.after(0, messagebox.showinfo, "Query", query_message)
                     form_type = 'tci'
                 elif form_type == 'other':
-                    # If 'insole type other' was present, skip popup & default to TCI (or your chosen fallback).
                     form_type = 'tci'
-
-                # Sanitize form_type
                 form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
                 print(f"Form type: {form_type}")
-
-                # Construct the logic file name based on the form type
                 logic_file_mapping = {
                     'tci': 'tci_logic.txt',
                     'simple': 'simple_insole_logic.txt',
-                    'cradle': 'tci_logic.txt',   # Using tci_logic.txt for cradle
-                    'handmold': 'tci_logic.txt'  # Using tci_logic.txt for handmold
+                    'cradle': 'tci_logic.txt',
+                    'handmold': 'tci_logic.txt'
                 }
-
                 logic_file_name = logic_file_mapping.get(form_type)
                 print(f"Logic file name: {logic_file_name}")
                 if not logic_file_name:
                     raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
-
-                # Insert the new code here
-                # Call the insole code generation method
                 passed_codes = generate_insole_codes(self, content)
                 if passed_codes:
-                    # Append the passed codes under 'Passed code:' in the content
                     content += f"\n\nPassed code:\n{passed_codes}"
                     print(f"Passed codes added to content: {passed_codes}")
                 else:
@@ -450,11 +422,8 @@ class PdfButtonHandler:
             elif model_id == 'AfoReaderV7':
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
-
-                # Call the AFO code generation method
                 passed_codes = generate_afo_codes(self, content)
                 if passed_codes:
-                    # Append the passed codes under 'Passed code:' in the content
                     content += f"\n\nPassed code:\n{passed_codes}"
                     print(f"Passed codes added to content: {passed_codes}")
                 else:
@@ -463,11 +432,8 @@ class PdfButtonHandler:
             elif model_id == 'BespokeReaderFullV4':
                 logic_file_name = 'bespoke_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
-
-                # Call the bespoke code generation method
                 passed_codes = generate_bespoke_codes(self, content)
                 if passed_codes:
-                    # Append the passed codes under 'Passed code:' in the content
                     content += f"\n\nPassed code:\n{passed_codes}"
                     print(f"Passed codes added to content: {passed_codes}")
                 else:
@@ -476,11 +442,8 @@ class PdfButtonHandler:
             elif model_id == 'ModularReaderFullV3':
                 logic_file_name = 'modular_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
-
-                # Call the modular code generation method
                 passed_codes = generate_modular_codes(self, content)
                 if passed_codes:
-                    # Append the passed codes under 'Passed code:' in the content
                     content += f"\n\nPassed code:\n{passed_codes}"
                     print(f"Passed codes added to content: {passed_codes}")
                 else:
@@ -492,24 +455,19 @@ class PdfButtonHandler:
             logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
             print(f"Logic file path: {logic_file_path}")
 
-            # Read the logic file
             logic_content = self.read_logic_file(logic_file_path)
             if "Error" in logic_content:
                 raise ValueError(logic_content)
 
-            # Call the API with the content
-            self.process_api_call(content, logic_content, AutoDocRef, clinic)
+            # Pass creation_date to process_api_call
+            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date)
 
             create_work_order_file(AutoDocRef, form_type_for_filename, data_dict=fields_data)
-
             print(f"Created a work order file automatically for AutoDocRef: {AutoDocRef} and form type: {form_type_for_filename}")
 
         except Exception as e:
-            # Show error message in the main thread
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the PDF file: {str(e)}")
-            # Re-enable the upload button
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-            # Close the loading pop-up
             self.root.after(0, self.close_loading_popup)
 
     def extract_fields_from_result(self, result):
@@ -601,16 +559,9 @@ class PdfButtonHandler:
         content_lower = content.lower()
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
-def attempt_nav_upload(customer_no, prescriber, log_file_path=None):
-    """
-    Attempts to create a sales order in NAV for insoles.
-    Returns a tuple: (success, sales_order_no, error_message)
-    - success: True if successful, False otherwise
-    - sales_order_no: The generated sales order number if successful, None otherwise
-    - error_message: Error details if failed, None if successful
-    """
+def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, log_file_path=None):
     try:
-        sales_order_no = create_sales_order(customer_no, prescriber)
+        sales_order_no = create_sales_order(customer_no, prescriber, original_order_date, request_delivery_date)
         if sales_order_no:
             return True, sales_order_no, None
         else:

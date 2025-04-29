@@ -54,8 +54,7 @@ headers = {
 }
 auth = HttpNtlmAuth(username, password)
 
-def create_sales_order(sell_to_customer_no, prescriber):
-    # --- Step 1: Get last SOAI number ---
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date):
     filter_soai = "$filter=startswith(No,'GB-SOAI')&$orderby=No desc&$top=1"
     get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soai}"
     response = requests.get(get_url, headers=headers, auth=auth)
@@ -84,15 +83,15 @@ def create_sales_order(sell_to_customer_no, prescriber):
     order_data = {
         "No": next_no,
         "Sell_to_Customer_No": sell_to_customer_no,
-        "Original_Order_Date": "2025-04-16",  # creation date
-        "Order_Date": "2025-04-16",  # system date ie today
-        "Document_Date": "2025-04-16",  # system date again
-        "Order_Category_Code": "MILLED INSOLES",  # form type - adjust later after insoles
-        "Prescriber": prescriber,  # use the passed prescriber
+        "Original_Order_Date": original_order_date,  # Set to 2025-04-28 from Azure
+        "Order_Date": today,
+        "Document_Date": today,
+        "Order_Category_Code": "MILLED INSOLES",
+        "Prescriber": prescriber,
         "Send_For": "Send for Finish",
-        "Supporting_Items_Arrived_Date": today,  # only test env
-        "PO_Requested_Date": today,  # only test env
-        # requested delivery date = order date +14 days 
+        "Supporting_Items_Arrived_Date": today,
+        "PO_Requested_Date": today,
+        "Requested_Delivery_Date": request_delivery_date,  # Set to today + 14 days
     }
     
     post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
