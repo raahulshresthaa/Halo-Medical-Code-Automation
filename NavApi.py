@@ -67,7 +67,6 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     last_soai = response.json()['value'][0]['No']
     print(f"🔍 Last SOAI Order No: {last_soai}")
     
-    # --- Step 2: Increment the SOAI number ---
     match = re.match(r"(GB-SOAI)(\d+)", last_soai)
     if not match:
         print("❌ Could not parse SOAI number.")
@@ -77,13 +76,12 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     next_no = f"{prefix}{int(number)+1:05d}"
     print(f"➡️ Creating Sales Order: {next_no}")
     
-    # --- Step 3: POST Sales Order Header ---
     external_doc_no = f"RS-AI-ORDER-{next_no[-4:]}"
     today = datetime.date.today().strftime("%Y-%m-%d")
     order_data = {
         "No": next_no,
         "Sell_to_Customer_No": sell_to_customer_no,
-        "Original_Order_Date": original_order_date,  # Set to 2025-04-28 from Azure
+        "Original_Order_Date": original_order_date,  # Set to extracted creation date
         "Order_Date": today,
         "Document_Date": today,
         "Order_Category_Code": "MILLED INSOLES",
@@ -94,8 +92,12 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         "Requested_Delivery_Date": request_delivery_date,  # Set to today + 14 days
     }
     
+    print(f"Sending order_data: {json.dumps(order_data, indent=2)}")  # Debug
+    
     post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
     create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
+    
+    print(f"NAV Response: {create_response.status_code} - {create_response.text}")  # Debug
     
     if create_response.status_code != 201:
         print("❌ Failed to create sales order header:")

@@ -195,8 +195,8 @@ class PdfButtonHandler:
                 clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
                 clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
 
-                script_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases')
-                db_path = os.path.join(script_dir, 'sales_orders.db')
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                db_path = os.path.join(script_dir, 'databases', 'sales_orders.db')
                 if not os.path.exists(db_path):
                     error_msg = f"Error: Sales orders database file not found at {db_path}"
                     print(error_msg)
@@ -217,7 +217,7 @@ class PdfButtonHandler:
                     self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nKick this to data upload for manual review.")
 
                 if clinician:
-                    clinician_db_path = os.path.join(script_dir, 'clinician_nav_contacts.db')
+                    clinician_db_path = os.path.join(script_dir, 'databases', 'clinician_nav_contacts.db')
                     if not os.path.exists(clinician_db_path):
                         error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
                         print(error_msg)
@@ -248,6 +248,7 @@ class PdfButtonHandler:
                     # Calculate Requested Delivery Date: today + 14 days
                     today = datetime.date.today()
                     request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
+                    print(f"Calculated request_delivery_date: {request_delivery_date}")  # Debug
                     success, sales_order_no, error_message = attempt_nav_upload(
                         customer_no, prescriber, creation_date, request_delivery_date, log_file_path
                     )
@@ -386,8 +387,10 @@ class PdfButtonHandler:
             try:
                 day, month, year = map(int, creation_date_str.split('/'))
                 creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')  # Convert to YYYY-MM-DD
+                print(f"Extracted creation_date: {creation_date}")  # Debug
             except (ValueError, AttributeError):
                 creation_date = datetime.date.today().strftime('%Y-%m-%d')  # Fallback to today if parsing fails
+                print(f"Failed to parse creation_date, using today's date: {creation_date}")  # Debug
 
             # Logic file mapping based on model_id and form_type
             logic_file_name = None
@@ -561,6 +564,7 @@ class PdfButtonHandler:
 
 def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, log_file_path=None):
     try:
+        print(f"Passing request_delivery_date to create_sales_order: {request_delivery_date}")  # Debug
         sales_order_no = create_sales_order(customer_no, prescriber, original_order_date, request_delivery_date)
         if sales_order_no:
             return True, sales_order_no, None
