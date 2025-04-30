@@ -786,9 +786,9 @@ def create_missing_contacts_tab(notebook):
     label = ttk.Label(missing_tab, text="Missing Clinics and Clinicians", font=("Calibri", 16, "bold"))
     label.pack(pady=5)
 
-    # Define a custom style for the Treeview with larger font
+    # Define a custom style for the Treeview with larger font and increased row height
     style = ttk.Style()
-    style.configure("Custom.Treeview", font=("Calibri", 14))  # Larger font for rows
+    style.configure("Custom.Treeview", font=("Calibri", 14), rowheight=30)  # Larger font and row height for rows
     style.configure("Custom.Treeview.Heading", font=("Calibri", 14, "bold"))  # Larger font for headings
 
     # Frame for Treeview and scrollbars
