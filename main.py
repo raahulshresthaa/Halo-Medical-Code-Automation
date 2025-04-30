@@ -508,9 +508,6 @@ class PdfButtonHandler:
             # Pass creation_date to process_api_call
             self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date)
 
-            create_work_order_file(AutoDocRef, form_type_for_filename, data_dict=fields_data)
-            print(f"Created a work order file automatically for AutoDocRef: {AutoDocRef} and form type: {form_type_for_filename}")
-
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the PDF file: {str(e)}")
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
