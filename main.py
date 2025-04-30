@@ -782,14 +782,21 @@ def create_missing_contacts_tab(notebook):
     missing_tab = ttk.Frame(notebook)
     notebook.add(missing_tab, text="Missing Contacts")
 
-    # Label
-    label = ttk.Label(missing_tab, text="Missing Clinics and Clinicians")
+    # Label with larger font
+    label = ttk.Label(missing_tab, text="Missing Clinics and Clinicians", font=("Calibri", 16, "bold"))
     label.pack(pady=5)
 
-    # Treeview to display missing entries
-    tree = ttk.Treeview(missing_tab, columns=('Type', 'Name'), show='headings')
+    # Define a custom style for the Treeview with larger font
+    style = ttk.Style()
+    style.configure("Custom.Treeview", font=("Calibri", 14))  # Larger font for rows
+    style.configure("Custom.Treeview.Heading", font=("Calibri", 14, "bold"))  # Larger font for headings
+
+    # Treeview to display missing entries with custom style and centered data
+    tree = ttk.Treeview(missing_tab, columns=('Type', 'Name'), show='headings', style="Custom.Treeview")
     tree.heading('Type', text='Type')
     tree.heading('Name', text='Name')
+    tree.column('Type', anchor='center')  # Center the 'Type' column data
+    tree.column('Name', anchor='center')  # Center the 'Name' column data
     tree.pack(fill='both', expand=True)
 
     def populate_tree():
