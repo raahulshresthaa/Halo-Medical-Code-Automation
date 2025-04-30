@@ -791,13 +791,28 @@ def create_missing_contacts_tab(notebook):
     style.configure("Custom.Treeview", font=("Calibri", 14))  # Larger font for rows
     style.configure("Custom.Treeview.Heading", font=("Calibri", 14, "bold"))  # Larger font for headings
 
+    # Frame for Treeview and scrollbars
+    tree_frame = ttk.Frame(missing_tab)
+    tree_frame.pack(fill='both', expand=True)
+
     # Treeview to display missing entries with custom style and centered data
-    tree = ttk.Treeview(missing_tab, columns=('Type', 'Name'), show='headings', style="Custom.Treeview")
+    tree = ttk.Treeview(tree_frame, columns=('Type', 'Name'), show='headings', style="Custom.Treeview")
     tree.heading('Type', text='Type')
     tree.heading('Name', text='Name')
-    tree.column('Type', anchor='center')  # Center the 'Type' column data
-    tree.column('Name', anchor='center')  # Center the 'Name' column data
-    tree.pack(fill='both', expand=True)
+    tree.column('Type', width=150, minwidth=150, anchor='center')  # Width for 'Type'
+    tree.column('Name', width=300, minwidth=300, anchor='center')  # Width for 'Name'
+
+    # Scrollbars
+    vertical_scrollbar = ttk.Scrollbar(tree_frame, orient='vertical', command=tree.yview)
+    horizontal_scrollbar = ttk.Scrollbar(tree_frame, orient='horizontal', command=tree.xview)
+    tree.configure(yscrollcommand=vertical_scrollbar.set, xscrollcommand=horizontal_scrollbar.set)
+
+    # Grid layout for Treeview and scrollbars
+    tree.grid(row=0, column=0, sticky='nsew')
+    vertical_scrollbar.grid(row=0, column=1, sticky='ns')
+    horizontal_scrollbar.grid(row=1, column=0, sticky='ew')
+    tree_frame.grid_rowconfigure(0, weight=1)
+    tree_frame.grid_columnconfigure(0, weight=1)
 
     def populate_tree():
         """Populate the Treeview with data from missing_contacts.db."""
