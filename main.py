@@ -32,9 +32,13 @@ from generate_code_logic import (
 from NavApi import create_sales_order
 import messagebox
 
-
 # Version number
 VERSION = "6.0.0-alpha"
+
+# Database paths
+sales_orders_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'sales_orders.db')
+clinician_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'clinician_nav_contacts.db')
+missing_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'missing_contacts.db')
 
 # To fix blurriness on some displays
 try:
@@ -64,6 +68,44 @@ def get_form_type_from_model_id(model_id):
         'ModularReaderFullV3': 'modular'
     }
     return mapping.get(model_id, 'unknown')
+
+def ensure_customers_table():
+    """Ensure the customers table exists in sales_orders.db."""
+    conn = sqlite3.connect(sales_orders_db_path)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS customers (
+            Docuware_Clinic_Name TEXT PRIMARY KEY,
+            Sell_to_Customer_No TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def ensure_missing_contacts_table():
+    """Ensure the missing_entries table exists in missing_contacts.db."""
+    conn = sqlite3.connect(missing_db_path)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS missing_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL,
+            name TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def add_missing_contact(type, name):
+    """Add a missing clinic or clinician to missing_contacts.db if not already present."""
+    ensure_missing_contacts_table()
+    conn = sqlite3.connect(missing_db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM missing_entries WHERE type = ? AND name = ?", (type, name))
+    if cursor.fetchone() is None:
+        cursor.execute("INSERT INTO missing_entries (type, name) VALUES (?, ?)", (type, name))
+        conn.commit()
+    conn.close()
 
 # --- PdfButtonHandler Class Definition ---
 
@@ -203,7 +245,7 @@ class PdfButtonHandler:
                     raise FileNotFoundError(error_msg)
                 conn = sqlite3.connect(db_path)
                 cursor = conn.cursor()
-                cursor.execute("SELECT Sell_to_Customer_No FROM sales_orders WHERE Docuware_Clinic_Name = ?", (clinic,))
+                cursor.execute("SELECT Sell_to_Customer_No FROM customers WHERE Docuware_Clinic_Name = ?", (clinic,))
                 clinic_result = cursor.fetchone()
                 conn.close()
 
@@ -214,7 +256,8 @@ class PdfButtonHandler:
                     if log_file_path:
                         with open(log_file_path, 'a', encoding='utf-8') as f:
                             f.write(f"\n[ERROR] {message}\n")
-                    self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nKick this to data upload for manual review.")
+                    self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
+                    add_missing_contact('clinic', clinic)
 
                 if clinician:
                     clinician_db_path = os.path.join(script_dir, 'databases', 'clinician_nav_contacts.db')
@@ -235,7 +278,8 @@ class PdfButtonHandler:
                         if log_file_path:
                             with open(log_file_path, 'a', encoding='utf-8') as f:
                                 f.write(f"\n[ERROR] {message}\n")
-                        self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Please kick to data upload for manual upload.")
+                        self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
+                        add_missing_contact('clinician', clinician)
                 else:
                     message = "Clinician field not found in the extracted data."
                     self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
@@ -732,6 +776,78 @@ def create_search_tab(notebook):
     copy_button.pack(side=tk.LEFT, padx=5)
 
     return search_tab
+
+def create_missing_contacts_tab(notebook):
+    """Create a tab to view and update missing clinics and clinicians."""
+    missing_tab = ttk.Frame(notebook)
+    notebook.add(missing_tab, text="Missing Contacts")
+
+    # Label
+    label = ttk.Label(missing_tab, text="Missing Clinics and Clinicians")
+    label.pack(pady=5)
+
+    # Treeview to display missing entries
+    tree = ttk.Treeview(missing_tab, columns=('Type', 'Name'), show='headings')
+    tree.heading('Type', text='Type')
+    tree.heading('Name', text='Name')
+    tree.pack(fill='both', expand=True)
+
+    def populate_tree():
+        """Populate the Treeview with data from missing_contacts.db."""
+        ensure_missing_contacts_table()  # Ensure the table exists before querying
+        tree.delete(*tree.get_children())
+        conn = sqlite3.connect(missing_db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT type, name FROM missing_entries")
+        for row in cursor.fetchall():
+            tree.insert('', 'end', values=row)
+        conn.close()
+
+    populate_tree()
+
+    # Refresh button
+    refresh_button = ttk.Button(missing_tab, text="Refresh", command=populate_tree)
+    refresh_button.pack(pady=5)
+
+    def update_contact():
+        """Update the selected missing contact with a user-provided code."""
+        selection = tree.selection()
+        if not selection:
+            messagebox.showinfo("No Selection", "Please select a missing contact to update.")
+            return
+
+        item = tree.item(selection[0])
+        type, name = item['values']
+        code = simpledialog.askstring("Input Code", f"Enter the code for {type} '{name}':")
+        if code:
+            if type == 'clinic':
+                conn = sqlite3.connect(sales_orders_db_path)
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR REPLACE INTO customers (Docuware_Clinic_Name, Sell_to_Customer_No) VALUES (?, ?)", (name, code))
+                conn.commit()
+                conn.close()
+            elif type == 'clinician':
+                conn = sqlite3.connect(clinician_db_path)
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR REPLACE INTO clinician_contacts (\"Docuware Clinician Name\", \"NAV Contact No\") VALUES (?, ?)", (name, code))
+                conn.commit()
+                conn.close()
+
+            # Remove from missing_entries
+            conn = sqlite3.connect(missing_db_path)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM missing_entries WHERE type = ? AND name = ?", (type, name))
+            conn.commit()
+            conn.close()
+
+            populate_tree()
+            messagebox.showinfo("Success", f"Updated {type} '{name}' with code '{code}'.")
+
+    # Update button
+    update_button = ttk.Button(missing_tab, text="Update Selected", command=update_contact)
+    update_button.pack(pady=5)
+
+    return missing_tab
 
 # Define the list of available themes
 theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'simplex', 'vapor']
@@ -1267,6 +1383,14 @@ def on_tab_selected(event):
         analysis_handles["refresh_chart"]()
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
+
+# Ensure database tables exist
+ensure_customers_table()
+
+# Create tabs
+search_tab = create_search_tab(notebook)
+analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
+missing_tab = create_missing_contacts_tab(notebook)  # Add the new tab
 
 # Start watching the Downloads folder in the background
 watch_downloads_folder()
