@@ -15,7 +15,6 @@ import sqlite3
 import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
 from collections import defaultdict
-from work_order_util import create_work_order_file
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
@@ -1384,24 +1383,14 @@ version_label.pack(side='right')
 theme_combobox.bind('<<ComboboxSelected>>', change_theme)
 
 # ---------------------------
-# SEARCH WORK ORDERS TAB
-# ---------------------------
-search_tab = create_search_tab(notebook)
-# ---------------------------
 # RESULTS ANALYSIS TAB
 analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 
-# search work orders warning
-# Now bind the event to show the warning upon switching to the Search tab
+# Bind the event to refresh the chart when "Results Analysis" is selected
+
 def on_tab_selected(event):
     selected_tab_text = event.widget.tab(event.widget.index("current"), "text")
-    if selected_tab_text == "Search Work Orders":
-        messagebox.showwarning(
-            "Feature WIP",
-            "Warning: The 'Search Work Orders' feature is still a work in progress!"
-        )
-    elif selected_tab_text == "Results Analysis":
-        # Recalculate the analysis tab whenever it is clicked
+    if selected_tab_text == "Results Analysis":
         analysis_handles["refresh_chart"]()
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
@@ -1410,7 +1399,6 @@ notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 ensure_customers_table()
 
 # Create tabs
-search_tab = create_search_tab(notebook)
 analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 missing_tab = create_missing_contacts_tab(notebook)  # Add the new tab
 
