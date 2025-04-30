@@ -54,7 +54,7 @@ headers = {
 }
 auth = HttpNtlmAuth(username, password)
 
-def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date):
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref):
     filter_soai = "$filter=startswith(No,'GB-SOAI')&$orderby=No desc&$top=1"
     get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soai}"
     response = requests.get(get_url, headers=headers, auth=auth)
@@ -81,7 +81,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     order_data = {
         "No": next_no,
         "Sell_to_Customer_No": sell_to_customer_no,
-        "Original_Order_Date": original_order_date,  # Set to extracted creation date
+        "Original_Order_Date": original_order_date,
         "Order_Date": today,
         "Document_Date": today,
         "Order_Category_Code": "MILLED INSOLES",
@@ -89,7 +89,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         "Send_For": "Send for Finish",
         "Supporting_Items_Arrived_Date": today,
         "PO_Requested_Date": today,
-        "Requested_Delivery_Date": request_delivery_date,  # Set to today + 14 days
+        "Requested_Delivery_Date": request_delivery_date,
+        "Pad_No": auto_doc_ref  # Set Pad_No. to the AutoDocRef value
     }
     
     print(f"Sending order_data: {json.dumps(order_data, indent=2)}")  # Debug
@@ -106,7 +107,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     
     print(f"✅ Created Sales Order {next_no}")
     
-    # --- Step 4: Add Medical Details ---   (work ticket) 
+    # --- Step 4: Add Medical Details --- (work ticket)
     medical_details = [
         { 
             "Operation": "Model Room",
@@ -144,7 +145,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     
     # --- Step 5: Add Sales Order Lines ---
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
-    item_nos = ["B54A", "B54C", "B55A"] # will need to mapped in a database 
+    item_nos = ["B54A", "B54C", "B55A"]  # Will need to be mapped in a database
     print(f"📦 Adding {len(item_nos)} Sales Order Line(s) to: {next_no}")
     base_line_no = 10000
     
@@ -152,10 +153,10 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         line_data = {
             "Document_Type": "Order", 
             "Document_No": next_no,
-            "Line_No": base_line_no + i * 10000 * 2, # needs to be x2 since the description runs across 2 lines
+            "Line_No": base_line_no + i * 10000 * 2,  # Needs to be x2 since the description runs across 2 lines
             "Type": "Item",
             "No": item_no,
-            "Quantity": 1,
+            "Quantity": 1,  # If the final code says x2, this will need to be 2
             "Location_Code": "WAREHOUSE",
             "Unit_of_Measure_Code": "EACH"
         }

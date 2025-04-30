@@ -233,6 +233,15 @@ class PdfButtonHandler:
             log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
 
             if model_id == 'InsoleFullReaderV7':
+                if AutoDocRef == 'N/A':
+                    message = "No AutoDocRef found in the extracted data. Please kick to query."
+                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                    if log_file_path:
+                        with open(log_file_path, 'a', encoding='utf-8') as f:
+                            f.write(f"\n[ERROR] {message}\n")
+                    self.root.after(0, messagebox.showinfo, "AutoDocRef Not Found", message)
+                    return  # Stop further processing
+
                 clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
                 clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
 
@@ -262,6 +271,7 @@ class PdfButtonHandler:
                             f.write(f"\n[ERROR] {message}\n")
                     self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
                     add_missing_contact('clinic', clinic)
+                    return  # Stop further processing if clinic is missing
 
                 if clinician:
                     clinician_db_path = os.path.join(script_dir, 'databases', 'clinician_nav_contacts.db')
@@ -284,6 +294,7 @@ class PdfButtonHandler:
                                 f.write(f"\n[ERROR] {message}\n")
                         self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
                         add_missing_contact('clinician', clinician)
+                        return  # Stop further processing if prescriber is missing
                 else:
                     message = "Clinician field not found in the extracted data."
                     self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
@@ -291,6 +302,7 @@ class PdfButtonHandler:
                         with open(log_file_path, 'a', encoding='utf-8') as f:
                             f.write(f"\n[ERROR] {message}\n")
                     self.root.after(0, messagebox.showinfo, "Clinician Not Found", "Clinician field not found in the extracted data.")
+                    return  # Stop further processing if clinician is missing
 
                 if customer_no and prescriber:
                     # Calculate Requested Delivery Date: today + 14 days
@@ -298,7 +310,7 @@ class PdfButtonHandler:
                     request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
                     print(f"Calculated request_delivery_date: {request_delivery_date}")  # Debug
                     success, sales_order_no, error_message = attempt_nav_upload(
-                        customer_no, prescriber, creation_date, request_delivery_date, log_file_path
+                        customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path
                     )
                     if success:
                         message = f"Successfully posted to sales order number: {sales_order_no}"
@@ -607,10 +619,10 @@ class PdfButtonHandler:
         content_lower = content.lower()
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
-def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, log_file_path=None):
+def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None):
     try:
         print(f"Passing request_delivery_date to create_sales_order: {request_delivery_date}")  # Debug
-        sales_order_no = create_sales_order(customer_no, prescriber, original_order_date, request_delivery_date)
+        sales_order_no = create_sales_order(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref)
         if sales_order_no:
             return True, sales_order_no, None
         else:
@@ -621,7 +633,6 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             with open(log_file_path, 'a', encoding='utf-8') as f:
                 f.write(f"\n[ERROR] {error_message}\n")
         return False, None, error_message
-    
 
 # --- Main Application Setup ---
 def create_search_tab(notebook):
