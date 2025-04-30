@@ -865,7 +865,7 @@ def create_missing_contacts_tab(notebook):
     update_button = ttk.Button(missing_tab, text="Update Selected", command=update_contact)
     update_button.pack(pady=5)
 
-    return missing_tab
+    return missing_tab, populate_tree  # Return both the tab and the populate function
 
 # Define the list of available themes
 theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'simplex', 'vapor']
@@ -1382,12 +1382,13 @@ theme_combobox.bind('<<ComboboxSelected>>', change_theme)
 # ---------------------------
 # TABs
 
-# Bind the event to refresh the chart when "Results Analysis" is selected
-
+# Bind the event to refresh when specific tabs are selected
 def on_tab_selected(event):
     selected_tab_text = event.widget.tab(event.widget.index("current"), "text")
     if selected_tab_text == "Results Analysis":
         analysis_handles["refresh_chart"]()
+    elif selected_tab_text == "Missing Contacts":
+        populate_tree()  # Automatically refresh the Treeview
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 
@@ -1395,7 +1396,7 @@ notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 ensure_customers_table()
 
 # Create tabs
-missing_tab = create_missing_contacts_tab(notebook)  # Add the new tab
+missing_tab, populate_tree = create_missing_contacts_tab(notebook)
 analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 
 # Start watching the Downloads folder in the background
