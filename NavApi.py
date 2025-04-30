@@ -110,16 +110,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     # --- Step 4: Add Medical Details --- (work ticket)
     medical_details = [
         { 
-            "Operation": "Model Room",
-            "Medical_Detail_Text": "Tes for Fin" 
-        },
-        {
-            "Operation": "Pattern Room",
-            "Medical_Detail_Text": "Use pattern X for shaping"
-        },
-        {
-            "Operation": "Clicking/Closing Room",
-            "Medical_Detail_Text": "Ensure closed seam finish"
+            "Operation": "Special Instructions",
+            "Medical_Detail_Text": "Refer to Prescription form" 
         }
     ]
     medical_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails"
