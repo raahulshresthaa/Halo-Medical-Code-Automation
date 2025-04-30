@@ -35,7 +35,7 @@ import messagebox
 VERSION = "6.0.0-alpha"
 
 # Database paths
-sales_orders_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'sales_orders.db')
+customers_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'clinic_nav_sell_to.db')
 clinician_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'clinician_nav_contacts.db')
 missing_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'missing_contacts.db')
 
@@ -69,8 +69,8 @@ def get_form_type_from_model_id(model_id):
     return mapping.get(model_id, 'unknown')
 
 def ensure_customers_table():
-    """Ensure the customers table exists in sales_orders.db."""
-    conn = sqlite3.connect(sales_orders_db_path)
+    """Ensure the customers table exists in the database."""
+    conn = sqlite3.connect(customers_db_path)
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS customers (
@@ -237,15 +237,20 @@ class PdfButtonHandler:
                 clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
 
                 script_dir = os.path.dirname(os.path.abspath(__file__))
-                db_path = os.path.join(script_dir, 'databases', 'sales_orders.db')
+                db_path = customers_db_path
                 if not os.path.exists(db_path):
-                    error_msg = f"Error: Sales orders database file not found at {db_path}"
+                    error_msg = f"Error: Customers database file not found at {db_path}"
                     print(error_msg)
                     raise FileNotFoundError(error_msg)
                 conn = sqlite3.connect(db_path)
                 cursor = conn.cursor()
-                cursor.execute("SELECT Sell_to_Customer_No FROM customers WHERE Docuware_Clinic_Name = ?", (clinic,))
+                print(f"Querying for clinic: '{clinic}'")
+                cursor.execute("SELECT Sell_to_Customer_No FROM customers WHERE TRIM(LOWER(Docuware_Clinic_Name)) = TRIM(LOWER(?))", (clinic,))
                 clinic_result = cursor.fetchone()
+                if clinic_result:
+                    print(f"Found customer_no: {clinic_result[0]}")
+                else:
+                    print("No match found for the clinic.")
                 conn.close()
 
                 customer_no = clinic_result[0] if clinic_result else None
@@ -839,11 +844,11 @@ def create_missing_contacts_tab(notebook):
         code = simpledialog.askstring("Input Code", f"Enter the code for {type} '{name}':")
         if code:
             if type == 'clinic':
-                conn = sqlite3.connect(sales_orders_db_path)
-                cursor = conn.cursor()
-                cursor.execute("INSERT OR REPLACE INTO customers (Docuware_Clinic_Name, Sell_to_Customer_No) VALUES (?, ?)", (name, code))
-                conn.commit()
-                conn.close()
+                    conn = sqlite3.connect(customers_db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("INSERT OR REPLACE INTO customers (Docuware_Clinic_Name, Sell_to_Customer_No) VALUES (?, ?)", (name, code))
+                    conn.commit()
+                    conn.close()
             elif type == 'clinician':
                 conn = sqlite3.connect(clinician_db_path)
                 cursor = conn.cursor()

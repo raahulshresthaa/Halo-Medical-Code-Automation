@@ -3,7 +3,7 @@ import os
 
 # Define paths
 project_dir = os.path.dirname(os.path.abspath(__file__))
-db_path = os.path.join(project_dir, 'databases', 'sales_orders.db')
+db_path = os.path.join(project_dir, 'databases', 'clinic_nav_sell_to.db')
 output_file = os.path.join(project_dir, 'customer_data_output.txt')
 
 # Check if the database file exists
