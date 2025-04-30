@@ -1380,8 +1380,7 @@ version_label.pack(side='right')
 theme_combobox.bind('<<ComboboxSelected>>', change_theme)
 
 # ---------------------------
-# RESULTS ANALYSIS TAB
-analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
+# TABs
 
 # Bind the event to refresh the chart when "Results Analysis" is selected
 
@@ -1396,8 +1395,8 @@ notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 ensure_customers_table()
 
 # Create tabs
-analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 missing_tab = create_missing_contacts_tab(notebook)  # Add the new tab
+analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 
 # Start watching the Downloads folder in the background
 watch_downloads_folder()
