@@ -39,6 +39,26 @@ customers_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'da
 clinician_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'clinician_nav_contacts.db')
 missing_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'missing_contacts.db')
 
+# Functions to get all clinics and clinicians
+def get_all_clinics():
+    conn = sqlite3.connect(customers_db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT Docuware_Clinic_Name, Sell_to_Customer_No FROM customers")
+    clinics = cursor.fetchall()
+    conn.close()
+    return clinics
+
+def get_all_clinicians():
+    conn = sqlite3.connect(clinician_db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT \"Docuware Clinician Name\", \"NAV Contact No\" FROM clinician_contacts")
+    clinicians = cursor.fetchall()
+    conn.close()
+    return clinicians
+
+missing_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'missing_contacts.db')
+
+
 # To fix blurriness on some displays
 try:
     from ctypes import windll
@@ -883,6 +903,129 @@ def create_missing_contacts_tab(notebook):
 
     return missing_tab, populate_tree  # Return both the tab and the populate function
 
+def create_clinics_tab(notebook):
+    clinics_tab = ttk.Frame(notebook)
+    notebook.add(clinics_tab, text="Clinics")
+
+    # Label
+    label = ttk.Label(clinics_tab, text="Clinics Database", font=("Calibri", 16, "bold"))
+    label.pack(pady=5)
+
+    # Create Treeview
+    tree = ttk.Treeview(clinics_tab, columns=('Clinic Name', 'Sell To Number'), show='headings')
+    tree.heading('Clinic Name', text='Clinic Name')
+    tree.heading('Sell To Number', text='Sell To Number')
+    tree.column('Clinic Name', width=300, anchor='w')
+    tree.column('Sell To Number', width=150, anchor='center')
+    tree.pack(fill='both', expand=True)
+
+    # Add scrollbar
+    scrollbar = ttk.Scrollbar(clinics_tab, orient='vertical', command=tree.yview)
+    scrollbar.pack(side='right', fill='y')
+    tree.configure(yscrollcommand=scrollbar.set)
+
+    def populate_clinics_tree():
+        # Clear existing items
+        for item in tree.get_children():
+            tree.delete(item)
+        # Get data
+        clinics = get_all_clinics()
+        clinics.sort(key=lambda x: x[0])  # Sort by clinic name
+        for clinic in clinics:
+            tree.insert('', 'end', values=clinic)
+
+    # Initial population
+    populate_clinics_tree()
+
+    # Bind double-click
+    tree.bind('<Double-1>', lambda event: edit_clinic_sell_to(tree))
+
+    # Refresh button
+    refresh_button = ttk.Button(clinics_tab, text="Refresh", command=populate_clinics_tree)
+    refresh_button.pack(pady=5)
+
+    return clinics_tab, populate_clinics_tree
+
+def edit_clinic_sell_to(tree):
+    selected_item = tree.selection()
+    if not selected_item:
+        return
+    item = tree.item(selected_item)
+    clinic_name, current_sell_to = item['values']
+    new_sell_to = simpledialog.askstring("Edit Sell To Number", f"Enter new Sell To Number for {clinic_name}:", initialvalue=current_sell_to)
+    if new_sell_to:
+        # Update database
+        conn = sqlite3.connect(customers_db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE customers SET Sell_to_Customer_No = ? WHERE Docuware_Clinic_Name = ?", (new_sell_to, clinic_name))
+        conn.commit()
+        conn.close()
+        # Update Treeview
+        tree.item(selected_item, values=(clinic_name, new_sell_to))
+
+def create_clinicians_tab(notebook):
+    clinicians_tab = ttk.Frame(notebook)
+    notebook.add(clinicians_tab, text="Clinicians")
+
+    # Label
+    label = ttk.Label(clinicians_tab, text="Clinicians Database", font=("Calibri", 16, "bold"))
+    label.pack(pady=5)
+
+    # Create Treeview
+    tree = ttk.Treeview(clinicians_tab, columns=('Clinician Name', 'Prescriber Number'), show='headings')
+    tree.heading('Clinician Name', text='Clinician Name')
+    tree.heading('Prescriber Number', text='Prescriber Number')
+    tree.column('Clinician Name', width=300, anchor='w')
+    tree.column('Prescriber Number', width=150, anchor='center')
+    tree.pack(fill='both', expand=True)
+
+    # Add scrollbar
+    scrollbar = ttk.Scrollbar(clinicians_tab, orient='vertical', command=tree.yview)
+    scrollbar.pack(side='right', fill='y')
+    tree.configure(yscrollcommand=scrollbar.set)
+
+    def populate_clinicians_tree():
+        # Clear existing items
+        for item in tree.get_children():
+            tree.delete(item)
+        # Get data
+        clinicians = get_all_clinicians()
+        clinicians.sort(key=lambda x: x[0])  # Sort by clinician name
+        for clinician in clinicians:
+            tree.insert('', 'end', values=clinician)
+
+    # Initial population
+    populate_clinicians_tree()
+
+    # Bind double-click
+    tree.bind('<Double-1>', lambda event: edit_clinician_prescriber(tree))
+
+    # Refresh button
+    refresh_button = ttk.Button(clinicians_tab, text="Refresh", command=populate_clinicians_tree)
+    refresh_button.pack(pady=5)
+
+    return clinicians_tab, populate_clinicians_tree
+
+def edit_clinician_prescriber(tree):
+    selected_item = tree.selection()
+    if not selected_item:
+        return
+    item = tree.item(selected_item)
+    clinician_name, current_prescriber = item['values']
+    new_prescriber = simpledialog.askstring("Edit Prescriber Number", f"Enter new Prescriber Number for {clinician_name}:", initialvalue=current_prescriber)
+    if new_prescriber:
+        # Update database
+        conn = sqlite3.connect(clinician_db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE clinician_contacts SET \"NAV Contact No\" = ? WHERE \"Docuware Clinician Name\" = ?", (new_prescriber, clinician_name))
+        conn.commit()
+        conn.close()
+        # Update Treeview
+        tree.item(selected_item, values=(clinician_name, new_prescriber))
+        
+    return missing_tab, populate_tree  # Return both the tab and the populate function
+
+
 # Define the list of available themes
 theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'simplex', 'vapor']
 
@@ -1405,6 +1548,10 @@ def on_tab_selected(event):
         analysis_handles["refresh_chart"]()
     elif selected_tab_text == "Missing Contacts":
         populate_tree()  # Automatically refresh the Treeview
+    elif selected_tab_text == "Clinics":
+        populate_clinics_tree()
+    elif selected_tab_text == "Clinicians":
+        populate_clinicians_tree()
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 
@@ -1414,6 +1561,9 @@ ensure_customers_table()
 # Create tabs
 missing_tab, populate_tree = create_missing_contacts_tab(notebook)
 analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
+
+clinics_tab, populate_clinics_tree = create_clinics_tab(notebook)
+clinicians_tab, populate_clinicians_tree = create_clinicians_tab(notebook)
 
 # Start watching the Downloads folder in the background
 watch_downloads_folder()
