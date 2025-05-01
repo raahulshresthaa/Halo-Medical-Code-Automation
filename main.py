@@ -22,6 +22,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import time
 from analysis_tab import create_analysis_tab
 import analysis_tab
+
 from generate_code_logic import (
     generate_bespoke_codes,
     generate_insole_codes,
