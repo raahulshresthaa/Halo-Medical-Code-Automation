@@ -235,6 +235,15 @@ class PdfButtonHandler:
             price_codes = self.get_price_codes_from_content(content, logic_content)
             print(f"Price codes received: {price_codes}")
 
+            # Extract final codes from price_codes
+            if '**Final Codes:**' in price_codes:
+                final_codes_section = price_codes.split('**Final Codes:**')[1].strip()
+                final_codes = [line.strip() for line in final_codes_section.split('\n') if line.strip()]
+            else:
+                final_codes = []
+                print("No final codes found in the response.")
+                self.root.after(0, lambda: self.append_to_result_text("No final codes found in the response.", 'error'))
+
             model_id = self.model_id_var.get()
             form_type_for_filename = get_form_type_from_model_id(model_id)
 
@@ -329,15 +338,16 @@ class PdfButtonHandler:
                     # Calculate Requested Delivery Date: today + 14 days
                     today = datetime.date.today()
                     request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
-                    print(f"Calculated request_delivery_date: {request_delivery_date}")  # Debug
+                    print(f"Calculated request_delivery_date: {request_delivery_date}")
+                    # Pass final_codes to attempt_nav_upload
                     success, sales_order_no, error_message = attempt_nav_upload(
-                        customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path
+                        customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path, final_codes
                     )
                     if success:
                         message = f"Successfully posted to sales order number: {sales_order_no}"
                         tag = 'success'
                     else:
-                        message = "Failed to post to NAV. Please kick to data upload for manual uploading."
+                        message = f"Failed to post to NAV: {error_message}"
                         tag = 'error'
                     self.root.after(0, lambda: self.append_to_result_text(message, tag))
                     if log_file_path:
@@ -640,14 +650,22 @@ class PdfButtonHandler:
         content_lower = content.lower()
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
-def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None):
+def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None, final_codes=None):
     try:
-        print(f"Passing request_delivery_date to create_sales_order: {request_delivery_date}")  # Debug
-        sales_order_no = create_sales_order(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref)
-        if sales_order_no:
-            return True, sales_order_no, None
+        result = create_sales_order(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes)
+        if result is None:
+            success = False
+            sales_order_no = None
+            error_message = "Failed to create sales order header."
         else:
-            return False, None, "Failed to create sales order: Unknown error"
+            sales_order_no, lines_added = result
+            if lines_added:
+                success = True
+                error_message = None
+            else:
+                success = False
+                error_message = f"Sales order created but no lines added due to missing final codes. Order No: {sales_order_no}"
+        return success, sales_order_no, error_message
     except Exception as e:
         error_message = f"Failed to post to NAV: {str(e)}"
         if log_file_path:

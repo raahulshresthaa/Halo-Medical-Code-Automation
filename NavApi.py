@@ -11,6 +11,20 @@ import tkinter as tk
 from tkinter import simpledialog, messagebox
 import sys
 
+def parse_code_string(code_str):
+    """Parse a code string like 'B55A x2' into (item_no, quantity)."""
+    code_str = code_str.strip()
+    if 'x' in code_str:
+        parts = code_str.split('x')
+        if len(parts) == 2:
+            code = parts[0].strip()
+            try:
+                quantity = int(parts[1].strip())
+                return code, quantity
+            except ValueError:
+                pass
+    return code_str, 1  # Default quantity is 1 if no 'x' or parsing fails
+
 def read_nav_config_file(filename, config_name):
     file_path = os.path.join(os.getcwd(), filename)
     if os.path.exists(file_path):
@@ -54,7 +68,7 @@ headers = {
 }
 auth = HttpNtlmAuth(username, password)
 
-def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref):
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes=None):
     filter_soai = "$filter=startswith(No,'GB-SOAI')&$orderby=No desc&$top=1"
     get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soai}"
     response = requests.get(get_url, headers=headers, auth=auth)
@@ -90,15 +104,11 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         "Supporting_Items_Arrived_Date": today,
         "PO_Requested_Date": today,
         "Requested_Delivery_Date": request_delivery_date,
-        "Pad_No": auto_doc_ref  # Set Pad_No. to the AutoDocRef value
+        "Pad_No": auto_doc_ref
     }
-    
-    print(f"Sending order_data: {json.dumps(order_data, indent=2)}")  # Debug
     
     post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
     create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
-    
-    print(f"NAV Response: {create_response.status_code} - {create_response.text}")  # Debug
     
     if create_response.status_code != 201:
         print("❌ Failed to create sales order header:")
@@ -107,7 +117,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     
     print(f"✅ Created Sales Order {next_no}")
     
-    # --- Step 4: Add Medical Details --- (work ticket)
+    # Add Medical Details
     medical_details = [
         { 
             "Operation": "Special Instructions",
@@ -129,38 +139,34 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             print(f"✅ Added Medical Detail: {med['Operation']} – {med['Medical_Detail_Text']}")
         else:
             print(f"❌ Failed to add Medical Detail for Operation: {med['Operation']}")
-            print(response.status_code)
-            try:
-                print(json.dumps(response.json(), indent=4))
-            except:
-                print(response.text)
+            print(response.status_code, response.text)
     
-    # --- Step 5: Add Sales Order Lines ---
+    # Add Sales Order Lines
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
-    item_nos = ["B54A", "B54C", "B55A"]  # Will need to be mapped in a database
-    print(f"📦 Adding {len(item_nos)} Sales Order Line(s) to: {next_no}")
-    base_line_no = 10000
-    
-    for i, item_no in enumerate(item_nos):
-        line_data = {
-            "Document_Type": "Order", 
-            "Document_No": next_no,
-            "Line_No": base_line_no + i * 10000 * 2,  # Needs to be x2 since the description runs across 2 lines
-            "Type": "Item",
-            "No": item_no,
-            "Quantity": 1,  # If the final code says x2, this will need to be 2
-            "Location_Code": "WAREHOUSE",
-            "Unit_of_Measure_Code": "EACH"
-        }
-        response = requests.post(lines_url, headers=headers, data=json.dumps(line_data), auth=auth)
-        if response.status_code == 201:
-            print(f"✅ Added Sales Order Line: {item_no} x1")
-        else:
-            print(f"❌ Failed to add Sales Order Line {item_no}:")
-            print(response.status_code)
-            try:
-                print(json.dumps(response.json(), indent=4))
-            except:
-                print(response.text)
+    if final_codes and len(final_codes) > 0:
+        item_lines = [parse_code_string(code_str) for code_str in final_codes]
+        print(f"📦 Adding {len(item_lines)} Sales Order Line(s) to: {next_no}")
+        lines_added = True
+        base_line_no = 10000
+        for i, (item_no, quantity) in enumerate(item_lines):
+            line_data = {
+                "Document_Type": "Order",
+                "Document_No": next_no,
+                "Line_No": base_line_no + i * 10000,
+                "Type": "Item",
+                "No": item_no,
+                "Quantity": quantity,
+                "Location_Code": "WAREHOUSE",
+                "Unit_of_Measure_Code": "EACH"
+            }
+            response = requests.post(lines_url, headers=headers, data=json.dumps(line_data), auth=auth)
+            if response.status_code == 201:
+                print(f"✅ Added Sales Order Line: {item_no} x{quantity}")
+            else:
+                print(f"❌ Failed to add Sales Order Line {item_no}:")
+                print(response.status_code, response.text)
+    else:
+        print("⚠️ No final codes provided, no sales order lines added.")
+        lines_added = False
 
-    return next_no  # Return the sales order number if successful
+    return next_no, lines_added
