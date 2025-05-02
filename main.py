@@ -340,19 +340,13 @@ class PdfButtonHandler:
                     request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
                     print(f"Calculated request_delivery_date: {request_delivery_date}")
                     # Pass final_codes to attempt_nav_upload
-                    success, sales_order_no, error_message = attempt_nav_upload(
+                    # In process_api_call, within the 'InsoleFullReaderV7' block, replace the existing attempt_nav_upload call with:
+                    # In process_api_call, within the 'InsoleFullReaderV7' block, replace the existing attempt_nav_upload call with:
+                    success, sales_order_no, message = attempt_nav_upload(
                         customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path, final_codes
                     )
-                    if success:
-                        message = f"Successfully posted to sales order number: {sales_order_no}"
-                        tag = 'success'
-                    else:
-                        message = f"Failed to post to NAV: {error_message}"
-                        tag = 'error'
+                    tag = 'success' if success else 'error'
                     self.root.after(0, lambda: self.append_to_result_text(message, tag))
-                    if log_file_path:
-                        with open(log_file_path, 'a', encoding='utf-8') as f:
-                            f.write(f"\n[{tag.upper()}] {message}\n")
             else:
                 message = "Sales order posting not applicable for this form type."
                 tag = 'info'
@@ -653,25 +647,31 @@ class PdfButtonHandler:
 def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None, final_codes=None):
     try:
         result = create_sales_order(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes)
-        if result is None:
-            success = False
-            sales_order_no = None
-            error_message = "Failed to create sales order header."
+        success = result['success']
+        sales_order_no = result['sales_order_no']
+        error_messages = result['error_messages']
+        
+        if success:
+            message = f"Successfully posted to sales order number: {sales_order_no}"
         else:
-            sales_order_no, lines_added = result
-            if lines_added:
-                success = True
-                error_message = None
+            if sales_order_no:
+                message = f"Sales order {sales_order_no} created with errors:\n" + "\n".join(error_messages)
             else:
-                success = False
-                error_message = f"Sales order created but no lines added due to missing final codes. Order No: {sales_order_no}"
-        return success, sales_order_no, error_message
-    except Exception as e:
-        error_message = f"Failed to post to NAV: {str(e)}"
+                message = "Failed to create sales order:\n" + "\n".join(error_messages)
+        
+        # Log the message
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
-                f.write(f"\n[ERROR] {error_message}\n")
-        return False, None, error_message
+                tag = 'SUCCESS' if success else 'ERROR'
+                f.write(f"\n[{tag}] {message}\n")
+        
+        return success, sales_order_no, message
+    except Exception as e:
+        message = f"Failed to post to NAV: {str(e)}"
+        if log_file_path:
+            with open(log_file_path, 'a', encoding='utf-8') as f:
+                f.write(f"\n[ERROR] {message}\n")
+        return False, None, message
 
 # --- Main Application Setup ---
 def create_search_tab(notebook):

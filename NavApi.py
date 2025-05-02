@@ -69,6 +69,10 @@ headers = {
 auth = HttpNtlmAuth(username, password)
 
 def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes=None):
+    error_messages = []
+    sales_order_no = None
+
+    # Step 1: Get last SOAI order number
     filter_soai = "$filter=startswith(No,'GB-SOAI')&$orderby=No desc&$top=1"
     get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soai}"
     response = requests.get(get_url, headers=headers, auth=auth)
@@ -76,7 +80,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     if response.status_code != 200:
         print("❌ Failed to get last SOAI order number")
         print(response.status_code, response.text)
-        return None
+        error_messages.append(f"Failed to get last SOAI order number: {response.status_code} {response.text}")
+        return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
     
     last_soai = response.json()['value'][0]['No']
     print(f"🔍 Last SOAI Order No: {last_soai}")
@@ -84,12 +89,14 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     match = re.match(r"(GB-SOAI)(\d+)", last_soai)
     if not match:
         print("❌ Could not parse SOAI number.")
-        return None
+        error_messages.append("Could not parse SOAI number.")
+        return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
     
     prefix, number = match.groups()
     next_no = f"{prefix}{int(number)+1:05d}"
     print(f"➡️ Creating Sales Order: {next_no}")
     
+    # Step 2: Create sales order header
     external_doc_no = f"RS-AI-ORDER-{next_no[-4:]}"
     today = datetime.date.today().strftime("%Y-%m-%d")
     order_data = {
@@ -113,11 +120,13 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     if create_response.status_code != 201:
         print("❌ Failed to create sales order header:")
         print(create_response.status_code, create_response.text)
-        return None
+        error_messages.append(f"Failed to create sales order header: {create_response.status_code} {create_response.text}")
+        return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
     
     print(f"✅ Created Sales Order {next_no}")
+    sales_order_no = next_no
     
-    # Add Medical Details
+    # Step 3: Add Medical Details
     medical_details = [
         { 
             "Operation": "Special Instructions",
@@ -140,13 +149,13 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         else:
             print(f"❌ Failed to add Medical Detail for Operation: {med['Operation']}")
             print(response.status_code, response.text)
+            error_messages.append(f"Failed to add Medical Detail for Operation: {med['Operation']} - {response.status_code} {response.text}")
     
-    # Add Sales Order Lines
+    # Step 4: Add Sales Order Lines
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
     if final_codes and len(final_codes) > 0:
         item_lines = [parse_code_string(code_str) for code_str in final_codes]
         print(f"📦 Adding {len(item_lines)} Sales Order Line(s) to: {next_no}")
-        lines_added = True
         base_line_no = 100000
         for i, (item_no, quantity) in enumerate(item_lines):
             line_data = {
@@ -165,8 +174,10 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             else:
                 print(f"❌ Failed to add Sales Order Line {item_no}:")
                 print(response.status_code, response.text)
+                error_messages.append(f"Failed to add Sales Order Line: {item_no} x{quantity} - {response.status_code} {response.text}")
     else:
         print("⚠️ No final codes provided, no sales order lines added.")
-        lines_added = False
+        error_messages.append("No final codes provided, no sales order lines added.")
 
-    return next_no, lines_added
+    success = len(error_messages) == 0
+    return {'success': success, 'sales_order_no': sales_order_no, 'error_messages': error_messages}
