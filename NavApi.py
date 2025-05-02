@@ -131,7 +131,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     for i, med in enumerate(medical_details):
         payload = {
             "Document_No": next_no,
-            "Line_No": (i + 1) * 10000,
+            "Line_No": (i + 1) * 20000,
             **med
         }
         response = requests.post(medical_url, headers=headers, data=json.dumps(payload), auth=auth)
@@ -147,12 +147,12 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         item_lines = [parse_code_string(code_str) for code_str in final_codes]
         print(f"📦 Adding {len(item_lines)} Sales Order Line(s) to: {next_no}")
         lines_added = True
-        base_line_no = 10000
+        base_line_no = 100000
         for i, (item_no, quantity) in enumerate(item_lines):
             line_data = {
                 "Document_Type": "Order",
                 "Document_No": next_no,
-                "Line_No": base_line_no + i * 10000,
+                "Line_No": base_line_no + i * 20000,
                 "Type": "Item",
                 "No": item_no,
                 "Quantity": quantity,
