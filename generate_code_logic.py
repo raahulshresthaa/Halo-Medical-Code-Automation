@@ -62,24 +62,24 @@ def generate_bespoke_codes(self, content):
 
         # Bespoke Tariff Check
         if clinic_name in tariff_bespoke_clinics:
-            passed_codes['Tariff Bespoke'] += 1
+            passed_codes['TARIFF BESPOKE'] += 1
             bespoke_tariff_added = True
 
         # Insole Tariff Checks
         if clinic_name in tariff_tci_clinics:
-            passed_codes['Tariff TCI'] += 1
+            passed_codes['TARIFF TCI\'S'] += 1
             if is_pair:
-                passed_codes['Tariff TCI'] *= 2
+                passed_codes['TARIFF TCI\'S'] *= 2
             insole_tariff_added = True
         elif clinic_name in tariff_simple_clinics:
-            passed_codes['Tariff Simple'] += 1
+            passed_codes['TARIFF SIMPLE INSOLE'] += 1
             if is_pair:
-                passed_codes['Tariff Simple'] *= 2
+                passed_codes['TARIFF SIMPLE INSOLE'] *= 2
             insole_tariff_added = True
         elif clinic_name in tariff_polyprop_clinics:
-            passed_codes['Tariff Polyprop'] += 1
+            passed_codes['TARIFF POLYPROPS'] += 1
             if is_pair:
-                passed_codes['Tariff Polyprop'] *= 2
+                passed_codes['TARIFF POLYPROPS'] *= 2
             insole_tariff_added = True
 
         # Style-based logic
@@ -234,7 +234,7 @@ def generate_bespoke_codes(self, content):
                 passed_codes[code] += 1
 
         if content_dict.get('fastening', '') == 'boa':
-            passed_codes['Twist Fasten'] += 1
+            passed_codes['TWIST FASTEN'] += 1
 
         if content_dict.get('lining material', '') == 'white sheepskin':
             passed_codes['A18A'] += 1
@@ -442,7 +442,7 @@ def generate_bespoke_codes(self, content):
         # Pair Handling for normal codes
         if content_dict.get('insole pair', '') == 'selected':
             codes_to_double_general = [
-                'A1K', 'A18A', 'Twist Fasten', 'A6'
+                'A1K', 'A18A', 'TWIST FASTEN', 'A6'
             ]
             for code in codes_to_double_general:
                 if code in passed_codes:
@@ -474,7 +474,7 @@ def generate_bespoke_codes(self, content):
 
         bespoke_filter_codes = {
             'A1B', 'A1A', 'A1K', 'A22', 'A23', 'A24', 'A25',
-            'Twist Fasten', 'A18A', 'A6', 'A15', 'A16', 'A37A',
+            'TWIST FASTEN', 'A18A', 'A6', 'A15', 'A16', 'A37A',
             'A37B', 'A31', 'A19', 'A26', 'A8', 'A13A', 'A12A',
             'A39', 'A38', 'A40', 'B54B'
         }
@@ -564,35 +564,35 @@ def generate_insole_codes(self, content):
         if clinic_name in all_tariff_clinics:
             # 1) If the clinic allows polyprop & base == 'polypropylene'
             if clinic_name in tariff_polyprop_clinics and base == 'polypropylene':
-                passed_codes['Tariff Polyprop'] += 1
+                passed_codes['TARIFF POLYPROPS'] += 1
                 if is_pair:
-                    passed_codes['Tariff Polyprop'] *= 2
+                    passed_codes['TARIFF POLYPROPS'] *= 2
                 return (
-                    'Tariff Polyprop'
-                    if passed_codes['Tariff Polyprop'] == 1
-                    else f"Tariff Polyprop x{passed_codes['Tariff Polyprop']}"
+                    'TARIFF POLYPROPS'
+                    if passed_codes['TARIFF POLYPROPS'] == 1
+                    else f"TARIFF POLYPROPS x{passed_codes['TARIFF POLYPROPS']}"
                 )
 
             # 2) Else if the clinic allows "simple" & insole_type == 'simple'
             elif clinic_name in tariff_simple_clinics and insole_type == 'simple':
-                passed_codes['Tariff Simple'] += 1
+                passed_codes['TARIFF SIMPLE INSOLE'] += 1
                 if is_pair:
-                    passed_codes['Tariff Simple'] *= 2
+                    passed_codes['TARIFF SIMPLE INSOLE'] *= 2
                 return (
-                    'Tariff Simple'
-                    if passed_codes['Tariff Simple'] == 1
-                    else f"Tariff Simple x{passed_codes['Tariff Simple']}"
+                    'TARIFF SIMPLE INSOLE'
+                    if passed_codes['TARIFF SIMPLE INSOLE'] == 1
+                    else f"TARIFF SIMPLE INSOLE x{passed_codes['TARIFF SIMPLE INSOLE']}"
                 )
 
             # 3) Else if the clinic is in the TCI list
             elif clinic_name in tariff_tci_clinics:
-                passed_codes['Tariff TCI'] += 1
+                passed_codes['TARIFF TCI\'S'] += 1
                 if is_pair:
-                    passed_codes['Tariff TCI'] *= 2
+                    passed_codes['TARIFF TCI\'S'] *= 2
                 return (
-                    'Tariff TCI'
-                    if passed_codes['Tariff TCI'] == 1
-                    else f"Tariff TCI x{passed_codes['Tariff TCI']}"
+                    'TARIFF TCI\'S'
+                    if passed_codes['TARIFF TCI\'S'] == 1
+                    else f"TARIFF TCI\'S x{passed_codes['TARIFF TCI\'S']}"
                 )
 
         # If we get here, then the clinic isn't in any of those lists, or no conditions matched:
@@ -751,9 +751,9 @@ def generate_insole_codes(self, content):
 
             # Decide tariff
             if total_posts <= 4:
-                chosen_tariff = 'Tariff insole >4 POST'
+                chosen_tariff = 'TARIFF INSOLE>4 POST'
             else:
-                chosen_tariff = 'Tariff insole <5 POST'
+                chosen_tariff = 'TARIFF INSOLE<5 POST'
 
             passed_codes[chosen_tariff] += 1
 
@@ -821,54 +821,54 @@ def generate_afo_codes(self, content):
 
         # --- Tariff AFO Check ---
         if clinic_name in tariff_afo_clinics:
-            passed_codes['Tariff AFO'] += 1
+            passed_codes['TARIFF AFO'] += 1
             if is_pair:
-                passed_codes['Tariff AFO'] *= 2
-            return 'Tariff AFO' if passed_codes['Tariff AFO'] == 1 else f'Tariff AFO x{passed_codes["Tariff AFO"]}'
+                passed_codes['TARIFF AFO'] *= 2
+            return 'TARIFF AFO' if passed_codes['TARIFF AFO'] == 1 else f'TARIFF AFO x{passed_codes["TARIFF AFO"]}'
 
         # --- Start of AFO-specific logic (if not a Tariff AFO clinic) ---
         # Default codes
-        default_codes = ['D1/C', 'D8/U']
+        default_codes = ['D1C', 'D8U']
 
-        # Determine AFO Type codes with pair handling for 'D8/U'
+        # Determine AFO Type codes with pair handling for 'D8U'
         afo_type = content_dict.get('afo type', '').lower()
         if afo_type in ('normal', 'fixed', 'articulated'):
-            passed_codes['D1/C'] += 1
+            passed_codes['D1C'] += 1
             code_count = 1
             if content_dict.get('afo pair', '') == 'selected':
                 code_count *= 2
-            passed_codes['D8/U'] += code_count
+            passed_codes['D8U'] += code_count
         elif afo_type == 'crow boot':
-            passed_codes['DNS 1'] += 1
+            passed_codes['DNS1'] += 1
         elif afo_type == 'afo/dafo':
-            passed_codes['D1/C'] += 2
+            passed_codes['D1C'] += 2
             code_count = 2
             if content_dict.get('afo pair', '') == 'selected':
                 code_count *= 2
-            passed_codes['D8/U'] += code_count
+            passed_codes['D8U'] += code_count
         elif afo_type == 'anterior shell':
-            passed_codes['D12/M'] += 1
+            passed_codes['D12M'] += 1
         else:
             # If 'AFO Type' does not exist, use default codes
-            passed_codes['D1/C'] += 1
+            passed_codes['D1C'] += 1
             code_count = 1
             if content_dict.get('afo pair', '') == 'selected':
                 code_count *= 2
-            passed_codes['D8/U'] += code_count
+            passed_codes['D8U'] += code_count
 
         # Check for 'Anterior Shell Height' even if 'AFO Type' is not 'anterior shell'
         if afo_type != 'anterior shell' and content_dict.get('anterior shell height', ''):
-            passed_codes['D12/M'] += 1
+            passed_codes['D12M'] += 1
 
         # Determine Hinge Type codes
         hinge_type = content_dict.get('hinge type', '').lower()
         hinge_code = None
         if hinge_type == 'gillette/tamrack':
-            hinge_code = 'D2/A'
+            hinge_code = 'D2A'
         elif hinge_type in ('double action', 'camber axis'):
-            hinge_code = 'D2/D'
+            hinge_code = 'D2D'
         elif hinge_type in ('appalachian/metal', 'appalachian', 'metal'):
-            hinge_code = 'D2/B'
+            hinge_code = 'D2B'
 
         if hinge_code:
             code_count = 1
@@ -894,7 +894,7 @@ def generate_afo_codes(self, content):
             heel_posting_codes = sum([left_heel_posting, right_heel_posting])
 
         if heel_posting_codes > 0:
-            passed_codes['D10/E'] += heel_posting_codes
+            passed_codes['D10E'] += heel_posting_codes
 
         # PCRO Codes
         pcro_codes = defaultdict(int)
@@ -902,14 +902,14 @@ def generate_afo_codes(self, content):
 
         # List of PCRO features and their codes
         pcro_features = {
-            'varus resist': 'D8/D',
-            'valgus resist': 'D8/D',
-            'suctentaculum tali': 'D8/H',
-            'peroneal notch': 'D8/I',
+            'varus resist': 'D8D',
+            'valgus resist': 'D8D',
+            'suctentaculum tali': 'D8H',
+            'peroneal notch': 'D8I',
             'metatarsal button': 'B41',
-            'neuro plate': 'D8/A',
-            'toe lift': 'D8/U',
-            'pcro values': 'D8/B'
+            'neuro plate': 'D8A',
+            'toe lift': 'D8U',
+            'pcro values': 'D8B'
         }
 
         for feature, code in pcro_features.items():
@@ -935,13 +935,13 @@ def generate_afo_codes(self, content):
         # M&T Codes
         m_and_t_codes = []
         if content_dict.get('carbon ankle reinforcements', '') == 'selected':
-            m_and_t_codes.append('D10/B')
+            m_and_t_codes.append('D10B')
         if content_dict.get('ribbed ankle reinforcements', '') == 'selected':
-            m_and_t_codes.append('D10/A')
+            m_and_t_codes.append('D10A')
         if content_dict.get('walking surface', '') == 'selected':
-            m_and_t_codes.append('D10/G')
+            m_and_t_codes.append('D10G')
         if content_dict.get('transfer 1st choice', ''):
-            m_and_t_codes.append('D10/I')
+            m_and_t_codes.append('D10I')
 
         # Add M&T codes
         for code in m_and_t_codes:
@@ -955,7 +955,7 @@ def generate_afo_codes(self, content):
 
         if afo_full_material_value:
             if afo_full_material_value.startswith('yes'):
-                afo_lining_codes.append('D14/E')  # Add D14/E code
+                afo_lining_codes.append('D14E')  # Add D14E code
                 # Extract the material after 'yes'
                 afo_full_material = afo_full_material_value[3:].strip()
             else:
@@ -969,7 +969,7 @@ def generate_afo_codes(self, content):
 
         if afo_calf_material_value:
             if afo_calf_material_value.startswith('yes'):
-                afo_lining_codes.append('D14/D')  # Add D14/D code
+                afo_lining_codes.append('D14D')  # Add D14D code
                 # Extract the material after 'yes'
                 afo_calf_material = afo_calf_material_value[3:].strip()
             else:
@@ -980,11 +980,11 @@ def generate_afo_codes(self, content):
 
         # Materials for AFO Lining
         lining_materials = {
-            'ld eva': 'D14/D',
-            "p'zote": 'D14/D',
-            'chamois': 'D14/F',
-            'leather': 'D14/F',
-            'sheepskin': 'D14/F'
+            'ld eva': 'D14D',
+            "p'zote": 'D14D',
+            'chamois': 'D14F',
+            'leather': 'D14F',
+            'sheepskin': 'D14F'
         }
 
         # Check and add codes based on materials
@@ -1002,9 +1002,9 @@ def generate_afo_codes(self, content):
         pads_codes = []
 
         if content_dict.get('arch pads', ''):
-            pads_codes.append('D14/C')
+            pads_codes.append('D14C')
         if content_dict.get('navicular pad', ''):
-            pads_codes.append('D14/C')
+            pads_codes.append('D14C')
 
         slip_pads = ['slip pad calf', 'slip pad ankle', 'slip pad foot']
         for pad in slip_pads:
@@ -1030,10 +1030,10 @@ def generate_afo_codes(self, content):
             strap_type = content_dict.get(strap_type_key, '').lower()
 
             if strap_type == 'y strap':
-                passed_codes['D14/A'] += 1
+                passed_codes['D14A'] += 1
                 passed_codes['P15'] += 1
             elif strap_type == 'full as part of ankle lining':
-                passed_codes['D14/A'] += 1
+                passed_codes['D14A'] += 1
                 passed_codes['P15'] += 1
             elif strap_type == 'single slotted fix':
                 passed_codes['P1'] += 1
@@ -1072,18 +1072,18 @@ def generate_afo_codes(self, content):
             for word in comments.split():
                 if word.upper() in passed_codes:
                     continue
-                elif word.upper() in ['D14/C', 'D14C']:
-                    passed_codes['D14/C'] += 1
+                elif word.upper() in ['D14C', 'D14C']:
+                    passed_codes['D14C'] += 1
 
-        # Add D14/C code if additional material usage is found
+        # Add D14C code if additional material usage is found
         if additional_material_codes > 0:
-            passed_codes['D14/C'] += additional_material_codes
+            passed_codes['D14C'] += additional_material_codes
 
         # --- Pair Handling ---
         # Apply Pair Handling after all codes have been added
         if content_dict.get('afo pair', '') == 'selected':
             # Codes to exclude from pair handling
-            codes_to_exclude = ['D10/E', 'D14/A', 'D14/D', 'P1', 'P4', 'D8/D','D8/H','D8/A', 'B41','D8/I', 'D8/U', 'D8/B', 'P15', 'D2/D', 'D2/B', 'D2/A']
+            codes_to_exclude = ['D10E', 'D14A', 'D14D', 'P1', 'P4', 'D8D','D8H','D8A', 'B41','D8I', 'D8U', 'D8B', 'P15', 'D2D', 'D2B', 'D2A']
             for code in passed_codes:
                 if code not in codes_to_exclude:
                     passed_codes[code] *= 2
@@ -1171,18 +1171,18 @@ def generate_modular_codes(self, content):
 
         # Modular Tariff Check (other clinics)
         if clinic_name in tariff_modular_clinics:
-            passed_codes['Tariff Modular'] += 1
+            passed_codes['TARIFF MODULAR'] += 1
             modular_tariff_added = True
 
         # Insole Tariff Checks
         if clinic_name in tariff_tci_clinics:
-            passed_codes['Tariff TCI'] += 1
+            passed_codes['TARIFF TCI\'S'] += 1
             insole_tariff_added = True
         elif clinic_name in tariff_simple_clinics:
-            passed_codes['Tariff Simple'] += 1
+            passed_codes['TARIFF SIMPLE INSOLE'] += 1
             insole_tariff_added = True
         elif clinic_name in tariff_polyprop_clinics:
-            passed_codes['Tariff Polyprop'] += 1
+            passed_codes['TARIFF POLYPROPS'] += 1
             insole_tariff_added = True
 
         # Note: Continue normal logic to allow code filtering at the end
@@ -1192,18 +1192,18 @@ def generate_modular_codes(self, content):
             count = 1
             if is_pair:
                 count = 2
-            passed_codes['6mm'] += count
+            passed_codes['6MM'] += count
 
         # Insole Allowance Checks
-        allowance_codes = {'3mm', '6mm', '9mm', '12mm'}
-        pattern_allowances = {'9mm', '12mm'}
+        allowance_codes = {'3MM', '6MM', '9MM', '12MM'}
+        pattern_allowances = {'9MM', '12MM'}
 
         for key in ['left insole allowance', 'right insole allowance']:
             value = content_dict.get(key, '').strip().lower()
             if value in allowance_codes:
                 passed_codes[value] += 1
                 if value in pattern_allowances:
-                    passed_codes['Pattern'] += 1
+                    passed_codes['PATTERN'] += 1
 
         # Sole and Style Checks
         sole_value = content_dict.get('sole', '')
@@ -1232,11 +1232,11 @@ def generate_modular_codes(self, content):
 
         # If style is recognized use style lists
         if style in sport_styles:
-            passed_codes['Modular Sports'] += 1
+            passed_codes['MODULAR SPORTS'] += 1
         elif style in shoe_styles:
-            passed_codes['Modular Shoes'] += 1
+            passed_codes['MODULAR SHOES'] += 1
         elif style in boot_styles:
-            passed_codes['Modular Boots'] += 1
+            passed_codes['MODULAR BOOTS'] += 1
         else:
             # --- ADDED WARNING LOGIC HERE ---
             # The style wasn't found in sport, shoe, or boot sets, so fallback to tick boxes.
@@ -1244,13 +1244,13 @@ def generate_modular_codes(self, content):
             fallback_styles_used = []
 
             if content_dict.get('shoes', '') == 'selected':
-                passed_codes['Modular Shoes'] += 1
+                passed_codes['MODULAR SHOES'] += 1
                 fallback_styles_used.append('shoes')
             if content_dict.get('boots', '') == 'selected':
-                passed_codes['Modular Boots'] += 1
+                passed_codes['MODULAR BOOTS'] += 1
                 fallback_styles_used.append('boots')
             if content_dict.get('trainers', '') == 'selected':
-                passed_codes['Modular Sports'] += 1
+                passed_codes['MODULAR SPORTS'] += 1
                 fallback_styles_used.append('trainers')
 
             if fallback_styles_used:
@@ -1272,9 +1272,9 @@ def generate_modular_codes(self, content):
 
         # Check boa/velcro 
         if content_dict.get('boa', '') == 'selected':
-            passed_codes['twist fasten'] += 1
-        if content_dict.get('velcro', '') == 'selected':
-            passed_codes['velcro'] += 1
+            passed_codes['TWIST FASTEN'] += 1
+        if content_dict.get('VELCRO', '') == 'selected':
+            passed_codes['VELCRO'] += 1
 
         # Straps Checks
         for side in ['left', 'right']:
@@ -1478,7 +1478,7 @@ def generate_modular_codes(self, content):
 
         if content_dict.get('pair', '') == 'selected':
             codes_to_double_general = [
-                'twist fasten', 'BNS62', 'velcro'
+                'TWIST FASTEN', 'BNS62', 'VELCRO'
             ]
             for code in codes_to_double_general:
                 if code in passed_codes:
@@ -1509,8 +1509,8 @@ def generate_modular_codes(self, content):
         }
 
         modular_filter_codes = {
-            '6mm', 'Pattern', 'BNS62', 'Modular Shoes', 'Modular Boots',
-            'Modular Sports', 'twist fasten', 'velcro', 'B34', 'B33', 'B8',
+            '6MM', 'PATTERN', 'BNS62', 'MODULAR SHOES', 'MODULAR BOOTS',
+            'MODULAR SPORTS', 'TWIST FASTEN', 'VELCRO', 'B34', 'B33', 'B8',
             'B30', 'B31', 'B25', 'B17', 'B18', 'B19'
         }
 
