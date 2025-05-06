@@ -68,11 +68,10 @@ headers = {
 }
 auth = HttpNtlmAuth(username, password)
 
-def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes=None):
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes=None, patient_name=None):
     error_messages = []
     sales_order_no = None
 
-    # Step 1: Get last SOAI order number
     filter_soai = "$filter=startswith(No,'GB-SOAI')&$orderby=No desc&$top=1"
     get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soai}"
     response = requests.get(get_url, headers=headers, auth=auth)
@@ -96,7 +95,6 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     next_no = f"{prefix}{int(number)+1:05d}"
     print(f"➡️ Creating Sales Order: {next_no}")
     
-    # Step 2: Create sales order header
     external_doc_no = f"RS-AI-ORDER-{next_no[-4:]}"
     today = datetime.date.today().strftime("%Y-%m-%d")
     order_data = {
@@ -111,7 +109,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         "Supporting_Items_Arrived_Date": today,
         "PO_Requested_Date": today,
         "Requested_Delivery_Date": request_delivery_date,
-        "Pad_No": auto_doc_ref
+        "Pad_No": auto_doc_ref,
+        "Patient_Name": patient_name if patient_name else "Unknown"
     }
     
     post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
@@ -126,7 +125,6 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     print(f"✅ Created Sales Order {next_no}")
     sales_order_no = next_no
     
-    # Step 3: Add Medical Details
     medical_details = [
         { 
             "Operation": "Special Instructions",
@@ -151,7 +149,6 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             print(response.status_code, response.text)
             error_messages.append(f"Failed to add Medical Detail for Operation: {med['Operation']} - {response.status_code} {response.text}")
     
-    # Step 4: Add Sales Order Lines
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
     if final_codes and len(final_codes) > 0:
         item_lines = [parse_code_string(code_str) for code_str in final_codes]

@@ -230,12 +230,11 @@ class PdfButtonHandler:
         except Exception as e:
             return f"Error: {str(e)}"
 
-    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date):
+    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name):
         try:
             price_codes = self.get_price_codes_from_content(content, logic_content)
             print(f"Price codes received: {price_codes}")
 
-            # Extract final codes from price_codes
             if '**Final Codes:**' in price_codes:
                 final_codes_section = price_codes.split('**Final Codes:**')[1].strip()
                 final_codes = [line.strip() for line in final_codes_section.split('\n') if line.strip()]
@@ -270,7 +269,7 @@ class PdfButtonHandler:
                         with open(log_file_path, 'a', encoding='utf-8') as f:
                             f.write(f"\n[ERROR] {message}\n")
                     self.root.after(0, messagebox.showinfo, "AutoDocRef Not Found", message)
-                    return  # Stop further processing
+                    return
 
                 clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
                 clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
@@ -301,7 +300,7 @@ class PdfButtonHandler:
                             f.write(f"\n[ERROR] {message}\n")
                     self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
                     add_missing_contact('clinic', clinic)
-                    return  # Stop further processing if clinic is missing
+                    return
 
                 if clinician:
                     clinician_db_path = os.path.join(script_dir, 'databases', 'clinician_nav_contacts.db')
@@ -324,7 +323,7 @@ class PdfButtonHandler:
                                 f.write(f"\n[ERROR] {message}\n")
                         self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
                         add_missing_contact('clinician', clinician)
-                        return  # Stop further processing if prescriber is missing
+                        return
                 else:
                     message = "Clinician field not found in the extracted data."
                     self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
@@ -332,18 +331,14 @@ class PdfButtonHandler:
                         with open(log_file_path, 'a', encoding='utf-8') as f:
                             f.write(f"\n[ERROR] {message}\n")
                     self.root.after(0, messagebox.showinfo, "Clinician Not Found", "Clinician field not found in the extracted data.")
-                    return  # Stop further processing if clinician is missing
+                    return
 
                 if customer_no and prescriber:
-                    # Calculate Requested Delivery Date: today + 14 days
                     today = datetime.date.today()
                     request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
                     print(f"Calculated request_delivery_date: {request_delivery_date}")
-                    # Pass final_codes to attempt_nav_upload
-                    # In process_api_call, within the 'InsoleFullReaderV7' block, replace the existing attempt_nav_upload call with:
-                    # In process_api_call, within the 'InsoleFullReaderV7' block, replace the existing attempt_nav_upload call with:
                     success, sales_order_no, message = attempt_nav_upload(
-                        customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path, final_codes
+                        customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path, final_codes, patient_name
                     )
                     tag = 'success' if success else 'error'
                     self.root.after(0, lambda: self.append_to_result_text(message, tag))
@@ -467,17 +462,21 @@ class PdfButtonHandler:
             AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
             clinic = fields_data.get('Clinic', 'N/A')
 
+            # Extract and clean patient name
+            patient_raw = fields_data.get('patient', '')
+            patient_name = patient_raw.split('Name:')[-1].strip() if patient_raw else 'Unknown'
+            print(f"Extracted patient_name: {patient_name}")
+
             # Extract creation date from fields_data
-            creation_date_str = fields_data.get('creation date', '28/04/2025')  # Default to provided date if not found
+            creation_date_str = fields_data.get('creation date', '28/04/2025')
             try:
                 day, month, year = map(int, creation_date_str.split('/'))
-                creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')  # Convert to YYYY-MM-DD
-                print(f"Extracted creation_date: {creation_date}")  # Debug
+                creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')
+                print(f"Extracted creation_date: {creation_date}")
             except (ValueError, AttributeError):
-                creation_date = datetime.date.today().strftime('%Y-%m-%d')  # Fallback to today if parsing fails
-                print(f"Failed to parse creation_date, using today's date: {creation_date}")  # Debug
+                creation_date = datetime.date.today().strftime('%Y-%m-%d')
+                print(f"Failed to parse creation_date, using today's date: {creation_date}")
 
-            # Logic file mapping based on model_id and form_type
             logic_file_name = None
 
             if model_id == 'InsoleFullReaderV7':
@@ -547,8 +546,8 @@ class PdfButtonHandler:
             if "Error" in logic_content:
                 raise ValueError(logic_content)
 
-            # Pass creation_date to process_api_call
-            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date)
+            # Pass patient_name to process_api_call
+            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, patient_name)
 
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the PDF file: {str(e)}")
@@ -644,9 +643,9 @@ class PdfButtonHandler:
         content_lower = content.lower()
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
-def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None, final_codes=None):
+def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None, final_codes=None, patient_name=None):
     try:
-        result = create_sales_order(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes)
+        result = create_sales_order(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes, patient_name)
         success = result['success']
         sales_order_no = result['sales_order_no']
         error_messages = result['error_messages']
@@ -659,7 +658,6 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             else:
                 message = "Failed to create sales order:\n" + "\n".join(error_messages)
         
-        # Log the message
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
                 tag = 'SUCCESS' if success else 'ERROR'
