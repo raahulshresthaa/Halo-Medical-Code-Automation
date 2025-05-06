@@ -39,10 +39,12 @@ def read_nav_config_file(filename, config_name):
             messagebox.showerror("Error", f"Error reading {config_name}: {str(e)}")
             sys.exit()
     else:
+        # Prompt the user to enter the config value
         value = simpledialog.askstring(f"{config_name} Required", f"Please enter your {config_name}:")
         if not value:
             messagebox.showerror("Error", f"No {config_name} entered. The application will exit.")
             sys.exit()
+        # Write the new config value to the file
         write_nav_config_file(filename, value.strip())
         return value.strip()
 
@@ -53,6 +55,7 @@ def write_nav_config_file(filename, value):
         f.write(encoded_data)
     print(f"{filename} saved to {file_path}")
 
+# Read NAV configuration from files
 nav_url = read_nav_config_file('nav_url.txt', 'NAV URL')
 company = read_nav_config_file('nav_company.txt', 'NAV Company')
 username = read_nav_config_file('nav_username.txt', 'NAV Username')
@@ -64,57 +67,34 @@ headers = {
     "Accept": "application/json"
 }
 auth = HttpNtlmAuth(username, password)
+
 def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes=None, patient_name=None):
     error_messages = []
     sales_order_no = None
 
-    # Check if Pad No. is already used
-    filter_pad_no = f"$filter=Pad_No eq '{auto_doc_ref}'"
-    get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_pad_no}"
-    response = requests.get(get_url, headers=headers, auth=auth)
-    
-    if response.status_code == 200 and response.json()['value']:
-        existing_order = response.json()['value'][0]
-        error_message = f"Pad No. {auto_doc_ref} is already used on Sales Order No. {existing_order['No']}"
-        print(f"❌ {error_message}")
-        error_messages.append(error_message)
-        return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
-
-    # Get the last SOAI order number
-    filter_soai = "$filter=startswith(No,'GB-SOAI')&$orderby=No desc&$top=1"
-    get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soai}"
+    filter_soa = "$filter=startswith(No,'GB-SOA0')&$orderby=No desc&$top=1"
+    get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
     response = requests.get(get_url, headers=headers, auth=auth)
     
     if response.status_code != 200:
-        print("❌ Failed to get last SOAI order number")
+        print("❌ Failed to get last SOA order number")
         print(response.status_code, response.text)
-        error_messages.append(f"Failed to get last SOAI order number: {response.status_code} {response.text}")
+        error_messages.append(f"Failed to get last SOA order number: {response.status_code} {response.text}")
         return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
     
-    last_soai = response.json()['value'][0]['No'] if response.json()['value'] else "GB-SOAI00000"
-    print(f"🔍 Last SOAI Order No: {last_soai}")
+    last_soa = response.json()['value'][0]['No']
+    print(f"🔍 Last SOA Order No: {last_soa}")
     
-    match = re.match(r"(GB-SOAI)(\d+)", last_soai)
+    match = re.match(r"(GB-SOA)(\d+)", last_soa)
     if not match:
-        print("❌ Could not parse SOAI number.")
-        error_messages.append("Could not parse SOAI number.")
+        print("❌ Could not parse SOA number.")
+        error_messages.append("Could not parse SOA number.")
         return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
-
-    # Step 3: Generate the next sales order number
-    print(f"🔢 Generating next order number from '{last_soai}'")
-    match = re.match(r"(GB-SOAI)(\d+)", last_soai)
-    if match:
-        prefix, number = match.groups()
-        print(f"📋 Parsed prefix: '{prefix}', number: '{number}'")
-        next_number = int(number) + 1
-        next_no = f"{prefix}{next_number:05d}"
-        print(f"➡️ Generated next order number: {next_no}")
-    else:
-        print(f"❌ Failed to parse '{last_soai}' with regex 'GB-SOAI\\d+'")
-        error_messages.append(f"Could not parse order number '{last_soai}'")
-        return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
-
-    # Step 4: Prepare and create the new sales order
+    
+    prefix, number = match.groups()
+    next_no = f"{prefix}{int(number)+1:05d}"
+    print(f"➡️ Creating Sales Order: {next_no}")
+    
     external_doc_no = f"RS-AI-ORDER-{next_no[-4:]}"
     today = datetime.date.today().strftime("%Y-%m-%d")
     order_data = {
@@ -132,27 +112,69 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         "Pad_No": auto_doc_ref,
         "Patient_Name": patient_name if patient_name else "Unknown"
     }
-    print(f"📋 Order data prepared: {json.dumps(order_data, indent=2)}")
     
     post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
-    print(f"🌐 Sending POST request to create order: {post_url}")
-    try:
-        create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
-        print(f"📩 Received response: Status {create_response.status_code}")
-        print(f"📜 Response content: {create_response.text}")
-        
-        if create_response.status_code == 201:
-            print(f"✅ Successfully created Sales Order: {next_no}")
-            sales_order_no = next_no
-        else:
-            print(f"❌ Failed to create order: {create_response.status_code} - {create_response.text}")
-            error_messages.append(f"Failed to create sales order: {create_response.status_code} {create_response.text}")
-            return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
-    except Exception as e:
-        print(f"💥 Exception creating sales order: {str(e)}")
-        error_messages.append(f"Exception creating sales order: {str(e)}")
+    create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
+    
+    if create_response.status_code != 201:
+        print("❌ Failed to create sales order header:")
+        print(create_response.status_code, create_response.text)
+        error_messages.append(f"Failed to create sales order header: {create_response.status_code} {create_response.text}")
         return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+    
+    print(f"✅ Created Sales Order {next_no}")
+    sales_order_no = next_no
+    
+    medical_details = [
+        { 
+            "Operation": "Special Instructions",
+            "Medical_Detail_Text": "Refer to Prescription form" 
+        }
+    ]
+    medical_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails"
+    
+    print(f"🧾 Posting {len(medical_details)} Medical Detail lines to: {next_no}")
+    
+    for i, med in enumerate(medical_details):
+        payload = {
+            "Document_No": next_no,
+            "Line_No": (i + 1) * 20000,
+            **med
+        }
+        response = requests.post(medical_url, headers=headers, data=json.dumps(payload), auth=auth)
+        if response.status_code == 201:
+            print(f"✅ Added Medical Detail: {med['Operation']} – {med['Medical_Detail_Text']}")
+        else:
+            print(f"❌ Failed to add Medical Detail for Operation: {med['Operation']}")
+            print(response.status_code, response.text)
+            error_messages.append(f"Failed to add Medical Detail for Operation: {med['Operation']} - {response.status_code} {response.text}")
+    
+    lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
+    if final_codes and len(final_codes) > 0:
+        item_lines = [parse_code_string(code_str) for code_str in final_codes]
+        print(f"📦 Adding {len(item_lines)} Sales Order Line(s) to: {next_no}")
+        base_line_no = 100000
+        for i, (item_no, quantity) in enumerate(item_lines):
+            line_data = {
+                "Document_Type": "Order",
+                "Document_No": next_no,
+                "Line_No": base_line_no + i * 20000,
+                "Type": "Item",
+                "No": item_no,
+                "Quantity": quantity,
+                "Location_Code": "WAREHOUSE",
+                "Unit_of_Measure_Code": "EACH"
+            }
+            response = requests.post(lines_url, headers=headers, data=json.dumps(line_data), auth=auth)
+            if response.status_code == 201:
+                print(f"✅ Added Sales Order Line: {item_no} x{quantity}")
+            else:
+                print(f"❌ Failed to add Sales Order Line {item_no}:")
+                print(response.status_code, response.text)
+                error_messages.append(f"Failed to add Sales Order Line: {item_no} x{quantity} - {response.status_code} {response.text}")
+    else:
+        print("⚠️ No final codes provided, no sales order lines added.")
+        error_messages.append("No final codes provided, no sales order lines added.")
 
-    # If successful, return the result
-    print(f"🏁 Process completed. Success: {len(error_messages) == 0}, Order No: {sales_order_no}")
-    return {'success': len(error_messages) == 0, 'sales_order_no': sales_order_no, 'error_messages': error_messages}
+    success = len(error_messages) == 0
+    return {'success': success, 'sales_order_no': sales_order_no, 'error_messages': error_messages}
