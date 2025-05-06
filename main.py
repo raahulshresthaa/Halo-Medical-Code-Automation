@@ -22,7 +22,6 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import time
 from analysis_tab import create_analysis_tab
 import analysis_tab
-
 from generate_code_logic import (
     generate_bespoke_codes,
     generate_insole_codes,
@@ -463,9 +462,22 @@ class PdfButtonHandler:
             clinic = fields_data.get('Clinic', 'N/A')
 
             # Extract and clean patient name
-            patient_raw = fields_data.get('patient', '')
-            patient_name = patient_raw.split('Name:')[-1].strip() if patient_raw else 'Unknown'
-            print(f"Extracted patient_name: {patient_name}")
+            patient_raw = fields_data.get('patient', '').strip()
+            print(f"Raw patient field: '{patient_raw}'")  # Debugging
+            # Check if the string starts with "Name" (case-insensitive) and remove it
+            if patient_raw.lower().startswith('name'):
+                # If it starts with "Name:", remove the first 5 characters
+                if patient_raw.lower().startswith('name:'):
+                    patient_name = patient_raw[5:].strip()
+                # If it starts with "Name" (no colon), remove the first 4 characters
+                else:
+                    patient_name = patient_raw[4:].strip()
+            else:
+                patient_name = patient_raw
+            # If the resulting name is empty or None, default to "Unknown"
+            if not patient_name:
+                patient_name = 'Unknown'
+            print(f"Cleaned patient_name: '{patient_name}'")  # Debugging
 
             # Extract creation date from fields_data
             creation_date_str = fields_data.get('creation date', '28/04/2025')
