@@ -72,7 +72,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     error_messages = []
     sales_order_no = None
 
-    filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=1"
+    filter_soa = "$filter=startswith(No,'GB-SOA0')&$orderby=No desc&$top=1"
     get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
     response = requests.get(get_url, headers=headers, auth=auth)
     
