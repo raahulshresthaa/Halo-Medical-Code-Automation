@@ -102,10 +102,19 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 📋 Retrieved {len(orders)} orders")
     if orders:
         last_soa = orders[0]['No']
-        print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ✅ Last SOA order number: {last_soa}")
+        print(f"🔍 Last SOA Order No: {last_soa}")
+        match = re.match(r"(GB-SOA)(\d+)", last_soa)
+        if match:
+            prefix, number = match.groups()
+            next_no = f"{prefix}{int(number)+1:06d}"
+            print(f"➡️ Generated next order number: {next_no}")
+        else:
+            print("❌ Could not parse SOA number.")
+            error_messages.append("Could not parse SOA number.")
+            return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
     else:
-        last_soa = "GB-SOA00000"
-        print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ⚠️ No SOA orders found. Using default: {last_soa}")
+        next_no = "GB-SOA000001"
+        print("🔍 No existing SOA orders found. Starting from GB-SOA000001")
 
     print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🔢 Parsing last SOA order number: {last_soa}")
     match = re.match(r"(GB-SOA)(\d+)", last_soa)
