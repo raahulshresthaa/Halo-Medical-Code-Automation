@@ -39,12 +39,10 @@ def read_nav_config_file(filename, config_name):
             messagebox.showerror("Error", f"Error reading {config_name}: {str(e)}")
             sys.exit()
     else:
-        # Prompt the user to enter the config value
         value = simpledialog.askstring(f"{config_name} Required", f"Please enter your {config_name}:")
         if not value:
             messagebox.showerror("Error", f"No {config_name} entered. The application will exit.")
             sys.exit()
-        # Write the new config value to the file
         write_nav_config_file(filename, value.strip())
         return value.strip()
 
@@ -55,7 +53,6 @@ def write_nav_config_file(filename, value):
         f.write(encoded_data)
     print(f"{filename} saved to {file_path}")
 
-# Read NAV configuration from files
 nav_url = read_nav_config_file('nav_url.txt', 'NAV URL')
 company = read_nav_config_file('nav_company.txt', 'NAV Company')
 username = read_nav_config_file('nav_username.txt', 'NAV Username')
@@ -72,23 +69,36 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     error_messages = []
     sales_order_no = None
 
-    filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=1"
-    get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
+    # Check if Pad No. is already used
+    filter_pad_no = f"$filter=Pad_No eq '{auto_doc_ref}'"
+    get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_pad_no}"
+    response = requests.get(get_url, headers=headers, auth=auth)
+    
+    if response.status_code == 200 and response.json()['value']:
+        existing_order = response.json()['value'][0]
+        error_message = f"Pad No. {auto_doc_ref} is already used on Sales Order No. {existing_order['No']}"
+        print(f"❌ {error_message}")
+        error_messages.append(error_message)
+        return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+
+    # Get the last SOAI order number
+    filter_soai = "$filter=startswith(No,'GB-SOAI')&$orderby=No desc&$top=1"
+    get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soai}"
     response = requests.get(get_url, headers=headers, auth=auth)
     
     if response.status_code != 200:
-        print("❌ Failed to get last SOA order number")
+        print("❌ Failed to get last SOAI order number")
         print(response.status_code, response.text)
-        error_messages.append(f"Failed to get last SOA order number: {response.status_code} {response.text}")
+        error_messages.append(f"Failed to get last SOAI order number: {response.status_code} {response.text}")
         return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
     
-    last_soa = response.json()['value'][0]['No']
-    print(f"🔍 Last SOA Order No: {last_soa}")
+    last_soai = response.json()['value'][0]['No'] if response.json()['value'] else "GB-SOAI00000"
+    print(f"🔍 Last SOAI Order No: {last_soai}")
     
-    match = re.match(r"(GB-SOA)(\d+)", last_soa)
+    match = re.match(r"(GB-SOAI)(\d+)", last_soai)
     if not match:
-        print("❌ Could not parse SOA number.")
-        error_messages.append("Could not parse SOA number.")
+        print("❌ Could not parse SOAI number.")
+        error_messages.append("Could not parse SOAI number.")
         return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
     
     prefix, number = match.groups()
