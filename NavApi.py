@@ -72,23 +72,23 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     error_messages = []
     sales_order_no = None
 
-    filter_soai = "$filter=startswith(No,'GB-SOAI')&$orderby=No desc&$top=1"
-    get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soai}"
+    filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=1"
+    get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
     response = requests.get(get_url, headers=headers, auth=auth)
     
     if response.status_code != 200:
-        print("❌ Failed to get last SOAI order number")
+        print("❌ Failed to get last SOA order number")
         print(response.status_code, response.text)
-        error_messages.append(f"Failed to get last SOAI order number: {response.status_code} {response.text}")
+        error_messages.append(f"Failed to get last SOA order number: {response.status_code} {response.text}")
         return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
     
-    last_soai = response.json()['value'][0]['No']
-    print(f"🔍 Last SOAI Order No: {last_soai}")
+    last_soa = response.json()['value'][0]['No']
+    print(f"🔍 Last SOA Order No: {last_soa}")
     
-    match = re.match(r"(GB-SOAI)(\d+)", last_soai)
+    match = re.match(r"(GB-SOA)(\d+)", last_soa)
     if not match:
-        print("❌ Could not parse SOAI number.")
-        error_messages.append("Could not parse SOAI number.")
+        print("❌ Could not parse SOA number.")
+        error_messages.append("Could not parse SOA number.")
         return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
     
     prefix, number = match.groups()
