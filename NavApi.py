@@ -118,8 +118,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         "Order_Category_Code": "MILLED INSOLES",
         "Prescriber": prescriber,
         "Send_For": "Send for Finish",
-        "Supporting_Items_Arrived_Date": today, # Note for later: only on test enviroment 
-        "PO_Requested_Date": today, # Note for later: only on test enviroment
+        "Supporting_Items_Arrived_Date": today,  # Note for later: only on test environment
+        "PO_Requested_Date": today,  # Note for later: only on test environment
         "Requested_Delivery_Date": request_delivery_date,
         "Pad_No": auto_doc_ref,
         "Patient_Name": patient_name if patient_name else "Unknown"
@@ -137,6 +137,24 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     print(f"✅ Created Sales Order: {next_no}")
     sales_order_no = next_no
 
+    # Get existing medical details for this sales order
+    filter_medical = f"$filter=Document_No eq '{next_no}'"
+    medical_get_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails?{filter_medical}"
+    medical_response = requests.get(medical_get_url, headers=headers, auth=auth)
+    
+    if medical_response.status_code == 200:
+        existing_details = medical_response.json()['value']
+        if existing_details:
+            max_line_no = max(detail['Line_No'] for detail in existing_details)
+            next_line_no = max_line_no + 10000
+        else:
+            next_line_no = 20000
+    else:
+        error_msg = f"Failed to get existing medical details: {medical_response.status_code} - {medical_response.text}"
+        print(f"❌ {error_msg}")
+        error_messages.append(error_msg)
+        next_line_no = 20000  # Fallback to default
+
     medical_details = [
         { 
             "Operation": "Special Instructions",
@@ -145,12 +163,14 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     ]
     medical_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails"
     for med in medical_details:
-        payload = {"Document_No": next_no, "Line_No": 20000, **med}
+        payload = {"Document_No": next_no, "Line_No": next_line_no, **med}
         response = requests.post(medical_url, headers=headers, data=json.dumps(payload), auth=auth)
         if response.status_code != 201:
             error_msg = f"Failed to add medical detail: {response.status_code} - {response.text}"
             print(f"❌ {error_msg}")
             error_messages.append(error_msg)
+        else:
+            print(f"✅ Added medical detail with Line_No: {next_line_no}")
 
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
     if final_codes and len(final_codes) > 0:
@@ -173,6 +193,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
                 error_msg = f"Failed to add line {item_no}: {response.status_code} - {response.text}"
                 print(f"❌ {error_msg}")
                 error_messages.append(error_msg)
+            else:
+                print(f"✅ Added sales order line: {item_no} x{quantity}")
     else:
         print("No final codes provided")
 
