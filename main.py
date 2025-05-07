@@ -656,32 +656,63 @@ class PdfButtonHandler:
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
 def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None, final_codes=None, patient_name=None):
+    """
+    Attempts to create a sales order in NAV using the provided parameters.
+    
+    Args:
+        customer_no (str): The customer number.
+        prescriber (str): The prescriber number.
+        original_order_date (str): The original order date in 'YYYY-MM-DD' format.
+        request_delivery_date (str): The requested delivery date in 'YYYY-MM-DD' format.
+        auto_doc_ref (str): The auto document reference.
+        log_file_path (str, optional): Path to the log file for recording outcomes.
+        final_codes (list, optional): List of final codes to include in the sales order lines.
+        patient_name (str, optional): The patient's name.
+
+    Returns:
+        tuple: (success (bool), sales_order_no (str or None), message (str))
+    """
     try:
-        result = create_sales_order(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes, patient_name)
-        success = result['success']
-        sales_order_no = result['sales_order_no']
-        error_messages = result['error_messages']
+        # Call the create_sales_order function with the provided parameters
+        result = create_sales_order(
+            sell_to_customer_no=customer_no,
+            prescriber=prescriber,
+            original_order_date=original_order_date,
+            request_delivery_date=request_delivery_date,
+            auto_doc_ref=auto_doc_ref,
+            final_codes=final_codes if final_codes else [],
+            patient_name=patient_name if patient_name else ""
+        )
         
-        if success:
+        # Extract the result components
+        success = result.get('success', False)
+        sales_order_no = result.get('sales_order_no', None)
+        error_messages = result.get('error_messages', [])
+        
+        # Construct the message based on the result
+        if success and sales_order_no:
             message = f"Successfully posted to sales order number: {sales_order_no}"
         else:
             if sales_order_no:
-                message = f"Sales order {sales_order_no} created with errors:\n" + "\n".join(error_messages)
+                message = f"Sales order {sales_order_no} created with errors: {', '.join(error_messages)}"
             else:
-                message = "Failed to create sales order:\n" + "\n".join(error_messages)
+                message = f"Failed to create sales order: {', '.join(error_messages) if error_messages else 'Unknown error'}"
         
+        # Log the result if a log file path is provided
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
                 tag = 'SUCCESS' if success else 'ERROR'
-                f.write(f"\n[{tag}] {message}\n")
+                f.write(f"[{tag}] {message}\n")
         
         return success, sales_order_no, message
+    
     except Exception as e:
-        message = f"Failed to post to NAV: {str(e)}"
+        # Handle unexpected errors
+        error_message = f"Failed to post to NAV due to an error: {str(e)}"
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
-                f.write(f"\n[ERROR] {message}\n")
-        return False, None, message
+                f.write(f"[ERROR] {error_message}\n")
+        return False, None, error_message
 
 # --- Main Application Setup ---
 def create_search_tab(notebook):
