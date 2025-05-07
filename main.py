@@ -32,6 +32,8 @@ from generate_code_logic import (
 )
 from NavApi import create_sales_order
 import messagebox
+import concurrent.futures
+import requests.exceptions
 
 # Version number
 VERSION = "6.0.0-alpha"
@@ -452,137 +454,168 @@ class PdfButtonHandler:
             messagebox.showinfo("No PDF File Selected", "Please select a PDF file to process.")
 
     def process_pdf_and_call_api(self, pdf_file_path):
-        try:
-            model_id = self.model_id_var.get()
-            print(f"Using model ID: {model_id}")
-            form_type_for_filename = get_form_type_from_model_id(model_id)
+            def azure_api_call():
+                with open(pdf_file_path, "rb") as pdf_file:
+                    poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
+                    result = poller.result()
+                return result
 
-            with open(pdf_file_path, "rb") as pdf_file:
-                poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
-                result = poller.result()
-
-            self.root.after(0, self.update_loading_message, "Please wait, calculating the codes")
-
-            fields_data = self.extract_fields_from_result(result)
-            if not fields_data:
-                raise ValueError("No data extracted from the PDF.")
-
-            content = self.parse_extracted_data(fields_data)
-            print(f"Extracted content:\n{content}")
-
-            if model_id == 'InsoleFullReaderV7':
-                if "insole type other" in fields_data:
-                    self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
-                if self.is_carbon_selected(content):
-                    self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
-
-            AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
-            clinic = fields_data.get('Clinic', 'N/A')
-
-            # Extract and clean patient name
-            patient_raw = fields_data.get('patient', '').strip()
-            print(f"Raw patient field: '{patient_raw}'")  # Debugging
-            # Check if the string starts with "Name" (case-insensitive) and remove it
-            if patient_raw.lower().startswith('name'):
-                # If it starts with "Name:", remove the first 5 characters
-                if patient_raw.lower().startswith('name:'):
-                    patient_name = patient_raw[5:].strip()
-                # If it starts with "Name" (no colon), remove the first 4 characters
-                else:
-                    patient_name = patient_raw[4:].strip()
-            else:
-                patient_name = patient_raw
-            # If the resulting name is empty or None, default to "Unknown"
-            if not patient_name:
-                patient_name = 'Unknown'
-            print(f"Cleaned patient_name: '{patient_name}'")  # Debugging
-
-            # Extract creation date from fields_data
-            creation_date_str = fields_data.get('creation date', '28/04/2025')
             try:
-                day, month, year = map(int, creation_date_str.split('/'))
-                creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')
-                print(f"Extracted creation_date: {creation_date}")
-            except (ValueError, AttributeError):
-                creation_date = datetime.date.today().strftime('%Y-%m-%d')
-                print(f"Failed to parse creation_date, using today's date: {creation_date}")
+                model_id = self.model_id_var.get()
+                print(f"Using model ID: {model_id}")
+                form_type_for_filename = get_form_type_from_model_id(model_id)
 
-            logic_file_name = None
+                # Set timeout and retry parameters
+                timeout_seconds = 30  # Adjust as needed
+                max_retries = 2
+                for attempt in range(max_retries + 1):
+                    try:
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(azure_api_call)
+                            result = future.result(timeout=timeout_seconds)
+                        break  # Success, exit retry loop
+                    except concurrent.futures.TimeoutError:
+                        if attempt < max_retries:
+                            print(f"Azure API call timed out. Retrying... (Attempt {attempt + 1}/{max_retries})")
+                            self.root.after(0, lambda: self.update_loading_message(f"Retrying Azure API call... (Attempt {attempt + 1})"))
+                        else:
+                            raise TimeoutError("Azure API call timed out after maximum retries.")
+                    except requests.exceptions.RequestException as e:
+                        raise RuntimeError(f"Network error during Azure API call: {str(e)}")
 
-            if model_id == 'InsoleFullReaderV7':
-                form_type = self.determine_form_type(fields_data)
-                if not form_type:
-                    query_message = "No form type found in the extracted data. Please raise a query."
-                    self.root.after(0, messagebox.showinfo, "Query", query_message)
-                    form_type = 'tci'
-                elif form_type == 'other':
-                    form_type = 'tci'
-                form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
-                print(f"Form type: {form_type}")
-                logic_file_mapping = {
-                    'tci': 'tci_logic.txt',
-                    'simple': 'simple_insole_logic.txt',
-                    'cradle': 'tci_logic.txt',
-                    'handmold': 'tci_logic.txt'
-                }
-                logic_file_name = logic_file_mapping.get(form_type)
-                print(f"Logic file name: {logic_file_name}")
-                if not logic_file_name:
-                    raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
-                passed_codes = generate_insole_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
+                self.root.after(0, self.update_loading_message, "Please wait, calculating the codes")
+
+                fields_data = self.extract_fields_from_result(result)
+                if not fields_data:
+                    raise ValueError("No data extracted from the PDF.")
+
+                content = self.parse_extracted_data(fields_data)
+                print(f"Extracted content:\n{content}")
+
+                if model_id == 'InsoleFullReaderV7':
+                    if "insole type other" in fields_data:
+                        self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
+                    if self.is_carbon_selected(content):
+                        self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
+
+                AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
+                clinic = fields_data.get('Clinic', 'N/A')
+
+                # Extract and clean patient name
+                patient_raw = fields_data.get('patient', '').strip()
+                print(f"Raw patient field: '{patient_raw}'")  # Debugging
+                # Check if the string starts with "Name" (case-insensitive) and remove it
+                if patient_raw.lower().startswith('name'):
+                    # If it starts with "Name:", remove the first 5 characters
+                    if patient_raw.lower().startswith('name:'):
+                        patient_name = patient_raw[5:].strip()
+                    # If it starts with "Name" (no colon), remove the first 4 characters
+                    else:
+                        patient_name = patient_raw[4:].strip()
                 else:
-                    print("No passed codes generated.")
+                    patient_name = patient_raw
+                # If the resulting name is empty or None, default to "Unknown"
+                if not patient_name:
+                    patient_name = 'Unknown'
+                print(f"Cleaned patient_name: '{patient_name}'")  # Debugging
 
-            elif model_id == 'AfoReaderV7':
-                logic_file_name = 'afo_logic.txt'
-                print(f"Logic file name: {logic_file_name}")
-                passed_codes = generate_afo_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
+                # Extract creation date from fields_data
+                creation_date_str = fields_data.get('creation date', '28/04/2025')
+                try:
+                    day, month, year = map(int, creation_date_str.split('/'))
+                    creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')
+                    print(f"Extracted creation_date: {creation_date}")
+                except (ValueError, AttributeError):
+                    creation_date = datetime.date.today().strftime('%Y-%m-%d')
+                    print(f"Failed to parse creation_date, using today's date: {creation_date}")
+
+                logic_file_name = None
+
+                if model_id == 'InsoleFullReaderV7':
+                    form_type = self.determine_form_type(fields_data)
+                    if not form_type:
+                        query_message = "No form type found in the extracted data. Please raise a query."
+                        self.root.after(0, messagebox.showinfo, "Query", query_message)
+                        form_type = 'tci'
+                    elif form_type == 'other':
+                        form_type = 'tci'
+                    form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
+                    print(f"Form type: {form_type}")
+                    logic_file_mapping = {
+                        'tci': 'tci_logic.txt',
+                        'simple': 'simple_insole_logic.txt',
+                        'cradle': 'tci_logic.txt',
+                        'handmold': 'tci_logic.txt'
+                    }
+                    logic_file_name = logic_file_mapping.get(form_type)
+                    print(f"Logic file name: {logic_file_name}")
+                    if not logic_file_name:
+                        raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
+                    passed_codes = generate_insole_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
+
+                elif model_id == 'AfoReaderV7':
+                    logic_file_name = 'afo_logic.txt'
+                    print(f"Logic file name: {logic_file_name}")
+                    passed_codes = generate_afo_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
+
+                elif model_id == 'BespokeReaderFullV4':
+                    logic_file_name = 'bespoke_logic.txt'
+                    print(f"Logic file name: {logic_file_name}")
+                    passed_codes = generate_bespoke_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
+
+                elif model_id == 'ModularReaderFullV3':
+                    logic_file_name = 'modular_logic.txt'
+                    print(f"Logic file name: {logic_file_name}")
+                    passed_codes = generate_modular_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
+
                 else:
-                    print("No passed codes generated.")
+                    raise ValueError(f"Unknown model ID '{model_id}'.")
 
-            elif model_id == 'BespokeReaderFullV4':
-                logic_file_name = 'bespoke_logic.txt'
-                print(f"Logic file name: {logic_file_name}")
-                passed_codes = generate_bespoke_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
-                else:
-                    print("No passed codes generated.")
+                logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
+                print(f"Logic file path: {logic_file_path}")
 
-            elif model_id == 'ModularReaderFullV3':
-                logic_file_name = 'modular_logic.txt'
-                print(f"Logic file name: {logic_file_name}")
-                passed_codes = generate_modular_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
-                else:
-                    print("No passed codes generated.")
+                logic_content = self.read_logic_file(logic_file_path)
+                if "Error" in logic_content:
+                    raise ValueError(logic_content)
 
-            else:
-                raise ValueError(f"Unknown model ID '{model_id}'.")
+                # Pass patient_name to process_api_call
+                self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, patient_name)
 
-            logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
-            print(f"Logic file path: {logic_file_path}")
-
-            logic_content = self.read_logic_file(logic_file_path)
-            if "Error" in logic_content:
-                raise ValueError(logic_content)
-
-            # Pass patient_name to process_api_call
-            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, patient_name)
-
-        except Exception as e:
-            self.root.after(0, messagebox.showerror, "Error", f"Error processing the PDF file: {str(e)}")
-            self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-            self.root.after(0, self.close_loading_popup)
+            except TimeoutError as e:
+                error_msg = f"Timeout error: {str(e)}"
+                self.root.after(0, messagebox.showerror, "Timeout Error", error_msg)
+                print(error_msg)
+            except RuntimeError as e:
+                error_msg = str(e)
+                self.root.after(0, messagebox.showerror, "Network Error", error_msg)
+                print(error_msg)
+            except Exception as e:
+                error_msg = f"Error processing the PDF file: {str(e)}"
+                self.root.after(0, messagebox.showerror, "Error", error_msg)
+                print(error_msg)
+            finally:
+                self.root.after(0, self.close_loading_popup)
+                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
     def extract_fields_from_result(self, result):
         """Extract relevant fields from Azure analysis result."""
