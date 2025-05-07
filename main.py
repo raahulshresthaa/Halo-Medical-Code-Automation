@@ -66,7 +66,7 @@ def get_clinician_name(prescriber_no):
     cursor.execute("SELECT \"Docuware Clinician Name\" FROM clinician_contacts WHERE \"NAV Contact No\" = ?", (prescriber_no,))
     result = cursor.fetchone()
     conn.close()
-    return result[0]
+    return result[0] if result else "Unknown"
 
 def get_clinic_name(customer_no):
     """Retrieve clinic name from the database using customer number."""
@@ -75,7 +75,7 @@ def get_clinic_name(customer_no):
     cursor.execute("SELECT Docuware_Clinic_Name FROM customers WHERE Sell_to_Customer_No = ?", (customer_no,))
     result = cursor.fetchone()
     conn.close()
-    return result[0]
+    return result[0] if result else "Unknown"
 
 # To fix blurriness on some displays
 try:
