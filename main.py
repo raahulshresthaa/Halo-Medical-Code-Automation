@@ -720,7 +720,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                         prescriber_no = prescriber
                         clinician_name = get_clinician_name(prescriber_no)
                         if clinician_name != "Unknown":
-                            formatted_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' exists in the app database but not in NAV. Please update NAV with this prescriber."
+                            formatted_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' exists in the app database but not in NAV. Please check if the pescriber number is correct."
                         else:
                             formatted_msg = f"❌ Prescriber number '{prescriber_no}' not found in the app database or NAV. Please ensure the clinician is added to both systems."
                     elif "Sell-to Customer No." in error:
@@ -729,7 +729,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                         customer_no_from_error = match.group(1) if match else customer_no
                         clinic_name = get_clinic_name(customer_no_from_error)
                         if clinic_name != "Unknown":
-                            formatted_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' exists in the app database but not in NAV. Please update NAV with this customer number."
+                            formatted_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' exists in the app database but not in NAV. Please check if the sell to number is correct."
                         else:
                             formatted_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in the app database or NAV. Please ensure the clinic is added to both systems."
                     else:
