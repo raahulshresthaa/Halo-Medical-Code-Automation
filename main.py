@@ -663,12 +663,21 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         error_messages = result['error_messages']
         
         if success:
-            message = f"Successfully posted to sales order number: {sales_order_no}"
+            message = f"✅ Successfully posted to sales order number: {sales_order_no}"
         else:
-            if sales_order_no:
-                message = f"Sales order {sales_order_no} created with errors:\n" + "\n".join(error_messages)
+            if any("Internal_EntityWithSameKeyExists" in error for error in error_messages):
+                # Extract the order number from the error message if possible
+                for error in error_messages:
+                    if "No.=" in error:
+                        start_idx = error.find("No.='") + 5
+                        end_idx = error.find("'", start_idx)
+                        order_no = error[start_idx:end_idx]
+                        break
+                else:
+                    order_no = "Unknown"
+                message = f"❌ Issue generating sales order: {order_no}, Likely an issue with NAV setup"
             else:
-                message = "Failed to create sales order:\n" + "\n".join(error_messages)
+                message = "❌ Failed to create sales order:\n" + "\n".join(error_messages)
         
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
@@ -677,7 +686,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         
         return success, sales_order_no, message
     except Exception as e:
-        message = f"Failed to post to NAV: {str(e)}"
+        message = f"❌ Failed to post to NAV: {str(e)}"
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
                 f.write(f"\n[ERROR] {message}\n")

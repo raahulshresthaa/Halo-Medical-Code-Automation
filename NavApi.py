@@ -10,6 +10,7 @@ import base64
 import tkinter as tk
 from tkinter import simpledialog, messagebox
 import sys
+
 def parse_code_string(code_str):
     """Parse a code string like 'B55A x2' into (item_no, quantity)."""
     print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🔍 Parsing code string: '{code_str}'")
@@ -82,8 +83,9 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     response = requests.get(get_url, headers=headers, auth=auth)
     
     if response.status_code != 200:
-        print(f"Failed to get last SOA order: {response.status_code}")
-        error_messages.append(f"Failed to get last SOA order: {response.text}")
+        error_msg = f"Failed to get last SOA order: {response.status_code} - {response.text}"
+        print(f"❌ {error_msg}")
+        error_messages.append(error_msg)
         return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
     
     orders = response.json()['value']
@@ -91,17 +93,18 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         last_soa = orders[0]['No']
         print(f"Last SOA order: {last_soa}")
     else:
-        last_soa = "GB-SOA000000"
-        print("No SOA orders found. Starting from default.")
+        last_soa = "GB-SOA00000"
+        print("No SOA orders found. Starting from GB-SOA00000")
 
     match = re.match(r"(GB-SOA)(\d+)", last_soa)
     if not match:
-        print(f"Could not parse SOA number: {last_soa}")
-        error_messages.append("Could not parse SOA number.")
+        error_msg = f"Could not parse SOA number: {last_soa}"
+        print(f"❌ {error_msg}")
+        error_messages.append(error_msg)
         return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
     
     prefix, number = match.groups()
-    next_no = f"{prefix}{int(number)+1:06d}"
+    next_no = f"{prefix}{int(number)+1:05d}"
     print(f"Generated next order number: {next_no}")
 
     external_doc_no = f"RS-AI-ORDER-{next_no[-4:]}"
@@ -126,11 +129,12 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
     
     if create_response.status_code != 201:
-        print(f"Failed to create sales order: {create_response.status_code}")
-        error_messages.append(f"Failed to create sales order: {create_response.text}")
+        error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
+        print(f"❌ {error_msg}")
+        error_messages.append(error_msg)
         return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
     
-    print(f"Created Sales Order: {next_no}")
+    print(f"✅ Created Sales Order: {next_no}")
     sales_order_no = next_no
 
     medical_details = [
@@ -144,8 +148,9 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         payload = {"Document_No": next_no, "Line_No": 20000, **med}
         response = requests.post(medical_url, headers=headers, data=json.dumps(payload), auth=auth)
         if response.status_code != 201:
-            print(f"Failed to add medical detail: {response.status_code}")
-            error_messages.append(f"Failed to add medical detail: {response.text}")
+            error_msg = f"Failed to add medical detail: {response.status_code} - {response.text}"
+            print(f"❌ {error_msg}")
+            error_messages.append(error_msg)
 
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
     if final_codes and len(final_codes) > 0:
@@ -165,8 +170,9 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             }
             response = requests.post(lines_url, headers=headers, data=json.dumps(line_data), auth=auth)
             if response.status_code != 201:
-                print(f"Failed to add line {item_no}: {response.status_code}")
-                error_messages.append(f"Failed to add line: {response.text}")
+                error_msg = f"Failed to add line {item_no}: {response.status_code} - {response.text}"
+                print(f"❌ {error_msg}")
+                error_messages.append(error_msg)
     else:
         print("No final codes provided")
 
