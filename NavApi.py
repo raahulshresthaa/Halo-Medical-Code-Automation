@@ -118,8 +118,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         "Order_Category_Code": "MILLED INSOLES",
         "Prescriber": prescriber,
         "Send_For": "Send for Finish",
-        "Supporting_Items_Arrived_Date": today,
-        "PO_Requested_Date": today,
+        "Supporting_Items_Arrived_Date": today, # Note for later: only on test enviroment 
+        "PO_Requested_Date": today, # Note for later: only on test enviroment
         "Requested_Delivery_Date": request_delivery_date,
         "Pad_No": auto_doc_ref,
         "Patient_Name": patient_name if patient_name else "Unknown"
