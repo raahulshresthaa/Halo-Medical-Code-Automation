@@ -78,7 +78,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     error_messages = []
     sales_order_no = None
 
-    filter_soa = "$filter=startswith(No,'GB-SOA0')&$orderby=No desc&$top=1"
+    filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=1"
     get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
     response = requests.get(get_url, headers=headers, auth=auth)
     
@@ -118,8 +118,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         "Order_Category_Code": "MILLED INSOLES",
         "Prescriber": prescriber,
         "Send_For": "Send for Finish",
-        "Supporting_Items_Arrived_Date": today,  # Note for later: only on test environment
-        "PO_Requested_Date": today,  # Note for later: only on test environment
+#        "Supporting_Items_Arrived_Date": today,  # Note for later: only on test environment
+#        "PO_Requested_Date": today,  # Note for later: only on test environment
         "Requested_Delivery_Date": request_delivery_date,
         "Pad_No": auto_doc_ref,
         "Patient_Name": patient_name if patient_name else "Unknown"
@@ -181,7 +181,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             line_data = {
                 "Document_Type": "Order",
                 "Document_No": next_no,
-                "Line_No": base_line_no + i * 20000,
+                "Line_No": base_line_no + i * 30000,
                 "Type": "Item",
                 "No": item_no,
                 "Quantity": quantity,
