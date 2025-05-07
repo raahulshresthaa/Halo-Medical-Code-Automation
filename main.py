@@ -356,11 +356,11 @@ class PdfButtonHandler:
                     today = datetime.date.today()
                     request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
                     print(f"Calculated request_delivery_date: {request_delivery_date}")
-                    success, sales_order_no, message = attempt_nav_upload(
+                    success, sales_order_no, messages = attempt_nav_upload(
                         customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path, final_codes, patient_name
                     )
-                    tag = 'success' if success else 'error'
-                    self.root.after(0, lambda: self.append_to_result_text(message, tag))
+                    for text, tag in messages:
+                        self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
             else:
                 message = "Sales order posting not applicable for this form type."
                 tag = 'info'
@@ -721,10 +721,9 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         patient_name (str, optional): The patient's name.
 
     Returns:
-        tuple: (success (bool), sales_order_no (str or None), message (str))
+        tuple: (success (bool), sales_order_no (str or None), messages (list of (text, tag)))
     """
     try:
-        # Call the create_sales_order function with the provided parameters
         result = create_sales_order(
             sell_to_customer_no=customer_no,
             prescriber=prescriber,
@@ -735,58 +734,81 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             patient_name=patient_name if patient_name else ""
         )
         
-        # Extract the result components
         success = result.get('success', False)
         sales_order_no = result.get('sales_order_no', None)
         error_messages = result.get('error_messages', [])
         
-        # Construct the message based on the result
-        if success and sales_order_no:
-            message = f"✅ Successfully posted to sales order number: {sales_order_no}"
+        messages = []
+        if sales_order_no:
+            messages.append((f"✅ Created Sales Order: {sales_order_no}", 'success'))
+            if error_messages:
+                for error in error_messages:
+                    if "Internal_InvalidTableRelation" in error:
+                        if "Prescriber" in error:
+                            prescriber_no = prescriber
+                            clinician_name = get_clinician_name(prescriber_no)
+                            if clinician_name != "Unknown":
+                                formatted_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' exists in the app database but not in NAV. Please check if the prescriber number is correct."
+                            else:
+                                formatted_msg = f"❌ Prescriber number '{prescriber_no}' not found in the app database or NAV. Please ensure the clinician is added to both systems."
+                        elif "Sell-to Customer No." in error:
+                            match = re.search(r"\((\w+)\)", error)
+                            customer_no_from_error = match.group(1) if match else customer_no
+                            clinic_name = get_clinic_name(customer_no_from_error)
+                            if clinic_name != "Unknown":
+                                formatted_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' exists in the app database but not in NAV. Please check if the sell to number is correct."
+                            else:
+                                formatted_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in the app database or NAV. Please ensure the clinic is added to both systems."
+                        else:
+                            formatted_msg = f"❌ {error}"
+                    else:
+                        formatted_msg = f"❌ {error}"
+                    messages.append((formatted_msg, 'error'))
         else:
-            formatted_messages = []
             for error in error_messages:
-                # Handle specific NAV errors with custom messages
                 if "Internal_InvalidTableRelation" in error:
                     if "Prescriber" in error:
-                        # Use the provided prescriber parameter directly
                         prescriber_no = prescriber
                         clinician_name = get_clinician_name(prescriber_no)
                         if clinician_name != "Unknown":
-                            formatted_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' exists in the app database but not in NAV. Please check if the pescriber number is correct."
+                            formatted_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' not found in NAV."
                         else:
-                            formatted_msg = f"❌ Prescriber number '{prescriber_no}' not found in the app database or NAV. Please ensure the clinician is added to both systems."
+                            formatted_msg = f"❌ Prescriber number '{prescriber_no}' not found in NAV or app database."
                     elif "Sell-to Customer No." in error:
-                        # Extract customer number from error message or use provided customer_no
                         match = re.search(r"\((\w+)\)", error)
                         customer_no_from_error = match.group(1) if match else customer_no
                         clinic_name = get_clinic_name(customer_no_from_error)
                         if clinic_name != "Unknown":
-                            formatted_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' exists in the app database but not in NAV. Please check if the sell to number is correct."
+                            formatted_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' not found in NAV."
                         else:
-                            formatted_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in the app database or NAV. Please ensure the clinic is added to both systems."
+                            formatted_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in NAV or app database."
                     else:
                         formatted_msg = f"❌ {error}"
                 else:
                     formatted_msg = f"❌ {error}"
-                formatted_messages.append(formatted_msg)
-            message = "\n".join(formatted_messages) if formatted_messages else "❌ Unknown error occurred"
+                messages.append((formatted_msg, 'error'))
         
-        # Log the result if a log file path is provided
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
-                tag = 'SUCCESS' if success else 'ERROR'
-                f.write(f"\n[{tag}] {message}\n")
+                if sales_order_no:
+                    f.write(f"\n[SUCCESS] Created Sales Order: {sales_order_no}\n")
+                    if error_messages:
+                        f.write("[ERROR] Encountered errors while adding details:\n")
+                        for msg, _ in messages[1:]:
+                            f.write(f"  {msg}\n")
+                else:
+                    f.write("[ERROR] Failed to create sales order:\n")
+                    for msg, _ in messages:
+                        f.write(f"  {msg}\n")
         
-        return success, sales_order_no, message
+        return success, sales_order_no, messages
     
     except Exception as e:
-        # Handle unexpected errors
         error_message = f"❌ Failed to post to NAV due to an unexpected error: {str(e)}"
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
                 f.write(f"\n[ERROR] {error_message}\n")
-        return False, None, error_message
+        return False, None, [(error_message, 'error')]
     
 # --- Main Application Setup ---
 def create_search_tab(notebook):
