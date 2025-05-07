@@ -679,7 +679,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
     
     Args:
         customer_no (str): The customer number.
-        prescriber (str): The prescriber number.
+        prescriber (str): The prescriber number (e.g., 'GB-CONT0001').
         original_order_date (str): The original order date in 'YYYY-MM-DD' format.
         request_delivery_date (str): The requested delivery date in 'YYYY-MM-DD' format.
         auto_doc_ref (str): The auto document reference.
@@ -716,23 +716,22 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                 # Handle specific NAV errors with custom messages
                 if "Internal_InvalidTableRelation" in error:
                     if "Prescriber" in error:
-                        # Extract prescriber number from error message or use provided prescriber
-                        match = re.search(r"\((\w+)\)", error)
-                        prescriber_no = match.group(1) if match else prescriber
+                        # Use the provided prescriber parameter directly
+                        prescriber_no = prescriber
                         clinician_name = get_clinician_name(prescriber_no)
-                        if clinician_name == "Unknown":
-                            formatted_msg = f"❌ Prescriber number '{prescriber_no}' not found in the app database or NAV. Please ensure the clinician is added to both systems."
+                        if clinician_name != "Unknown":
+                            formatted_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' exists in the app database but not in NAV. Please update NAV with this prescriber."
                         else:
-                            formatted_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' exists in the app database but not in NAV. Please update NAV with this contact number."
+                            formatted_msg = f"❌ Prescriber number '{prescriber_no}' not found in the app database or NAV. Please ensure the clinician is added to both systems."
                     elif "Sell-to Customer No." in error:
                         # Extract customer number from error message or use provided customer_no
                         match = re.search(r"\((\w+)\)", error)
                         customer_no_from_error = match.group(1) if match else customer_no
                         clinic_name = get_clinic_name(customer_no_from_error)
-                        if clinic_name == "Unknown":
-                            formatted_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in the app database or NAV. Please ensure the clinic is added to both systems."
-                        else:
+                        if clinic_name != "Unknown":
                             formatted_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' exists in the app database but not in NAV. Please update NAV with this customer number."
+                        else:
+                            formatted_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in the app database or NAV. Please ensure the clinic is added to both systems."
                     else:
                         formatted_msg = f"❌ {error}"
                 else:
