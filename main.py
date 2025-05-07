@@ -655,7 +655,7 @@ class PdfButtonHandler:
         content_lower = content.lower()
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
-def attempt_nav_upload(customer_no, prescriber, clinic, clinician, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None, final_codes=None, patient_name=None):
+def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None, final_codes=None, patient_name=None):
     try:
         result = create_sales_order(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes, patient_name)
         success = result['success']
@@ -663,18 +663,12 @@ def attempt_nav_upload(customer_no, prescriber, clinic, clinician, original_orde
         error_messages = result['error_messages']
         
         if success:
-            message = f"✅ Successfully posted to sales order number: {sales_order_no}"
+            message = f"Successfully posted to sales order number: {sales_order_no}"
         else:
-            formatted_messages = []
-            for error in error_messages:
-                if "Internal_InvalidTableRelation" in error and "Sell-to Customer No." in error:
-                    formatted_msg = f"❌ Clinic: {clinic} not found on NAV with sell-to number {customer_no}"
-                elif "Internal_InvalidTableRelation" in error and "Prescriber" in error:
-                    formatted_msg = f"❌ Prescriber {clinician} cannot be found on NAV with prescriber number {prescriber}"
-                else:
-                    formatted_msg = f"❌ {error}"
-                formatted_messages.append(formatted_msg)
-            message = "\n".join(formatted_messages)
+            if sales_order_no:
+                message = f"Sales order {sales_order_no} created with errors:\n" + "\n".join(error_messages)
+            else:
+                message = "Failed to create sales order:\n" + "\n".join(error_messages)
         
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
@@ -683,7 +677,7 @@ def attempt_nav_upload(customer_no, prescriber, clinic, clinician, original_orde
         
         return success, sales_order_no, message
     except Exception as e:
-        message = f"❌ Failed to post to NAV: {str(e)}"
+        message = f"Failed to post to NAV: {str(e)}"
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
                 f.write(f"\n[ERROR] {message}\n")
