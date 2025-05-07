@@ -11,6 +11,8 @@ import datetime
 import threading
 import sys
 import sqlite3
+import json
+import re
 # Import TkinterDnD for drag-and-drop functionality
 import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -56,8 +58,24 @@ def get_all_clinicians():
     conn.close()
     return clinicians
 
-missing_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'missing_contacts.db')
 
+def get_clinician_name(prescriber_no):
+    """Retrieve clinician name from the database using prescriber number."""
+    conn = sqlite3.connect(clinician_db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT \"Docuware Clinician Name\" FROM clinician_contacts WHERE \"NAV Contact No\" = ?", (prescriber_no,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else "Unknown"
+
+def get_clinic_name(customer_no):
+    """Retrieve clinic name from the database using customer number."""
+    conn = sqlite3.connect(customers_db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT Docuware_Clinic_Name FROM customers WHERE Sell_to_Customer_No = ?", (customer_no,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else "Unknown"
 
 # To fix blurriness on some displays
 try:
@@ -657,7 +675,7 @@ class PdfButtonHandler:
 
 def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None, final_codes=None, patient_name=None):
     """
-    Attempts to create a sales order in NAV using the provided parameters.
+    Attempts to create a sales order in NAV using the provided parameters with enhanced error handling.
     
     Args:
         customer_no (str): The customer number.
@@ -691,29 +709,47 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         
         # Construct the message based on the result
         if success and sales_order_no:
-            message = f"Successfully posted to sales order number: {sales_order_no}"
+            message = f"✅ Successfully posted to sales order number: {sales_order_no}"
         else:
-            if sales_order_no:
-                message = f"Sales order {sales_order_no} created with errors: {', '.join(error_messages)}"
-            else:
-                message = f"Failed to create sales order: {', '.join(error_messages) if error_messages else 'Unknown error'}"
+            formatted_messages = []
+            for error in error_messages:
+                # Handle specific NAV errors with custom messages
+                if "Internal_InvalidTableRelation" in error:
+                    if "Prescriber" in error:
+                        # Extract prescriber number from error message
+                        match = re.search(r"\((\w+)\)", error)
+                        prescriber_no = match.group(1) if match else prescriber
+                        clinician_name = get_clinician_name(prescriber_no)
+                        formatted_msg = f"❌ Clinician '{clinician_name}' exists in the app database but not in NAV with prescriber number '{prescriber_no}'. Please update NAV with the correct contact number."
+                    elif "Sell-to Customer No." in error:
+                        # Extract customer number from error message
+                        match = re.search(r"\((\w+)\)", error)
+                        customer_no_from_error = match.group(1) if match else customer_no
+                        clinic_name = get_clinic_name(customer_no_from_error)
+                        formatted_msg = f"❌ Clinic '{clinic_name}' exists in the app database but not in NAV with sell-to number '{customer_no_from_error}'. Please update NAV with the correct customer number."
+                    else:
+                        formatted_msg = f"❌ {error}"
+                else:
+                    formatted_msg = f"❌ {error}"
+                formatted_messages.append(formatted_msg)
+            message = "\n".join(formatted_messages) if formatted_messages else "❌ Unknown error occurred"
         
         # Log the result if a log file path is provided
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
                 tag = 'SUCCESS' if success else 'ERROR'
-                f.write(f"[{tag}] {message}\n")
+                f.write(f"\n[{tag}] {message}\n")
         
         return success, sales_order_no, message
     
     except Exception as e:
         # Handle unexpected errors
-        error_message = f"Failed to post to NAV due to an error: {str(e)}"
+        error_message = f"❌ Failed to post to NAV due to an unexpected error: {str(e)}"
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
-                f.write(f"[ERROR] {error_message}\n")
+                f.write(f"\n[ERROR] {error_message}\n")
         return False, None, error_message
-
+    
 # --- Main Application Setup ---
 def create_search_tab(notebook):
     """
