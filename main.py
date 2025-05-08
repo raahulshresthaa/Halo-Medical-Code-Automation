@@ -38,13 +38,15 @@ import requests.exceptions
 # Version number
 VERSION = "6.0.0-alpha"
 
-# Determine the base path depending on whether it's a bundled executable or not
+import os
+import sys
+
 if getattr(sys, 'frozen', False):
-    # If the application is run from a PyInstaller bundle
-    base_path = sys._MEIPASS
+    base_path = os.path.dirname(sys.executable)
 else:
-    # If the application is run from a script
     base_path = os.path.dirname(os.path.abspath(__file__))
+
+customers_db_path = os.path.join(base_path, 'databases', 'clinic_nav_sell_to.db')
 # Database paths
 customers_db_path = os.path.join(base_path, 'databases', 'clinic_nav_sell_to.db')
 clinician_db_path = os.path.join(base_path, 'databases', 'clinician_nav_contacts.db')
