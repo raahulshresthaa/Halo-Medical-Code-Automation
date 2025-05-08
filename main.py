@@ -302,7 +302,6 @@ class PdfButtonHandler:
                 clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
                 clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
 
-                script_dir = os.path.dirname(os.path.abspath(__file__))
                 db_path = customers_db_path
                 if not os.path.exists(db_path):
                     error_msg = f"Error: Customers database file not found at {db_path}"
@@ -331,7 +330,6 @@ class PdfButtonHandler:
                     return
 
                 if clinician:
-                    clinician_db_path = os.path.join(script_dir, 'databases', 'clinician_nav_contacts.db')
                     if not os.path.exists(clinician_db_path):
                         error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
                         print(error_msg)
