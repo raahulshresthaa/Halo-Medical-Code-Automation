@@ -31,7 +31,7 @@ from generate_code_logic import (
     generate_modular_codes
 )
 from NavApi import create_sales_order
-import messagebox
+from tkinter import messagebox
 import concurrent.futures
 import requests.exceptions
 
