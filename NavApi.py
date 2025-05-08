@@ -103,7 +103,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         print(f"Order {sales_order_no} already exists for auto_doc_ref {auto_doc_ref}. Proceeding to clean up duplicates.")
     else:
         # Get the last SOA order number
-        filter_soa = "$filter=startswith(No,'GB-SOA0')&$orderby=No desc&$top=1" # remove 0 for live nave
+        filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=1"
         get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
         response = requests.get(get_url, headers=headers, auth=auth)
         
@@ -166,7 +166,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     medical_response = requests.get(medical_get_url, headers=headers, auth=auth)
     
     target_operation = "Special Instructions"
-    target_text = "Refer to Prescription form " + auto_doc_ref
+    target_text = "Refer to Prescription form"
     
     if medical_response.status_code == 200:
         existing_details = medical_response.json()['value']
