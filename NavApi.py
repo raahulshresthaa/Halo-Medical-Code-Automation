@@ -72,106 +72,150 @@ headers = {
 }
 auth = HttpNtlmAuth(username, password)
 
+import requests
+from requests_ntlm import HttpNtlmAuth
+import json
+import urllib.parse
+import re
+import datetime
+import os
+import base64
+import tkinter as tk
+from tkinter import simpledialog, messagebox
+import sys
+
+# ... (Previous imports and functions like parse_code_string, read_nav_config_file, etc., remain unchanged)
+
 def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes=None, patient_name=None):
-    print(f"Starting create_sales_order for customer {sell_to_customer_no}")
+    print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
     error_messages = []
     sales_order_no = None
 
-    filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=1"
-    get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
-    response = requests.get(get_url, headers=headers, auth=auth)
+    # Check if the sales order already exists
+    filter_existing = f"$filter=Pad_No eq '{auto_doc_ref}' and Sell_to_Customer_No eq '{sell_to_customer_no}'"
+    check_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_existing}"
+    check_response = requests.get(check_url, headers=headers, auth=auth)
     
-    if response.status_code != 200:
-        error_msg = f"Failed to get last SOA order: {response.status_code} - {response.text}"
-        print(f"❌ {error_msg}")
-        error_messages.append(error_msg)
-        return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
-    
-    orders = response.json()['value']
-    if orders:
-        last_soa = orders[0]['No']
-        print(f"Last SOA order: {last_soa}")
+    if check_response.status_code == 200 and check_response.json()['value']:
+        existing_order = check_response.json()['value'][0]
+        sales_order_no = existing_order['No']
+        print(f"Order {sales_order_no} already exists for auto_doc_ref {auto_doc_ref}. Proceeding to clean up duplicates.")
     else:
-        last_soa = "GB-SOA00000"
-        print("No SOA orders found. Starting from GB-SOA00000")
+        # Get the last SOA order number
+        filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=1"
+        get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
+        response = requests.get(get_url, headers=headers, auth=auth)
+        
+        if response.status_code != 200:
+            error_msg = f"Failed to get last SOA order: {response.status_code} - {response.text}"
+            print(f"❌ {error_msg}")
+            error_messages.append(error_msg)
+            return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+        
+        orders = response.json()['value']
+        if orders:
+            last_soa = orders[0]['No']
+            print(f"Last SOA order: {last_soa}")
+        else:
+            last_soa = "GB-SOA00000"
+            print("No SOA orders found. Starting from GB-SOA00000")
 
-    match = re.match(r"(GB-SOA)(\d+)", last_soa)
-    if not match:
-        error_msg = f"Could not parse SOA number: {last_soa}"
-        print(f"❌ {error_msg}")
-        error_messages.append(error_msg)
-        return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
-    
-    prefix, number = match.groups()
-    next_no = f"{prefix}{int(number)+1:05d}"
-    print(f"Generated next order number: {next_no}")
+        match = re.match(r"(GB-SOA)(\d+)", last_soa)
+        if not match:
+            error_msg = f"Could not parse SOA number: {last_soa}"
+            print(f"❌ {error_msg}")
+            error_messages.append(error_msg)
+            return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+        
+        prefix, number = match.groups()
+        next_no = f"{prefix}{int(number)+1:05d}"
+        print(f"Generated next order number: {next_no}")
 
-    external_doc_no = f"RS-AI-ORDER-{next_no[-4:]}"
-    today = datetime.date.today().strftime("%Y-%m-%d")
-    order_data = {
-        "No": next_no,
-        "Sell_to_Customer_No": sell_to_customer_no,
-        "Original_Order_Date": original_order_date,
-        "Order_Date": today,
-        "Document_Date": today,
-        "Order_Category_Code": "MILLED INSOLES",
-        "Prescriber": prescriber,
-        "Send_For": "Send for Finish",
-#        "Supporting_Items_Arrived_Date": today,  # Note for later: only on test environment
-#        "PO_Requested_Date": today,  # Note for later: only on test environment
-        "Requested_Delivery_Date": request_delivery_date,
-        "Pad_No": auto_doc_ref,
-        "Patient_Name": patient_name if patient_name else "Unknown"
-    }
+        external_doc_no = f"RS-AI-ORDER-{next_no[-4:]}"
+        today = datetime.date.today().strftime("%Y-%m-%d")
+        order_data = {
+            "No": next_no,
+            "Sell_to_Customer_No": sell_to_customer_no,
+            "Original_Order_Date": original_order_date,
+            "Order_Date": today,
+            "Document_Date": today,
+            "Order_Category_Code": "MILLED INSOLES",
+            "Prescriber": prescriber,
+            "Send_For": "Send for Finish",
+            "Requested_Delivery_Date": request_delivery_date,
+            "Pad_No": auto_doc_ref,
+            "Patient_Name": patient_name if patient_name else "Unknown"
+        }
 
-    post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
-    create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
-    
-    if create_response.status_code != 201:
-        error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
-        print(f"❌ {error_msg}")
-        error_messages.append(error_msg)
-        return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
-    
-    print(f"✅ Created Sales Order: {next_no}")
-    sales_order_no = next_no
+        post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
+        create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
+        
+        if create_response.status_code != 201:
+            error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
+            print(f"❌ {error_msg}")
+            error_messages.append(error_msg)
+            return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+        
+        print(f"✅ Created Sales Order: {next_no}")
+        sales_order_no = next_no
 
-    # Get existing medical details for this sales order
-    filter_medical = f"$filter=Document_No eq '{next_no}'"
+    # Retrieve and clean up medical details
+    filter_medical = f"$filter=Document_No eq '{sales_order_no}'"
     medical_get_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails?{filter_medical}"
     medical_response = requests.get(medical_get_url, headers=headers, auth=auth)
     
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form"
+    
     if medical_response.status_code == 200:
         existing_details = medical_response.json()['value']
-        if existing_details:
-            max_line_no = max(detail['Line_No'] for detail in existing_details)
-            next_line_no = max_line_no + 10000
+        print(f"Existing medical details retrieved: {existing_details}")
+        
+        # Find matching medical details
+        matching_details = [
+            detail for detail in existing_details
+            if detail['Operation'].strip().lower() == target_operation.lower() and
+               detail['Medical_Detail_Text'].strip().lower() == target_text.lower()
+        ]
+        
+        # Clean up duplicates
+        if len(matching_details) > 1:
+            print(f"Found {len(matching_details)} duplicate medical details. Keeping first, deleting others.")
+            for detail in matching_details[1:]:  # Keep the first, delete the rest
+                delete_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails(Document_No='{sales_order_no}',Line_No={detail['Line_No']})"
+                delete_response = requests.delete(delete_url, headers=headers, auth=auth)
+                if delete_response.status_code == 204:
+                    print(f"✅ Deleted duplicate medical detail with Line_No: {detail['Line_No']}")
+                else:
+                    error_msg = f"Failed to delete duplicate: {delete_response.status_code} - {delete_response.text}"
+                    print(f"❌ {error_msg}")
+                    error_messages.append(error_msg)
+        elif len(matching_details) == 0:
+            # Add the medical detail if it doesn’t exist
+            next_line_no = 20000 if not existing_details else max(detail['Line_No'] for detail in existing_details) + 10000
+            medical_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails"
+            payload = {
+                "Document_No": sales_order_no,
+                "Line_No": next_line_no,
+                "Operation": target_operation,
+                "Medical_Detail_Text": target_text
+            }
+            response = requests.post(medical_url, headers=headers, data=json.dumps(payload), auth=auth)
+            if response.status_code == 201:
+                print(f"✅ Added medical detail with Line_No: {next_line_no}")
+            else:
+                error_msg = f"Failed to add medical detail: {response.status_code} - {response.text}"
+                print(f"❌ {error_msg}")
+                error_messages.append(error_msg)
         else:
-            next_line_no = 20000
+            print("Exactly one matching medical detail found. No action needed.")
     else:
-        error_msg = f"Failed to get existing medical details: {medical_response.status_code} - {medical_response.text}"
+        error_msg = f"Failed to retrieve medical details: {medical_response.status_code} - {medical_response.text}"
         print(f"❌ {error_msg}")
         error_messages.append(error_msg)
-        next_line_no = 20000  # Fallback to default
 
-    medical_details = [
-        { 
-            "Operation": "Special Instructions",
-            "Medical_Detail_Text": "Refer to Prescription form" 
-        }
-    ]
-    medical_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails"
-    for med in medical_details:
-        payload = {"Document_No": next_no, "Line_No": next_line_no, **med}
-        response = requests.post(medical_url, headers=headers, data=json.dumps(payload), auth=auth)
-        if response.status_code != 201:
-            error_msg = f"Failed to add medical detail: {response.status_code} - {response.text}"
-            print(f"❌ {error_msg}")
-            error_messages.append(error_msg)
-        else:
-            print(f"✅ Added medical detail with Line_No: {next_line_no}")
-
+    # Add sales order lines
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
     if final_codes and len(final_codes) > 0:
         print(f"Adding {len(final_codes)} sales order lines")
@@ -180,7 +224,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         for i, (item_no, quantity) in enumerate(item_lines):
             line_data = {
                 "Document_Type": "Order",
-                "Document_No": next_no,
+                "Document_No": sales_order_no,
                 "Line_No": base_line_no + i * 30000,
                 "Type": "Item",
                 "No": item_no,
