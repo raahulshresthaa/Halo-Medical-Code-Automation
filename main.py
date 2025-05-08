@@ -38,10 +38,17 @@ import requests.exceptions
 # Version number
 VERSION = "6.0.0-alpha"
 
+# Determine the base path depending on whether it's a bundled executable or not
+if getattr(sys, 'frozen', False):
+    # If the application is run from a PyInstaller bundle
+    base_path = sys._MEIPASS
+else:
+    # If the application is run from a script
+    base_path = os.path.dirname(os.path.abspath(__file__))
 # Database paths
-customers_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'clinic_nav_sell_to.db')
-clinician_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'clinician_nav_contacts.db')
-missing_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'missing_contacts.db')
+customers_db_path = os.path.join(base_path, 'databases', 'clinic_nav_sell_to.db')
+clinician_db_path = os.path.join(base_path, 'databases', 'clinician_nav_contacts.db')
+missing_db_path = os.path.join(base_path, 'databases', 'missing_contacts.db')
 
 # Functions to get all clinics and clinicians
 def get_all_clinics():
