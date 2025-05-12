@@ -86,7 +86,7 @@ import sys
 
 # ... (Previous imports and functions like parse_code_string, read_nav_config_file, etc., remain unchanged)
 
-def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes=None, patient_name=None):
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes=None, patient_name=None, gender=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
     error_messages = []
@@ -103,7 +103,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         print(f"Order {sales_order_no} already exists for auto_doc_ref {auto_doc_ref}. Proceeding to clean up duplicates.")
     else:
         # Get the last SOA order number
-        filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=1"
+        filter_soa = "$filter=startswith(No,'GB-SOA0')&$orderby=No desc&$top=1" # remove 0 for live nav
         get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
         response = requests.get(get_url, headers=headers, auth=auth)
         
@@ -145,7 +145,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             "Send_For": "Send for Finish",
             "Requested_Delivery_Date": request_delivery_date,
             "Pad_No": auto_doc_ref,
-            "Patient_Name": patient_name if patient_name else "Unknown"
+            "Patient_Name": patient_name if patient_name else "Unknown",
+            "Patient_Gender": gender
         }
 
         post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
@@ -166,7 +167,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     medical_response = requests.get(medical_get_url, headers=headers, auth=auth)
     
     target_operation = "Special Instructions"
-    target_text = "Refer to Prescription form"
+    target_text = "Refer to Prescription form " + auto_doc_ref
     
     if medical_response.status_code == 200:
         existing_details = medical_response.json()['value']
