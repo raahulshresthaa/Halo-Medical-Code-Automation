@@ -103,7 +103,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         print(f"Order {sales_order_no} already exists for auto_doc_ref {auto_doc_ref}. Proceeding to clean up duplicates.")
     else:
         # Get the last SOA order number
-        filter_soa = "$filter=startswith(No,'GB-SOA0')&$orderby=No desc&$top=1" # remove 0 for live nave
+        filter_soa = "$filter=startswith(No,'GB-SOA0')&$orderby=No desc&$top=1" # remove 0 for live nav
         get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
         response = requests.get(get_url, headers=headers, auth=auth)
         
