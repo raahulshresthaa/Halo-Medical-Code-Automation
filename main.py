@@ -36,7 +36,7 @@ import concurrent.futures
 import requests.exceptions
 
 # Version number
-VERSION = "6.0.0-alpha"
+VERSION = "6.0.1-alpha"
 
 import os
 import sys
