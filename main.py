@@ -36,7 +36,7 @@ import concurrent.futures
 import requests.exceptions
 
 # Version number
-VERSION = "6.0.0-alpha"
+VERSION = "6.0.1-alpha"
 
 import os
 import sys
@@ -258,7 +258,7 @@ class PdfButtonHandler:
         except Exception as e:
             return f"Error: {str(e)}"
 
-    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name):
+    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full):
         try:
             price_codes = self.get_price_codes_from_content(content, logic_content)
             print(f"Price codes received: {price_codes}")
@@ -364,7 +364,7 @@ class PdfButtonHandler:
                     request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
                     print(f"Calculated request_delivery_date: {request_delivery_date}")
                     success, sales_order_no, messages = attempt_nav_upload(
-                        customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path, final_codes, patient_name
+                        customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path, final_codes, patient_name, gender_full
                     )
                     for text, tag in messages:
                         self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
@@ -532,16 +532,26 @@ class PdfButtonHandler:
                 day, month, year = creation_date_str.split('/')
                 day = int(day)
                 month = int(month)
-                if len(year) == 2:  # Check if year is two digits
-                    year = int('20' + year)  # Prepend '20' to make it four digits
+                if len(year) == 2:
+                    year = int('20' + year)
                 else:
-                    year = int(year)  # Use as is if already four digits
+                    year = int(year)
                 creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')
                 print(f"Extracted creation_date: {creation_date}")
             except (ValueError, AttributeError):
                 creation_date = datetime.date.today().strftime('%Y-%m-%d')
                 print(f"Failed to parse creation_date, using today's date: {creation_date}")
 
+            # Extract and convert gender
+            gender = fields_data.get('gender', 'N/A').strip().upper()
+            if gender == 'M':
+                gender_full = 'Male'
+            elif gender == 'F':
+                gender_full = 'Female'
+            else:
+                gender_full = 'Unknown'
+
+            logic_file_name = None
             logic_file_name = None
 
             if model_id == 'InsoleFullReaderV7':
@@ -612,7 +622,7 @@ class PdfButtonHandler:
                 raise ValueError(logic_content)
 
             # Pass patient_name to process_api_call
-            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, patient_name)
+            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full)
 
         except TimeoutError as e:
             error_msg = f"Timeout error: {str(e)}"
@@ -719,7 +729,7 @@ class PdfButtonHandler:
         content_lower = content.lower()
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
-def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None, final_codes=None, patient_name=None):
+def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None, final_codes=None, patient_name=None, gender_full=None):
     """
     Attempts to create a sales order in NAV using the provided parameters with enhanced error handling.
     
@@ -732,7 +742,8 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         log_file_path (str, optional): Path to the log file for recording outcomes.
         final_codes (list, optional): List of final codes to include in the sales order lines.
         patient_name (str, optional): The patient's name.
-
+        gender_full (str, optional): The patient's gender ("Male", "Female", or "Unknown").
+    
     Returns:
         tuple: (success (bool), sales_order_no (str or None), messages (list of (text, tag)))
     """
@@ -744,7 +755,8 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             request_delivery_date=request_delivery_date,
             auto_doc_ref=auto_doc_ref,
             final_codes=final_codes if final_codes else [],
-            patient_name=patient_name if patient_name else ""
+            patient_name=patient_name if patient_name else "",
+            gender=gender_full
         )
         
         success = result.get('success', False)
