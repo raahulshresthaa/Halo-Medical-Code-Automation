@@ -984,9 +984,9 @@ def generate_afo_codes(self, content):
     # Pads
     pads_codes = []
 
-    if content_dict.get('arch pads', ''):
+    if content_dict.get('arch pads', '').lower() == 'yes':
         pads_codes.append('D14C')
-    if content_dict.get('navicular pad', ''):
+    if content_dict.get('navicular pad', '').lower() == 'yes':
         pads_codes.append('D14C')
 
     # Add pads codes 
