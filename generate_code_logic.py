@@ -932,6 +932,18 @@ def generate_afo_codes(self, content):
     for code, count in pcro_codes.items():
         passed_codes[code] += count
 
+    # Kirby Skive
+    left_kirby_selected = content_dict.get('left kirby skive medial', '') == 'selected' or content_dict.get('left kirby skive lateral', '') == 'selected'
+    right_kirby_selected = content_dict.get('right kirby skive medial', '') == 'selected' or content_dict.get('right kirby skive lateral', '') == 'selected'
+
+    if pcro_right_as_left and (left_kirby_selected != right_kirby_selected):
+        total_kirby = 2
+    else:
+        total_kirby = sum([left_kirby_selected, right_kirby_selected])
+
+    if total_kirby > 0:
+        passed_codes['D8A'] += total_kirby
+
     # M&T Codes
     m_and_t_codes = []
     if content_dict.get('carbon ankle reinforcements', '') == 'selected':
@@ -1045,7 +1057,7 @@ def generate_afo_codes(self, content):
     # Apply Pair Handling after all codes have been added
     if content_dict.get('afo pair', '') == 'selected':
         # Codes to exclude from pair handling
-        codes_to_exclude = ['D10E', 'P1', 'P4', 'D8D','D8H','D8A', 'B41','D8I', 'D8U', 'D8B', 'D2D', 'D2B', 'D2A']
+        codes_to_exclude = ['D10E', 'P1', 'P4', 'D8D','D8H','D8A', 'B41','D8I', 'D8U', 'D8B', 'D2D', 'D2B', 'D2A', 'D8A']
         for code in passed_codes:
             if code not in codes_to_exclude:
                 passed_codes[code] *= 2
@@ -1053,7 +1065,7 @@ def generate_afo_codes(self, content):
     # Cap 'D8U' at a maximum of 2
     if 'D8U' in passed_codes and passed_codes['D8U'] > 2:
         passed_codes['D8U'] = 2
-        
+
     # Format the passed codes with counts
     formatted_passed_codes = []
     for code, count in passed_codes.items():
@@ -1067,7 +1079,7 @@ def generate_afo_codes(self, content):
         return ', '.join(formatted_passed_codes)
     else:
         return None  # Return None if no codes were added
-        
+    
 def generate_modular_codes(self, content):
         """Generates codes based on the content for the Modular model, with tariff logic."""
         from collections import defaultdict
