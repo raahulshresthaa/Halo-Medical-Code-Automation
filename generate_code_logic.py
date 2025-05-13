@@ -1050,6 +1050,10 @@ def generate_afo_codes(self, content):
             if code not in codes_to_exclude:
                 passed_codes[code] *= 2
 
+    # Cap 'D8U' at a maximum of 2
+    if 'D8U' in passed_codes and passed_codes['D8U'] > 2:
+        passed_codes['D8U'] = 2
+        
     # Format the passed codes with counts
     formatted_passed_codes = []
     for code, count in passed_codes.items():
