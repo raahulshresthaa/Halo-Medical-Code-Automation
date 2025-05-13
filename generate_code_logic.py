@@ -947,29 +947,15 @@ def generate_afo_codes(self, content):
     for code in m_and_t_codes:
         passed_codes[code] += 1
 
-    # AFO Lining
+    # AFO Lining (only calf material)
     afo_lining_codes = []
 
-    # Process AFO Full
-    afo_full_material_value = content_dict.get('afo full material', '').lower()
-
-    if afo_full_material_value:
-        if afo_full_material_value.startswith('yes'):
-            afo_lining_codes.append('D14E')  # Add D14E code
-            # Extract the material after 'yes'
-            afo_full_material = afo_full_material_value[3:].strip()
-        else:
-            # If 'yes' is not present, assume the entire value is the material
-            afo_full_material = afo_full_material_value.strip()
-    else:
-        afo_full_material = ''  # No material provided
-
-    # Process AFO Calf
+    # Process AFO Calf Material
     afo_calf_material_value = content_dict.get('afo calf material', '').lower()
 
     if afo_calf_material_value:
         if afo_calf_material_value.startswith('yes'):
-            afo_lining_codes.append('D14D')  # Add D14D code
+            afo_lining_codes.append('D14D')  # Add D14D code for 'yes' override
             # Extract the material after 'yes'
             afo_calf_material = afo_calf_material_value[3:].strip()
         else:
@@ -987,10 +973,7 @@ def generate_afo_codes(self, content):
         'sheepskin': 'D14F'
     }
 
-    # Check and add codes based on materials
-    if afo_full_material in lining_materials:
-        afo_lining_codes.append(lining_materials[afo_full_material])
-
+    # Check and add codes based on calf material
     if afo_calf_material in lining_materials:
         afo_lining_codes.append(lining_materials[afo_calf_material])
 
@@ -1070,7 +1053,7 @@ def generate_afo_codes(self, content):
     # Apply Pair Handling after all codes have been added
     if content_dict.get('afo pair', '') == 'selected':
         # Codes to exclude from pair handling
-        codes_to_exclude = ['D10E', 'D14A', 'D14D', 'P1', 'P4', 'D8D','D8H','D8A', 'B41','D8I', 'D8U', 'D8B', 'P15', 'D2D', 'D2B', 'D2A']
+        codes_to_exclude = ['D10E', 'D14A', 'P1', 'P4', 'D8D','D8H','D8A', 'B41','D8I', 'D8U', 'D8B', 'P15', 'D2D', 'D2B', 'D2A']
         for code in passed_codes:
             if code not in codes_to_exclude:
                 passed_codes[code] *= 2
