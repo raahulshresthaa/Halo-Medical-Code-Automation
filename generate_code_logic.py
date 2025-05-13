@@ -989,25 +989,15 @@ def generate_afo_codes(self, content):
     if content_dict.get('navicular pad', ''):
         pads_codes.append('D14C')
 
-    slip_pads = ['slip pad calf', 'slip pad ankle', 'slip pad foot']
-    for pad in slip_pads:
-        if content_dict.get(pad, '') == 'yes':
-            pads_codes.append('P15')
-
     # Add pads codes 
     for code in pads_codes:
         passed_codes[code] += 1
 
-    # Ensure 'P15' is added as default if not already added
-    if 'P15' not in passed_codes:
-        passed_codes['P15'] += 1
-
-    # Apply pair handling for 'P15' independently
-    if content_dict.get('afo pair', '') == 'selected':
-        passed_codes['P15'] *= 2
-
     # Slotted Heel Strap
     sides = ['left', 'right']
+    slip_pads = ['slip pad calf', 'slip pad ankle', 'slip pad foot']
+    slip_pads_needed = any(content_dict.get(pad, '') == 'yes' for pad in slip_pads)
+
     for side in sides:
         strap_type_key = f'{side} strap type'
         strap_type = content_dict.get(strap_type_key, '').lower()
@@ -1021,6 +1011,8 @@ def generate_afo_codes(self, content):
         elif strap_type == 'single slotted fix':
             passed_codes['P1'] += 1
             passed_codes['P4'] += 1
+            passed_codes['P15'] += 1
+        elif not strap_type and slip_pads_needed:
             passed_codes['P15'] += 1
 
     # Additional Information
@@ -1053,7 +1045,7 @@ def generate_afo_codes(self, content):
     # Apply Pair Handling after all codes have been added
     if content_dict.get('afo pair', '') == 'selected':
         # Codes to exclude from pair handling
-        codes_to_exclude = ['D10E', 'D14A', 'P1', 'P4', 'D8D','D8H','D8A', 'B41','D8I', 'D8U', 'D8B', 'P15', 'D2D', 'D2B', 'D2A']
+        codes_to_exclude = ['D10E', 'P1', 'P4', 'D8D','D8H','D8A', 'B41','D8I', 'D8U', 'D8B', 'D2D', 'D2B', 'D2A']
         for code in passed_codes:
             if code not in codes_to_exclude:
                 passed_codes[code] *= 2
