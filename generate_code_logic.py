@@ -140,32 +140,47 @@ def generate_bespoke_codes(self, content):
         'A47_B51': {'full toe block'}
     }
 
-    # Additions
+    # Additions with special handling for heel raise in cradle
     for key in addition_positions:
         addition_value = content_dict.get(key, '')
         if addition_value:
-            if addition_value in addition_code_mapping['A45_B41']:
-                code = 'A45' if insole_type == 'cradle' else 'B41'
-                passed_codes[code] += 1
-            elif addition_value in addition_code_mapping['A45_B56']:
-                code = 'A45' if insole_type == 'cradle' else 'B56'
-                passed_codes[code] += 1
-            elif addition_value in addition_code_mapping['A45_B43']:
-                code = 'A45' if insole_type == 'cradle' else 'B43'
-                passed_codes[code] += 1
-            elif addition_value in addition_code_mapping['D8A']:
-                passed_codes['D8A'] += 1
-            elif addition_value in addition_code_mapping['BNS45']:
-                passed_codes['BNS45'] += 1
-            elif addition_value in addition_code_mapping['A20_B20']:
-                code = 'A20' if insole_type == 'cradle' else 'B20'
-                passed_codes[code] += 1
-            elif addition_value in addition_code_mapping['A46_B50']:
-                code = 'A46' if insole_type == 'cradle' else 'B50'
-                passed_codes[code] += 1
-            elif addition_value in addition_code_mapping['A47_B51']:
-                code = 'A47' if insole_type == 'cradle' else 'B51'
-                passed_codes[code] += 1
+            if insole_type == 'cradle' and addition_value == 'heel raise':
+                # Special logic for heel raise in cradle
+                thickness_key = f"{key} thickness"
+                thickness_str = content_dict.get(thickness_key, '')
+                thickness_match = re.search(r'\d+\.?\d*', thickness_str)
+                if thickness_match:
+                    thickness = float(thickness_match.group())
+                    if thickness > 0:
+                        passed_codes['A10'] += 1
+                        if thickness > 25:
+                            excess = thickness - 25
+                            a9_count = math.ceil(excess / 25)
+                            passed_codes['A9'] += a9_count
+            else:
+                # Existing mapping logic
+                if addition_value in addition_code_mapping['A45_B41']:
+                    code = 'A45' if insole_type == 'cradle' else 'B41'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A45_B56']:
+                    code = 'A45' if insole_type == 'cradle' else 'B56'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A45_B43']:
+                    code = 'A45' if insole_type == 'cradle' else 'B43'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['D8A']:
+                    passed_codes['D8A'] += 1
+                elif addition_value in addition_code_mapping['BNS45']:
+                    passed_codes['BNS45'] += 1
+                elif addition_value in addition_code_mapping['A20_B20']:
+                    code = 'A20' if insole_type == 'cradle' else 'B20'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A46_B50']:
+                    code = 'A46' if insole_type == 'cradle' else 'B50'
+                    passed_codes[code] += 1
+                elif addition_value in addition_code_mapping['A47_B51']:
+                    code = 'A47' if insole_type == 'cradle' else 'B51'
+                    passed_codes[code] += 1
 
     # Foot modifications
     foot_modifications = [
