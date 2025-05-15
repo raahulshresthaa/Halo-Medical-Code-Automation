@@ -6,7 +6,7 @@ import re
 
 def generate_bespoke_codes(self, content):
     """Generates codes based on the content for the Bespoke model, counting duplicates."""
-    passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
+    passed_codes = defaultdict(float)  # Use float to allow fractional counts
 
     # Define lists of clinics for each insole tariff code (edit these lists as needed)
     tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough', 'w. suffolk', 'west suffolk hospital', 'oxted']
@@ -254,8 +254,12 @@ def generate_bespoke_codes(self, content):
     if content_dict.get('lining material', '') == 'white sheepskin':
         passed_codes['A18A'] += 1
 
+    # A6 handling: 1.0 for pairs, 0.5 for singles
     if content_dict.get('sole material', '') == 'commando':
-        passed_codes['A6'] += 1
+        if is_pair:
+            passed_codes['A6'] += 1.0
+        else:
+            passed_codes['A6'] += 0.5
 
     stiffeners_materials = {
         'stiffeners left materials': 'A15',
@@ -454,10 +458,10 @@ def generate_bespoke_codes(self, content):
     if content_dict.get('base carbon fibre', '') == 'selected':
         passed_codes['B54A'] += 1
 
-    # Pair Handling for normal codes
+    # Pair Handling for normal codes (excluding 'A6')
     if content_dict.get('insole pair', '') == 'selected':
         codes_to_double_general = [
-            'A1K', 'A18A', 'TWIST FASTEN', 'A6'
+            'A1K', 'A18A', 'TWIST FASTEN'  # 'A6' excluded to avoid doubling
         ]
         for code in codes_to_double_general:
             if code in passed_codes:
@@ -506,16 +510,18 @@ def generate_bespoke_codes(self, content):
             if c in passed_codes:
                 del passed_codes[c]
 
-    # Format the passed codes with counts
+    # Format the passed codes with counts, handling both int and float
     formatted_passed_codes = []
     for code, count in passed_codes.items():
-        if count > 1:
-            formatted_passed_codes.append(f"{code} x{count}")
-        else:
+        if count.is_integer() and count > 1:
+            formatted_passed_codes.append(f"{code} x{int(count)}")
+        elif count == 1.0:
             formatted_passed_codes.append(code)
+        else:
+            formatted_passed_codes.append(f"{code} x{count:.1f}")
 
     if formatted_passed_codes:
-        return ', '.join(f"{code} x{count}" if count > 1 else code for code, count in passed_codes.items())
+        return ', '.join(formatted_passed_codes)
     else:
         return None
     
