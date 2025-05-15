@@ -78,9 +78,7 @@ def generate_bespoke_codes(self, content):
             passed_codes['TARIFF POLYPROPS'] *= 2
         insole_tariff_added = True
 
-    # Style-based logic
-    style = content_dict.get('style', '').lower()
-
+    # Define style sets
     a1b_styles = {
         'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
         'truro', 'colwyn', 'lineham', 'hove', 'plymouth', 'drayton', 'sneaker',
@@ -93,30 +91,29 @@ def generate_bespoke_codes(self, content):
         'dundee', 'brigg', 'elgin', 'highland'
     }
 
-    if style in a1b_styles:
-        passed_codes['A1B'] += 1
-    elif style in a1a_styles:
+    # Get style
+    style = content_dict.get('style', '').lower()
+
+    # Type-based logic (trumps style)
+    a1a_types = ['type boots', 'type bootee']
+    a1b_types = ['type shoes', 'type sports']
+
+    if any(content_dict.get(key, '') == 'selected' for key in a1a_types):
         passed_codes['A1A'] += 1
+    elif any(content_dict.get(key, '') == 'selected' for key in a1b_types):
+        passed_codes['A1B'] += 1
+    else:
+        # No type selected, check style
+        if style in a1a_styles:
+            passed_codes['A1A'] += 1
+        elif style in a1b_styles:
+            passed_codes['A1B'] += 1
+        else:
+            passed_codes['A1A'] += 1  # Default to A1A if no type or style matches
 
     # Add logic for 'pop cast'
     if content_dict.get('pop cast', '') == 'selected':
         passed_codes['A1K'] += 1
-
-    # Backup logic for 'A1A' and 'A1B'
-    if 'A1A' not in passed_codes and 'A1B' not in passed_codes:
-        type_code_mapping = {
-            'type boots': 'A1A',
-            'type bootee': 'A1A',
-            'type shoes': 'A1B',
-            'type sports': 'A1B',
-        }
-        for key, code in type_code_mapping.items():
-            if content_dict.get(key, '') == 'selected':
-                passed_codes[code] += 1
-
-    # Default to 'A1A' if neither 'A1A' nor 'A1B' is present
-    if 'A1A' not in passed_codes and 'A1B' not in passed_codes:
-        passed_codes['A1A'] += 1
 
     base = content_dict.get('base', '').strip().lower()
     normalized_base = base.replace(' ', '').lower()
