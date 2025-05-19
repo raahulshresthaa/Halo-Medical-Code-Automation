@@ -103,7 +103,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         print(f"Order {sales_order_no} already exists for auto_doc_ref {auto_doc_ref}. Proceeding to clean up duplicates.")
     else:
         # Get the last SOA order number
-        filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=1" # removed 0 for live nav
+        filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=1"
         get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
         response = requests.get(get_url, headers=headers, auth=auth)
         
@@ -150,16 +150,43 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         }
 
         post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
-        create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
         
-        if create_response.status_code != 201:
-            error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
+        max_attempts = 5
+        attempt = 0
+        while attempt < max_attempts:
+            order_data["No"] = next_no
+            create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
+            if create_response.status_code == 201:
+                print(f"✅ Created Sales Order: {next_no}")
+                sales_order_no = next_no
+                break
+            elif create_response.status_code == 400:
+                try:
+                    error_data = create_response.json()
+                    if error_data.get("error", {}).get("code") == "Internal_EntityWithSameKeyExists":
+                        print(f"Order number {next_no} already exists. Trying next number.")
+                        next_no = increment_order_no(next_no)
+                        attempt += 1
+                    else:
+                        error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
+                        print(f"❌ {error_msg}")
+                        error_messages.append(error_msg)
+                        return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+                except json.JSONDecodeError:
+                    error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
+                    print(f"❌ {error_msg}")
+                    error_messages.append(error_msg)
+                    return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+            else:
+                error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
+                print(f"❌ {error_msg}")
+                error_messages.append(error_msg)
+                return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+        else:
+            error_msg = f"Failed to create sales order after {max_attempts} attempts."
             print(f"❌ {error_msg}")
             error_messages.append(error_msg)
             return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
-        
-        print(f"✅ Created Sales Order: {next_no}")
-        sales_order_no = next_no
 
     # Retrieve and clean up medical details
     filter_medical = f"$filter=Document_No eq '{sales_order_no}'"
@@ -173,17 +200,15 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         existing_details = medical_response.json()['value']
         print(f"Existing medical details retrieved: {existing_details}")
         
-        # Find matching medical details
         matching_details = [
             detail for detail in existing_details
             if detail['Operation'].strip().lower() == target_operation.lower() and
                detail['Medical_Detail_Text'].strip().lower() == target_text.lower()
         ]
         
-        # Clean up duplicates
         if len(matching_details) > 1:
             print(f"Found {len(matching_details)} duplicate medical details. Keeping first, deleting others.")
-            for detail in matching_details[1:]:  # Keep the first, delete the rest
+            for detail in matching_details[1:]:
                 delete_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails(Document_No='{sales_order_no}',Line_No={detail['Line_No']})"
                 delete_response = requests.delete(delete_url, headers=headers, auth=auth)
                 if delete_response.status_code == 204:
@@ -193,7 +218,6 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
                     print(f"❌ {error_msg}")
                     error_messages.append(error_msg)
         elif len(matching_details) == 0:
-            # Add the medical detail if it doesn’t exist
             next_line_no = 20000 if not existing_details else max(detail['Line_No'] for detail in existing_details) + 10000
             medical_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails"
             payload = {
@@ -246,3 +270,12 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     success = len(error_messages) == 0
     print(f"Finished create_sales_order. Success: {success}")
     return {'success': success, 'sales_order_no': sales_order_no, 'error_messages': error_messages}
+
+def increment_order_no(order_no):
+    match = re.match(r"(GB-SOA)(\d+)", order_no)
+    if match:
+        prefix, number = match.groups()
+        next_number = int(number) + 1
+        return f"{prefix}{next_number:05d}"
+    else:
+        raise ValueError(f"Invalid order number format: {order_no}")
