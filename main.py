@@ -111,7 +111,7 @@ def get_form_type_from_model_id(model_id):
     """
     mapping = {
         'InsoleFullReaderV7': 'insole',
-        'AfoReaderV8': 'afo',
+        'AfoReaderV9': 'afo',
         'BespokeReaderFullV5': 'bespoke',
         'ModularReaderFullV3': 'modular'
     }
@@ -581,7 +581,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'AfoReaderV8':
+            elif model_id == 'AfoReaderV9':
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
                 passed_codes = generate_afo_codes(self, content)
@@ -1451,7 +1451,7 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 # Model IDs
 model_ids = {
     'Insoles': 'InsoleFullReaderV7',
-    'AFOs': 'AfoReaderV8',
+    'AFOs': 'AfoReaderV9',
     'Bespoke': 'BespokeReaderFullV5',
     'Modular': 'ModularReaderFullV3'
 }
