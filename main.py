@@ -110,7 +110,7 @@ def get_form_type_from_model_id(model_id):
     based on the provided model_id.
     """
     mapping = {
-        'InsoleFullReaderV7': 'insole',
+        'InsoleFullReaderV8': 'insole',
         'AfoReaderV9': 'afo',
         'BespokeReaderFullV5': 'bespoke',
         'ModularReaderFullV3': 'modular'
@@ -277,7 +277,7 @@ class PdfButtonHandler:
             current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-            if model_id == 'InsoleFullReaderV7':
+            if model_id == 'InsoleFullReaderV8':
                 query_message = self.check_for_base(content)
             else:
                 query_message = None
@@ -289,7 +289,7 @@ class PdfButtonHandler:
 
             log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
 
-            if model_id == 'InsoleFullReaderV7':
+            if model_id == 'InsoleFullReaderV8':
                 if AutoDocRef == 'N/A':
                     message = "No AutoDocRef found in the extracted data. Please kick to query."
                     self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
@@ -499,7 +499,7 @@ class PdfButtonHandler:
             content = self.parse_extracted_data(fields_data)
             print(f"Extracted content:\n{content}")
 
-            if model_id == 'InsoleFullReaderV7':
+            if model_id == 'InsoleFullReaderV8':
                 if "insole type other" in fields_data:
                     self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
                 if self.is_carbon_selected(content):
@@ -554,7 +554,7 @@ class PdfButtonHandler:
             logic_file_name = None
             logic_file_name = None
 
-            if model_id == 'InsoleFullReaderV7':
+            if model_id == 'InsoleFullReaderV8':
                 form_type = self.determine_form_type(fields_data)
                 if not form_type:
                     query_message = "No form type found in the extracted data. Please raise a query."
@@ -1450,12 +1450,12 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 
 # Model IDs
 model_ids = {
-    'Insoles': 'InsoleFullReaderV7',
+    'Insoles': 'InsoleFullReaderV8',
     'AFOs': 'AfoReaderV9',
     'Bespoke': 'BespokeReaderFullV5',
     'Modular': 'ModularReaderFullV3'
 }
-model_id_var = tk.StringVar(value='InsoleFullReaderV7')
+model_id_var = tk.StringVar(value='InsoleFullReaderV8')
 
 model_frame = ttk.Frame(main_tab)
 model_frame.pack(pady=10)
