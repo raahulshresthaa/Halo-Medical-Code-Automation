@@ -263,9 +263,18 @@ class PdfButtonHandler:
             price_codes = self.get_price_codes_from_content(content, logic_content)
             print(f"Price codes received: {price_codes}")
 
-            if '**Final Codes:**' in price_codes:
-                final_codes_section = price_codes.split('**Final Codes:**')[1].strip()
-                final_codes = [line.strip() for line in final_codes_section.split('\n') if line.strip()]
+            # Extract codes from the last occurrence of "**Final Codes:**"
+            sections = price_codes.split('**Final Codes:**')
+            if len(sections) > 1:
+                last_section = sections[-1].strip()
+                lines = last_section.split('\n')
+                final_codes = []
+                for line in lines:
+                    stripped = line.strip()
+                    if stripped and not all(c == '-' for c in stripped):
+                        final_codes.append(stripped)
+                    else:
+                        break  # Stop at separator line (e.g., "-----------------------")
             else:
                 final_codes = []
                 print("No final codes found in the response.")
