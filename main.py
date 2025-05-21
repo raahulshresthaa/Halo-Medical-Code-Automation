@@ -509,6 +509,7 @@ class PdfButtonHandler:
             form_to_model = {
                 'Insole Prescription Form': 'InsoleFullReaderV8',
                 '(Internal Digitised) Insole Prescription Form': 'InsoleFullReaderV8',
+                '(Repeat) Insole Prescription Form': 'InsoleFullReaderV8',
                 'AFO Prescription Form': 'AfoReaderV9',
                 'Bespoke Footwear Prescription Form': 'BespokeReaderFullV6',
                 'Modular Footwear Prescription Form': 'ModularReaderFullV4'
