@@ -36,7 +36,7 @@ import concurrent.futures
 import requests.exceptions
 
 # Version number
-VERSION = "6.0.3-alpha"
+VERSION = "6.0.4-alpha"
 
 import os
 import sys
@@ -110,10 +110,10 @@ def get_form_type_from_model_id(model_id):
     based on the provided model_id.
     """
     mapping = {
-        'InsoleFullReaderV7': 'insole',
-        'AfoReaderV8': 'afo',
-        'BespokeReaderFullV5': 'bespoke',
-        'ModularReaderFullV3': 'modular'
+        'InsoleFullReaderV8': 'insole',
+        'AfoReaderV9': 'afo',
+        'BespokeReaderFullV6': 'bespoke',
+        'ModularReaderFullV4': 'modular'
     }
     return mapping.get(model_id, 'unknown')
 
@@ -263,9 +263,18 @@ class PdfButtonHandler:
             price_codes = self.get_price_codes_from_content(content, logic_content)
             print(f"Price codes received: {price_codes}")
 
-            if '**Final Codes:**' in price_codes:
-                final_codes_section = price_codes.split('**Final Codes:**')[1].strip()
-                final_codes = [line.strip() for line in final_codes_section.split('\n') if line.strip()]
+            # Extract codes from the last occurrence of "**Final Codes:**"
+            sections = price_codes.split('**Final Codes:**')
+            if len(sections) > 1:
+                last_section = sections[-1].strip()
+                lines = last_section.split('\n')
+                final_codes = []
+                for line in lines:
+                    stripped = line.strip()
+                    if stripped and not all(c == '-' for c in stripped):
+                        final_codes.append(stripped)
+                    else:
+                        break  # Stop at separator line (e.g., "-----------------------")
             else:
                 final_codes = []
                 print("No final codes found in the response.")
@@ -277,7 +286,7 @@ class PdfButtonHandler:
             current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-            if model_id == 'InsoleFullReaderV7':
+            if model_id == 'InsoleFullReaderV8':
                 query_message = self.check_for_base(content)
             else:
                 query_message = None
@@ -289,7 +298,7 @@ class PdfButtonHandler:
 
             log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
 
-            if model_id == 'InsoleFullReaderV7':
+            if model_id == 'InsoleFullReaderV8':
                 if AutoDocRef == 'N/A':
                     message = "No AutoDocRef found in the extracted data. Please kick to query."
                     self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
@@ -460,7 +469,7 @@ class PdfButtonHandler:
         else:
             messagebox.showinfo("No PDF File Selected", "Please select a PDF file to process.")
 
-    def process_pdf_and_call_api(self, pdf_file_path):
+    def process_pdf_and_call_api(self, pdf_file_path, attempt=1):
         def azure_api_call():
             with open(pdf_file_path, "rb") as pdf_file:
                 poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
@@ -475,16 +484,16 @@ class PdfButtonHandler:
             # Set timeout and retry parameters
             timeout_seconds = 30  # Adjust as needed
             max_retries = 2
-            for attempt in range(max_retries + 1):
+            for attempt_num in range(max_retries + 1):
                 try:
                     with concurrent.futures.ThreadPoolExecutor() as executor:
                         future = executor.submit(azure_api_call)
                         result = future.result(timeout=timeout_seconds)
                     break  # Success, exit retry loop
                 except concurrent.futures.TimeoutError:
-                    if attempt < max_retries:
-                        print(f"Azure API call timed out. Retrying... (Attempt {attempt + 1}/{max_retries})")
-                        self.root.after(0, lambda: self.update_loading_message(f"Retrying Azure API call... (Attempt {attempt + 1})"))
+                    if attempt_num < max_retries:
+                        print(f"Azure API call timed out. Retrying... (Attempt {attempt_num + 1}/{max_retries})")
+                        self.root.after(0, lambda: self.update_loading_message(f"Retrying Azure API call... (Attempt {attempt_num + 1})"))
                     else:
                         raise TimeoutError("Azure API call timed out after maximum retries.")
                 except requests.exceptions.RequestException as e:
@@ -496,10 +505,51 @@ class PdfButtonHandler:
             if not fields_data:
                 raise ValueError("No data extracted from the PDF.")
 
+            # Check form confirmation
+            form_confirmation = fields_data.get('form confirmation', '').strip()
+            if not form_confirmation:
+                error_msg = "No form confirmation found in the extracted data."
+                self.root.after(0, messagebox.showerror, "Error", error_msg)
+                self.root.after(0, self.close_loading_popup)
+                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                return
+
+            # Mapping of form confirmation values to model IDs
+            form_to_model = {
+                'Insole Prescription Form': 'InsoleFullReaderV8',
+                '(Internal Digitised) Insole Prescription Form': 'InsoleFullReaderV8',
+                '(Repeat) Insole Prescription Form': 'InsoleFullReaderV8',
+                'AFO Prescription Form': 'AfoReaderV9',
+                'Bespoke Footwear Prescription Form': 'BespokeReaderFullV6',
+                'Modular Footwear Prescription Form': 'ModularReaderFullV4'
+            }
+
+            correct_model_id = form_to_model.get(form_confirmation, None)
+            if correct_model_id is None:
+                error_msg = f"Unknown form confirmation: {form_confirmation}"
+                self.root.after(0, messagebox.showerror, "Error", error_msg)
+                self.root.after(0, self.close_loading_popup)
+                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                return
+
+            if correct_model_id != model_id:
+                if attempt >= 2:
+                    error_msg = f"Form confirmation '{form_confirmation}' does not match the selected model after switching."
+                    self.root.after(0, messagebox.showerror, "Error", error_msg)
+                    self.root.after(0, self.close_loading_popup)
+                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                    return
+                else:
+                    self.model_id_var.set(correct_model_id)
+                    self.root.after(0, self.update_loading_message, f"Switching to model {correct_model_id}")
+                    self.process_pdf_and_call_api(pdf_file_path, attempt + 1)
+                    return
+
+            # Proceed with normal processing if form confirmation matches
             content = self.parse_extracted_data(fields_data)
             print(f"Extracted content:\n{content}")
 
-            if model_id == 'InsoleFullReaderV7':
+            if model_id == 'InsoleFullReaderV8':
                 if "insole type other" in fields_data:
                     self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
                 if self.is_carbon_selected(content):
@@ -511,22 +561,18 @@ class PdfButtonHandler:
             # Extract and clean patient name
             patient_raw = fields_data.get('patient', '').strip()
             print(f"Raw patient field: '{patient_raw}'")  # Debugging
-            # Check if the string starts with "Name" (case-insensitive) and remove it
             if patient_raw.lower().startswith('name'):
-                # If it starts with "Name:", remove the first 5 characters
                 if patient_raw.lower().startswith('name:'):
                     patient_name = patient_raw[5:].strip()
-                # If it starts with "Name" (no colon), remove the first 4 characters
                 else:
                     patient_name = patient_raw[4:].strip()
             else:
                 patient_name = patient_raw
-            # If the resulting name is empty or None, default to "Unknown"
             if not patient_name:
                 patient_name = 'Unknown'
             print(f"Cleaned patient_name: '{patient_name}'")  # Debugging
 
-            # Extract creation date from fields_data
+            # Extract creation date
             creation_date_str = fields_data.get('creation date', '28/04/2025')
             try:
                 day, month, year = creation_date_str.split('/')
@@ -552,9 +598,8 @@ class PdfButtonHandler:
                 gender_full = 'Unknown'
 
             logic_file_name = None
-            logic_file_name = None
 
-            if model_id == 'InsoleFullReaderV7':
+            if model_id == 'InsoleFullReaderV8':
                 form_type = self.determine_form_type(fields_data)
                 if not form_type:
                     query_message = "No form type found in the extracted data. Please raise a query."
@@ -581,7 +626,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'AfoReaderV8':
+            elif model_id == 'AfoReaderV9':
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
                 passed_codes = generate_afo_codes(self, content)
@@ -591,7 +636,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'BespokeReaderFullV5':
+            elif model_id == 'BespokeReaderFullV6':
                 logic_file_name = 'bespoke_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
                 passed_codes = generate_bespoke_codes(self, content)
@@ -601,7 +646,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'ModularReaderFullV3':
+            elif model_id == 'ModularReaderFullV4':
                 logic_file_name = 'modular_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
                 passed_codes = generate_modular_codes(self, content)
@@ -621,7 +666,6 @@ class PdfButtonHandler:
             if "Error" in logic_content:
                 raise ValueError(logic_content)
 
-            # Pass patient_name to process_api_call
             self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full)
 
         except TimeoutError as e:
@@ -637,8 +681,9 @@ class PdfButtonHandler:
             self.root.after(0, messagebox.showerror, "Error", error_msg)
             print(error_msg)
         finally:
-            self.root.after(0, self.close_loading_popup)
-            self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+            if attempt == 1:  # Only close popup on the initial call to avoid premature closure
+                self.root.after(0, self.close_loading_popup)
+                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
     def extract_fields_from_result(self, result):
         """Extract relevant fields from Azure analysis result."""
@@ -1450,12 +1495,12 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 
 # Model IDs
 model_ids = {
-    'Insoles': 'InsoleFullReaderV7',
-    'AFOs': 'AfoReaderV8',
-    'Bespoke': 'BespokeReaderFullV5',
-    'Modular': 'ModularReaderFullV3'
+    'Insoles': 'InsoleFullReaderV8',
+    'AFOs': 'AfoReaderV9',
+    'Bespoke': 'BespokeReaderFullV6',
+    'Modular': 'ModularReaderFullV4'
 }
-model_id_var = tk.StringVar(value='InsoleFullReaderV7')
+model_id_var = tk.StringVar(value='InsoleFullReaderV8')
 
 model_frame = ttk.Frame(main_tab)
 model_frame.pack(pady=10)
