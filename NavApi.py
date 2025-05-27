@@ -1,4 +1,3 @@
-#NavApi.py
 import requests
 from requests_ntlm import HttpNtlmAuth
 import json
@@ -88,34 +87,60 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         sales_order_no = existing_order['No']
         print(f"Order {sales_order_no} already exists for auto_doc_ref {auto_doc_ref}. Proceeding to clean up duplicates.")
     else:
-        # Get the last SOA order number
-        filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=1"
+        # Get the top two SOA order numbers
+        filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=2"
         get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
         response = requests.get(get_url, headers=headers, auth=auth)
         
         if response.status_code != 200:
-            error_msg = f"Failed to get last SOA order: {response.status_code} - {response.text}"
+            error_msg = f"Failed to get top SOA orders: {response.status_code} - {response.text}"
             print(f"❌ {error_msg}")
             error_messages.append(error_msg)
             return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
         
         orders = response.json()['value']
-        if orders:
+        if len(orders) >= 2:
             last_soa = orders[0]['No']
-            print(f"Last SOA order: {last_soa}")
+            second_last_soa = orders[1]['No']
+            print(f"Top two SOA orders: {last_soa} and {second_last_soa}")
+            
+            match_last = re.match(r"(GB-SOA)(\d+)", last_soa)
+            match_second = re.match(r"(GB-SOA)(\d+)", second_last_soa)
+            
+            if match_last and match_second:
+                _, last_number = match_last.groups()
+                _, second_number = match_second.groups()
+                last_num = int(last_number)
+                second_num = int(second_number)
+                
+                if last_num - second_num == 1:
+                    print(f"Sequence is correct: {second_last_soa} -> {last_soa}")
+                    next_num = last_num + 1
+                else:
+                    print(f"Sequence discrepancy detected: {second_last_soa} and {last_soa}")
+                    next_num = max(last_num, second_num) + 1
+            else:
+                error_msg = "Could not parse top SOA numbers."
+                print(f"❌ {error_msg}")
+                error_messages.append(error_msg)
+                return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+        elif len(orders) == 1:
+            last_soa = orders[0]['No']
+            print(f"Only one SOA order found: {last_soa}")
+            match = re.match(r"(GB-SOA)(\d+)", last_soa)
+            if match:
+                prefix, number = match.groups()
+                next_num = int(number) + 1
+            else:
+                error_msg = f"Could not parse SOA number: {last_soa}"
+                print(f"❌ {error_msg}")
+                error_messages.append(error_msg)
+                return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
         else:
-            last_soa = "GB-SOA00000"
-            print("No SOA orders found. Starting from GB-SOA00000")
-
-        match = re.match(r"(GB-SOA)(\d+)", last_soa)
-        if not match:
-            error_msg = f"Could not parse SOA number: {last_soa}"
-            print(f"❌ {error_msg}")
-            error_messages.append(error_msg)
-            return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+            print("No SOA orders found. Starting from GB-SOA00001")
+            next_num = 1
         
-        prefix, number = match.groups()
-        next_no = f"{prefix}{int(number)+1:05d}"
+        next_no = f"GB-SOA{next_num:05d}"
         print(f"Generated next order number: {next_no}")
 
         external_doc_no = f"RS-AI-ORDER-{next_no[-4:]}"
