@@ -808,9 +808,12 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         sales_order_no = result.get('sales_order_no', None)
         error_messages = result.get('error_messages', [])
         
-        messages = []
+        ui_messages = []
+        log_messages = []
+        
         if sales_order_no:
-            messages.append((f"✅ Created Sales Order: {sales_order_no}", 'success'))
+            ui_messages.append((f"✅ Created Sales Order: {sales_order_no}", 'success'))
+            log_messages.append(f"[SUCCESS] Created Sales Order: {sales_order_no}")
             if error_messages:
                 for error in error_messages:
                     if "Internal_InvalidTableRelation" in error:
@@ -818,22 +821,23 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                             prescriber_no = prescriber
                             clinician_name = get_clinician_name(prescriber_no)
                             if clinician_name != "Unknown":
-                                formatted_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' exists in the app database but not in NAV. Please check if the prescriber number is correct."
+                                ui_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' exists in the app database but not in NAV. Please check if the prescriber number is correct."
                             else:
-                                formatted_msg = f"❌ Prescriber number '{prescriber_no}' not found in the app database or NAV. Please ensure the clinician is added to both systems."
+                                ui_msg = f"❌ Prescriber number '{prescriber_no}' not found in the app database or NAV. Please ensure the clinician is added to both systems."
                         elif "Sell-to Customer No." in error:
                             match = re.search(r"\((\w+)\)", error)
                             customer_no_from_error = match.group(1) if match else customer_no
                             clinic_name = get_clinic_name(customer_no_from_error)
                             if clinic_name != "Unknown":
-                                formatted_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' exists in the app database but not in NAV. Please check if the sell to number is correct."
+                                ui_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' exists in the app database but not in NAV. Please check if the sell to number is correct."
                             else:
-                                formatted_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in the app database or NAV. Please ensure the clinic is added to both systems."
+                                ui_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in the app database or NAV. Please ensure the clinic is added to both systems."
                         else:
-                            formatted_msg = "❌ Error uploading to NAV. Please check order details."
+                            ui_msg = "❌ Error uploading to NAV. Please check order details."
                     else:
-                        formatted_msg = "❌ Error uploading to NAV. Please check order details."
-                    messages.append((formatted_msg, 'error'))
+                        ui_msg = "❌ Error uploading to NAV. Please check order details."
+                    ui_messages.append((ui_msg, 'error'))
+                    log_messages.append(f"[ERROR] {error}")
         else:
             for error in error_messages:
                 if "Internal_InvalidTableRelation" in error:
@@ -841,44 +845,38 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                         prescriber_no = prescriber
                         clinician_name = get_clinician_name(prescriber_no)
                         if clinician_name != "Unknown":
-                            formatted_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' not found in NAV."
+                            ui_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' not found in NAV."
                         else:
-                            formatted_msg = f"❌ Prescriber number '{prescriber_no}' not found in NAV or app database."
+                            ui_msg = f"❌ Prescriber number '{prescriber_no}' not found in NAV or app database."
                     elif "Sell-to Customer No." in error:
                         match = re.search(r"\((\w+)\)", error)
                         customer_no_from_error = match.group(1) if match else customer_no
                         clinic_name = get_clinic_name(customer_no_from_error)
                         if clinic_name != "Unknown":
-                            formatted_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' not found in NAV."
+                            ui_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' not found in NAV."
                         else:
-                            formatted_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in NAV or app database."
+                            ui_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in NAV or app database."
                     else:
-                        formatted_msg = "❌ Error uploading to NAV. Please check order details."
+                        ui_msg = "❌ Error uploading to NAV. Please check order details."
                 else:
-                    formatted_msg = "❌ Error uploading to NAV. Please check order details."
-                messages.append((formatted_msg, 'error'))
+                    ui_msg = "❌ Error uploading to NAV. Please check order details."
+                ui_messages.append((ui_msg, 'error'))
+                log_messages.append(f"[ERROR] {error}")
         
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
-                if sales_order_no:
-                    f.write(f"\n[SUCCESS] Created Sales Order: {sales_order_no}\n")
-                    if error_messages:
-                        f.write("[ERROR] Encountered errors while adding details:\n")
-                        for msg, _ in messages[1:]:
-                            f.write(f"  {msg}\n")
-                else:
-                    f.write("[ERROR] Failed to create sales order:\n")
-                    for msg, _ in messages:
-                        f.write(f"  {msg}\n")
+                for log_msg in log_messages:
+                    f.write(f"{log_msg}\n")
         
-        return success, sales_order_no, messages
+        return success, sales_order_no, ui_messages
     
     except Exception as e:
-        error_message = "❌ Error uploading to NAV. Please check order details."
+        ui_error_message = "❌ Error uploading to NAV. Please check order details."
+        log_error_message = f"[ERROR] Unexpected error: {str(e)}"
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
-                f.write(f"\n[ERROR] {error_message}\n")
-        return False, None, [(error_message, 'error')]
+                f.write(f"{log_error_message}\n")
+        return False, None, [(ui_error_message, 'error')]
     
 # --- Main Application Setup ---
 def create_search_tab(notebook):
