@@ -830,9 +830,9 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                             else:
                                 formatted_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in the app database or NAV. Please ensure the clinic is added to both systems."
                         else:
-                            formatted_msg = f"❌ {error}"
+                            formatted_msg = "❌ Error uploading to NAV. Please check order details."
                     else:
-                        formatted_msg = f"❌ {error}"
+                        formatted_msg = "❌ Error uploading to NAV. Please check order details."
                     messages.append((formatted_msg, 'error'))
         else:
             for error in error_messages:
@@ -853,9 +853,9 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                         else:
                             formatted_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in NAV or app database."
                     else:
-                        formatted_msg = f"❌ {error}"
+                        formatted_msg = "❌ Error uploading to NAV. Please check order details."
                 else:
-                    formatted_msg = f"❌ {error}"
+                    formatted_msg = "❌ Error uploading to NAV. Please check order details."
                 messages.append((formatted_msg, 'error'))
         
         if log_file_path:
@@ -874,7 +874,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         return success, sales_order_no, messages
     
     except Exception as e:
-        error_message = f"❌ Failed to post to NAV due to an unexpected error: {str(e)}"
+        error_message = "❌ Error uploading to NAV. Please check order details."
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
                 f.write(f"\n[ERROR] {error_message}\n")
