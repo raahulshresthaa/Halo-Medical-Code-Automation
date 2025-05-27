@@ -72,20 +72,6 @@ headers = {
 }
 auth = HttpNtlmAuth(username, password)
 
-import requests
-from requests_ntlm import HttpNtlmAuth
-import json
-import urllib.parse
-import re
-import datetime
-import os
-import base64
-import tkinter as tk
-from tkinter import simpledialog, messagebox
-import sys
-
-# ... (Previous imports and functions like parse_code_string, read_nav_config_file, etc., remain unchanged)
-
 def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes=None, patient_name=None, gender=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
@@ -240,11 +226,13 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         print(f"❌ {error_msg}")
         error_messages.append(error_msg)
 
-    # Add sales order lines
+    # Add sales order lines, ignoring lines that are just "```"
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
     if final_codes and len(final_codes) > 0:
-        print(f"Adding {len(final_codes)} sales order lines")
-        item_lines = [parse_code_string(code_str) for code_str in final_codes]
+        print(f"Processing {len(final_codes)} codes for sales order lines")
+        # Filter out lines that are just "```"
+        valid_codes = [code for code in final_codes if code.strip() != "```"]
+        item_lines = [parse_code_string(code_str) for code_str in valid_codes]
         base_line_no = 100000
         for i, (item_no, quantity) in enumerate(item_lines):
             line_data = {
