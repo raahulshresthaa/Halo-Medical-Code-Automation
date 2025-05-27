@@ -1462,7 +1462,7 @@ result_frame = ttk.Frame(main_tab)
 result_frame.pack(pady=10, anchor='center')
 
 # Create a text widget inside result_frame
-result_text = tk.Text(result_frame, wrap='word', height=25, width=80)
+result_text = tk.Text(result_frame, wrap='word', height=24, width=80)
 result_text.grid(row=0, column=0)
 
 # Vertical scrollbar for result_text
@@ -1506,7 +1506,7 @@ model_frame = ttk.Frame(main_tab)
 model_frame.pack(pady=10)
 
 model_label = ttk.Label(model_frame, text='Select Form Type:', font=label_font)
-model_label.pack(side='left', padx=(0, 5))
+model_label.pack(side='left', padx=(0, 2))
 
 for model_name, model_id_value in model_ids.items():
     radio_button = ttk.Radiobutton(
@@ -1515,7 +1515,7 @@ for model_name, model_id_value in model_ids.items():
         variable=model_id_var,
         value=model_id_value
     )
-    radio_button.pack(side='left', padx=5)
+    radio_button.pack(side='left', padx=2)
 
 # The loading popup and associated functions
 def show_loading_popup():
@@ -1611,34 +1611,32 @@ def copy_final_codes():
     and flashes the button instead of showing a popup.
     """
     full_text = result_text.get("1.0", tk.END)
-
-    # Find the last occurrence of "Final Codes"
     last_index = full_text.rfind("Final Codes")
     if last_index == -1:
-        # No flash or popup – optionally you could flash in a different color or show a brief label
         return
-
-    # Everything from 'Final Codes' to the end of the text
     final_codes_text = full_text[last_index:]
-
-    # Copy to clipboard
     root.clipboard_clear()
     root.clipboard_append(final_codes_text)
-
-    # Flash the button: create a temporary style with “inverted” colors
     original_style = copy_codes_button.cget("style")
-    style.configure(
-        "Flash.TButton",
-        background=style.colors.fg,     # or any color you like
-        foreground=style.colors.bg      # or any color you like
-    )
+    style.configure("Flash.TButton", background=style.colors.fg, foreground=style.colors.bg)
     copy_codes_button.configure(style="Flash.TButton")
-
-    # Revert after 300ms
     def revert_style():
         copy_codes_button.configure(style=original_style)
-
     root.after(300, revert_style)
+
+def copy_sales_order_number():
+    full_text = result_text.get("1.0", tk.END)
+    lines = full_text.split('\n')
+    for line in lines:
+        if "Created Sales Order: " in line:
+            match = re.search(r'GB-SOA\d+', line)
+            if match:
+                order_number = match.group(0)
+                root.clipboard_clear()
+                root.clipboard_append(order_number)
+                messagebox.showinfo("Copied", f"Sales Order Number {order_number} copied to clipboard.")
+                return
+    messagebox.showinfo("No SO Number", "No sales order number found in the results.")
 
 # Instantiate PdfButtonHandler
 pdf_handler = PdfButtonHandler(
@@ -1728,15 +1726,18 @@ auto_watch_check = ttk.Checkbutton(
 auto_watch_check.pack(pady=5)
 
 copy_codes_button = ttk.Button(main_tab, text="Copy to Clipboard", command=copy_final_codes)
-copy_codes_button.pack(pady=5)
+copy_codes_button.pack(pady=2)
+
+copy_so_button = ttk.Button(main_tab, text="Copy SO Number", command=copy_sales_order_number)
+copy_so_button.pack(pady=2)
 
 upload_pdf_button = ttk.Button(main_tab, text="Upload PDF", command=pdf_handler.upload_pdf_file)
-upload_pdf_button.pack(pady=5)
+upload_pdf_button.pack(pady=2)
 
 pdf_handler.set_upload_pdf_button(upload_pdf_button)
 
 exit_button = ttk.Button(main_tab, text="Exit", command=root.quit)
-exit_button.pack(pady=5)
+exit_button.pack(pady=2)
 
 # Make 'X' button trigger the same action as the "Exit" button
 root.protocol("WM_DELETE_WINDOW", on_closing)
