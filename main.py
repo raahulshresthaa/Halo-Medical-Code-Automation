@@ -298,92 +298,85 @@ class PdfButtonHandler:
 
             log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
 
-            if model_id == 'InsoleFullReaderV8':
-                if AutoDocRef == 'N/A':
-                    message = "No AutoDocRef found in the extracted data. Please kick to query."
-                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                    if log_file_path:
-                        with open(log_file_path, 'a', encoding='utf-8') as f:
-                            f.write(f"\n[ERROR] {message}\n")
-                    self.root.after(0, messagebox.showinfo, "AutoDocRef Not Found", message)
-                    return
-
-                clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
-                clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
-
-                db_path = customers_db_path
-                if not os.path.exists(db_path):
-                    error_msg = f"Error: Customers database file not found at {db_path}"
-                    print(error_msg)
-                    raise FileNotFoundError(error_msg)
-                conn = sqlite3.connect(db_path)
-                cursor = conn.cursor()
-                print(f"Querying for clinic: '{clinic}'")
-                cursor.execute("SELECT Sell_to_Customer_No FROM customers WHERE TRIM(LOWER(Docuware_Clinic_Name)) = TRIM(LOWER(?))", (clinic,))
-                clinic_result = cursor.fetchone()
-                if clinic_result:
-                    print(f"Found customer_no: {clinic_result[0]}")
-                else:
-                    print("No match found for the clinic.")
-                conn.close()
-
-                customer_no = clinic_result[0] if clinic_result else None
-                if not customer_no:
-                    message = f"Customer not found for clinic: {clinic}"
-                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                    if log_file_path:
-                        with open(log_file_path, 'a', encoding='utf-8') as f:
-                            f.write(f"\n[ERROR] {message}\n")
-                    self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
-                    add_missing_contact('clinic', clinic)
-                    return
-
-                if clinician:
-                    if not os.path.exists(clinician_db_path):
-                        error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
-                        print(error_msg)
-                        raise FileNotFoundError(error_msg)
-                    conn = sqlite3.connect(clinician_db_path)
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
-                    clinician_result = cursor.fetchone()
-                    conn.close()
-
-                    prescriber = clinician_result[0] if clinician_result else None
-                    if not prescriber:
-                        message = f"Prescriber not found for clinician: {clinician}"
-                        self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                        if log_file_path:
-                            with open(log_file_path, 'a', encoding='utf-8') as f:
-                                f.write(f"\n[ERROR] {message}\n")
-                        self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
-                        add_missing_contact('clinician', clinician)
-                        return
-                else:
-                    message = "Clinician field not found in the extracted data."
-                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                    if log_file_path:
-                        with open(log_file_path, 'a', encoding='utf-8') as f:
-                            f.write(f"\n[ERROR] {message}\n")
-                    self.root.after(0, messagebox.showinfo, "Clinician Not Found", "Clinician field not found in the extracted data.")
-                    return
-
-                if customer_no and prescriber:
-                    today = datetime.date.today()
-                    request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
-                    print(f"Calculated request_delivery_date: {request_delivery_date}")
-                    success, sales_order_no, messages = attempt_nav_upload(
-                        customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path, final_codes, patient_name, gender_full
-                    )
-                    for text, tag in messages:
-                        self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
-            else:
-                message = "Sales order posting not applicable for this form type."
-                tag = 'info'
-                self.root.after(0, lambda: self.append_to_result_text(message, tag))
+            # Check for AutoDocRef (required for all form types)
+            if AutoDocRef == 'N/A':
+                message = "No AutoDocRef found in the extracted data. Please kick to query."
+                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
                 if log_file_path:
                     with open(log_file_path, 'a', encoding='utf-8') as f:
-                        f.write(f"\n[INFO] {message}\n")
+                        f.write(f"\n[ERROR] {message}\n")
+                self.root.after(0, messagebox.showinfo, "AutoDocRef Not Found", message)
+                return
+
+            # Extract clinician
+            clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
+            clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
+
+            if not clinician:
+                message = "Clinician field not found in the extracted data."
+                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                if log_file_path:
+                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"\n[ERROR] {message}\n")
+                self.root.after(0, messagebox.showinfo, "Clinician Not Found", message)
+                return
+
+            # Get customer_no from database
+            db_path = customers_db_path
+            if not os.path.exists(db_path):
+                error_msg = f"Error: Customers database file not found at {db_path}"
+                print(error_msg)
+                raise FileNotFoundError(error_msg)
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            print(f"Querying for clinic: '{clinic}'")
+            cursor.execute("SELECT Sell_to_Customer_No FROM customers WHERE TRIM(LOWER(Docuware_Clinic_Name)) = TRIM(LOWER(?))", (clinic,))
+            clinic_result = cursor.fetchone()
+            conn.close()
+
+            customer_no = clinic_result[0] if clinic_result else None
+            if not customer_no:
+                message = f"Customer not found for clinic: {clinic}"
+                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                if log_file_path:
+                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"\n[ERROR] {message}\n")
+                self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
+                add_missing_contact('clinic', clinic)
+                return
+
+            # Get prescriber from database
+            if not os.path.exists(clinician_db_path):
+                error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
+                print(error_msg)
+                raise FileNotFoundError(error_msg)
+            conn = sqlite3.connect(clinician_db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
+            clinician_result = cursor.fetchone()
+            conn.close()
+
+            prescriber = clinician_result[0] if clinician_result else None
+            if not prescriber:
+                message = f"Prescriber not found for clinician: {clinician}"
+                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                if log_file_path:
+                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"\n[ERROR] {message}\n")
+                self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
+                add_missing_contact('clinician', clinician)
+                return
+
+            # Calculate request_delivery_date
+            today = datetime.date.today()
+            request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
+
+            # Call attempt_nav_upload
+            success, sales_order_no, messages = attempt_nav_upload(
+                customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path, final_codes, patient_name, gender_full
+            )
+            for text, tag in messages:
+                self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
 
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
