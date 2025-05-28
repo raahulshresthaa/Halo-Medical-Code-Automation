@@ -38,8 +38,13 @@ import requests.exceptions
 # Version number
 VERSION = "6.1.0-alpha"
 
-import os
-import sys
+# Centralized dictionary for model IDs
+MODEL_IDS = {
+    'Insoles': 'InsoleFullReaderV8',
+    'AFOs': 'AfoReaderV9',
+    'Bespoke': 'BespokeReaderFullV6',
+    'Modular': 'ModularReaderFullV4'
+}
 
 if getattr(sys, 'frozen', False):
     base_path = os.path.dirname(sys.executable)
@@ -106,16 +111,11 @@ from azure.ai.formrecognizer import DocumentAnalysisClient
  
 def get_form_type_from_model_id(model_id):
     """
-    Returns a friendly string for naming files, 
-    based on the provided model_id.
+    Returns a friendly string for naming files based on the provided model_id.
     """
-    mapping = {
-        'InsoleFullReaderV8': 'insole',
-        'AfoReaderV9': 'afo',
-        'BespokeReaderFullV6': 'bespoke',
-        'ModularReaderFullV4': 'modular'
-    }
-    return mapping.get(model_id, 'unknown')
+    # Reverse the MODEL_IDS dictionary to map model IDs back to form types
+    id_to_type = {v: k.lower() for k, v in MODEL_IDS.items()}
+    return id_to_type.get(model_id, 'unknown')
 
 def ensure_customers_table():
     """Ensure the customers table exists in the database."""
@@ -286,7 +286,7 @@ class PdfButtonHandler:
             current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-            if model_id == 'InsoleFullReaderV8':
+            if model_id == MODEL_IDS['Insoles']:
                 query_message = self.check_for_base(content)
             else:
                 query_message = None
@@ -509,12 +509,12 @@ class PdfButtonHandler:
 
             # Mapping of form confirmation values to model IDs
             form_to_model = {
-                'Insole Prescription Form': 'InsoleFullReaderV8',
-                '(Internal Digitised) Insole Prescription Form': 'InsoleFullReaderV8',
-                '(Repeat) Insole Prescription Form': 'InsoleFullReaderV8',
-                'AFO Prescription Form': 'AfoReaderV9',
-                'Bespoke Footwear Prescription Form': 'BespokeReaderFullV6',
-                'Modular Footwear Prescription Form': 'ModularReaderFullV4'
+                'Insole Prescription Form': MODEL_IDS['Insoles'],
+                '(Internal Digitised) Insole Prescription Form': MODEL_IDS['Insoles'],
+                '(Repeat) Insole Prescription Form': MODEL_IDS['Insoles'],
+                'AFO Prescription Form': MODEL_IDS['AFOs'],
+                'Bespoke Footwear Prescription Form': MODEL_IDS['Bespoke'],
+                'Modular Footwear Prescription Form': MODEL_IDS['Modular']
             }
 
             correct_model_id = form_to_model.get(form_confirmation, None)
@@ -542,7 +542,7 @@ class PdfButtonHandler:
             content = self.parse_extracted_data(fields_data)
             print(f"Extracted content:\n{content}")
 
-            if model_id == 'InsoleFullReaderV8':
+            if model_id == MODEL_IDS['Insoles']:
                 if "insole type other" in fields_data:
                     self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
                 if self.is_carbon_selected(content):
@@ -592,7 +592,7 @@ class PdfButtonHandler:
 
             logic_file_name = None
 
-            if model_id == 'InsoleFullReaderV8':
+            if model_id == MODEL_IDS['Insoles']:
                 form_type = self.determine_form_type(fields_data)
                 if not form_type:
                     query_message = "No form type found in the extracted data. Please raise a query."
@@ -619,7 +619,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'AfoReaderV9':
+            elif model_id == MODEL_IDS['AFOs']:
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
                 passed_codes = generate_afo_codes(self, content)
@@ -629,7 +629,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'BespokeReaderFullV6':
+            elif model_id == MODEL_IDS['Bespoke']:
                 logic_file_name = 'bespoke_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
                 passed_codes = generate_bespoke_codes(self, content)
@@ -639,7 +639,7 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
-            elif model_id == 'ModularReaderFullV4':
+            elif model_id == MODEL_IDS['Modular']:
                 logic_file_name = 'modular_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
                 passed_codes = generate_modular_codes(self, content)
@@ -1484,14 +1484,8 @@ def handle_drop(event):
 
 result_text.dnd_bind('<<Drop>>', handle_drop)
 
-# Model IDs
-model_ids = {
-    'Insoles': 'InsoleFullReaderV8',
-    'AFOs': 'AfoReaderV9',
-    'Bespoke': 'BespokeReaderFullV6',
-    'Modular': 'ModularReaderFullV4'
-}
-model_id_var = tk.StringVar(value='InsoleFullReaderV8')
+# Model IDs (using the centralized dictionary)
+model_id_var = tk.StringVar(value=MODEL_IDS['Insoles'])  # Default to Insoles
 
 model_frame = ttk.Frame(main_tab)
 model_frame.pack(pady=10)
@@ -1499,7 +1493,7 @@ model_frame.pack(pady=10)
 model_label = ttk.Label(model_frame, text='Select Form Type:', font=label_font)
 model_label.pack(side='left', padx=(0, 2))
 
-for model_name, model_id_value in model_ids.items():
+for model_name, model_id_value in MODEL_IDS.items():
     radio_button = ttk.Radiobutton(
         model_frame,
         text=model_name,
