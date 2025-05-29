@@ -269,7 +269,6 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
                 "No": item_no,
                 "Quantity": quantity,
                 "Location_Code": "WAREHOUSE",
-                "Unit_of_Measure_Code": "EACH"
             }
             response = requests.post(lines_url, headers=headers, data=json.dumps(line_data), auth=auth)
             if response.status_code != 201:
