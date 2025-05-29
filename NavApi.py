@@ -72,7 +72,7 @@ headers = {
 }
 auth = HttpNtlmAuth(username, password)
 
-def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes=None, patient_name=None, gender=None):
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, final_codes=None, patient_name=None, gender=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
     error_messages = []
@@ -152,7 +152,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             "Original_Order_Date": original_order_date,
             "Order_Date": today,
             "Document_Date": today,
-            "Order_Category_Code": "MILLED INSOLES",
+            "Order_Category_Code": order_category_code,  # Use the passed parameter
             "Prescriber": prescriber,
             "Send_For": "Send for Finish",
             "Requested_Delivery_Date": request_delivery_date,
@@ -167,6 +167,10 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         attempt = 0
         while attempt < max_attempts:
             order_data["No"] = next_no
+            # Print the Order Category Code separately before the upload attempt
+            print(f"Order Category Code for attempt {attempt + 1}: {order_data['Order_Category_Code']}")
+            # Print the full order_data for reference
+            print(f"Attempt {attempt + 1}: Sending order_data:\n{json.dumps(order_data, indent=2)}")
             create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
             if create_response.status_code == 201:
                 print(f"✅ Created Sales Order: {next_no}")
@@ -252,11 +256,10 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         print(f"❌ {error_msg}")
         error_messages.append(error_msg)
 
-    # Add sales order lines, ignoring lines that are just "```"
+    # Add sales order lines
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
     if final_codes and len(final_codes) > 0:
         print(f"Processing {len(final_codes)} codes for sales order lines")
-        # Filter out lines that are just "```"
         valid_codes = [code for code in final_codes if code.strip() != "```"]
         item_lines = [parse_code_string(code_str) for code_str in valid_codes]
         base_line_no = 100000

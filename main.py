@@ -57,6 +57,56 @@ customers_db_path = os.path.join(base_path, 'databases', 'clinic_nav_sell_to.db'
 clinician_db_path = os.path.join(base_path, 'databases', 'clinician_nav_contacts.db')
 missing_db_path = os.path.join(base_path, 'databases', 'missing_contacts.db')
 
+def determine_order_category_code(model_id, fields_data):
+    """
+    Determines the Order Category Code based on the model_id and extracted fields_data.
+    
+    Args:
+        model_id (str): The model ID corresponding to the form type.
+        fields_data (dict): Dictionary of fields extracted from Azure Form Recognizer.
+    
+    Returns:
+        str: The determined Order Category Code.
+    """
+    if model_id == MODEL_IDS['Insoles']:
+        insole_type = None
+        # Determine insole type based on selected fields
+        if fields_data.get('insole type tci', '').lower() == 'selected':
+            insole_type = 'tci'
+        elif fields_data.get('insole type cradle', '').lower() == 'selected':
+            insole_type = 'cradle'
+        elif fields_data.get('insole type simple', '').lower() == 'selected':
+            insole_type = 'simple'
+        elif fields_data.get('insole type hand mould', '').lower() == 'selected':
+            insole_type = 'handmould'  # Assuming handmould follows default unless specified
+        
+        base = fields_data.get('base', '').strip().lower()
+        # Check base first, as it takes precedence per user query
+        if base in ('polypropylene', 'carbon fibre'):
+            return 'MOULDED INSOLE'
+        elif insole_type == 'simple':
+            return 'MILLED INSOLES'
+        elif insole_type in ('tci', 'cradle'):
+            return 'SIMPLE INSOLE'
+        else:
+            return 'MILLED INSOLES'  # Default for insoles if no specific condition met
+    
+    elif model_id == MODEL_IDS['AFOs']:
+        return 'PLASTICS'
+    
+    elif model_id == MODEL_IDS['Bespoke']:
+        if fields_data.get('insole type tci', '').lower() == 'selected':
+            return 'BESPOKE/TCI'
+        return 'BESPOKE'
+    
+    elif model_id == MODEL_IDS['Modular']:
+        if fields_data.get('insole type tci', '').lower() == 'selected':
+            return 'MODULAR/TCI'
+        return 'MODULAR'
+    
+    else:
+        return 'UNKNOWN'  # Fallback for unrecognized model_id
+
 # Functions to get all clinics and clinicians
 def get_all_clinics():
     conn = sqlite3.connect(customers_db_path)
@@ -258,7 +308,7 @@ class PdfButtonHandler:
         except Exception as e:
             return f"Error: {str(e)}"
 
-    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full):
+    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code):
         try:
             price_codes = self.get_price_codes_from_content(content, logic_content)
             print(f"Price codes received: {price_codes}")
@@ -274,7 +324,7 @@ class PdfButtonHandler:
                     if stripped and not all(c == '-' for c in stripped):
                         final_codes.append(stripped)
                     else:
-                        break  # Stop at separator line (e.g., "-----------------------")
+                        break  # Stop at separator line
             else:
                 final_codes = []
                 print("No final codes found in the response.")
@@ -298,7 +348,6 @@ class PdfButtonHandler:
 
             log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
 
-            # Check for AutoDocRef (required for all form types)
             if AutoDocRef == 'N/A':
                 message = "No AutoDocRef found in the extracted data. Please kick to query."
                 self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
@@ -308,7 +357,6 @@ class PdfButtonHandler:
                 self.root.after(0, messagebox.showinfo, "AutoDocRef Not Found", message)
                 return
 
-            # Extract clinician
             clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
             clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
 
@@ -321,7 +369,6 @@ class PdfButtonHandler:
                 self.root.after(0, messagebox.showinfo, "Clinician Not Found", message)
                 return
 
-            # Get customer_no from database
             db_path = customers_db_path
             if not os.path.exists(db_path):
                 error_msg = f"Error: Customers database file not found at {db_path}"
@@ -345,7 +392,6 @@ class PdfButtonHandler:
                 add_missing_contact('clinic', clinic)
                 return
 
-            # Get prescriber from database
             if not os.path.exists(clinician_db_path):
                 error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
                 print(error_msg)
@@ -367,13 +413,13 @@ class PdfButtonHandler:
                 add_missing_contact('clinician', clinician)
                 return
 
-            # Calculate request_delivery_date
             today = datetime.date.today()
             request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
 
-            # Call attempt_nav_upload
+            # Pass order_category_code to attempt_nav_upload
             success, sales_order_no, messages = attempt_nav_upload(
-                customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path, final_codes, patient_name, gender_full
+                customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
+                log_file_path, final_codes, patient_name, gender_full
             )
             for text, tag in messages:
                 self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
@@ -495,6 +541,7 @@ class PdfButtonHandler:
             self.root.after(0, self.update_loading_message, "Please wait, calculating the codes")
 
             fields_data = self.extract_fields_from_result(result)
+            order_category_code = determine_order_category_code(model_id, fields_data)
             if not fields_data:
                 raise ValueError("No data extracted from the PDF.")
 
@@ -659,7 +706,7 @@ class PdfButtonHandler:
             if "Error" in logic_content:
                 raise ValueError(logic_content)
 
-            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full)
+            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code)
 
         except TimeoutError as e:
             error_msg = f"Timeout error: {str(e)}"
@@ -764,7 +811,7 @@ class PdfButtonHandler:
         content_lower = content.lower()
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
-def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None, final_codes=None, patient_name=None, gender_full=None):
+def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, log_file_path=None, final_codes=None, patient_name=None, gender_full=None):
     """
     Attempts to create a sales order in NAV using the provided parameters with enhanced error handling.
     
@@ -774,6 +821,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         original_order_date (str): The original order date in 'YYYY-MM-DD' format.
         request_delivery_date (str): The requested delivery date in 'YYYY-MM-DD' format.
         auto_doc_ref (str): The auto document reference.
+        order_category_code (str): The dynamic order category code.
         log_file_path (str, optional): Path to the log file for recording outcomes.
         final_codes (list, optional): List of final codes to include in the sales order lines.
         patient_name (str, optional): The patient's name.
@@ -789,6 +837,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             original_order_date=original_order_date,
             request_delivery_date=request_delivery_date,
             auto_doc_ref=auto_doc_ref,
+            order_category_code=order_category_code,
             final_codes=final_codes if final_codes else [],
             patient_name=patient_name if patient_name else "",
             gender=gender_full
