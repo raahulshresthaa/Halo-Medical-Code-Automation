@@ -85,9 +85,9 @@ def determine_order_category_code(model_id, fields_data):
         if base in ('polypropylene', 'carbon fibre'):
             return 'MOULDED INSOLE'
         elif insole_type == 'simple':
-            return 'MILLED INSOLES'
-        elif insole_type in ('tci', 'cradle'):
             return 'SIMPLE INSOLE'
+        elif insole_type in ('tci', 'cradle'):
+            return 'MILLED INSOLES'
         else:
             return 'MILLED INSOLES'  # Default for insoles if no specific condition met
     
