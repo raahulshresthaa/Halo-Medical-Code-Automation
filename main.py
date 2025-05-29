@@ -713,9 +713,6 @@ class PdfButtonHandler:
             elif key_lower == 'afo' and value_lower == 'selected':
                 form_type = 'afo'
                 break
-            elif key_lower == 'kafo' and value_lower == 'selected':
-                form_type = 'kafo'
-                break
 
         # -- New: If we found nothing, check if 'insole type other' has a value
         if not form_type:

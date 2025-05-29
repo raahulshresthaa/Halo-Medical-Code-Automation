@@ -1,2 +1,1 @@
-Start by saying "AFO logic selected successfully"
 Then just repeat the the list of passed codes each on a new line do not change anything
