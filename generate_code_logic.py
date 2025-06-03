@@ -61,18 +61,18 @@ def generate_bespoke_codes(self, content):
         passed_codes['TARIFF BESPOKE'] += 1
         bespoke_tariff_added = True
 
-    # Insole Tariff Checks
-    if clinic_name in tariff_tci_clinics:
+    # Insole Tariff Checks - Updated to consider both insole_type and clinic
+    if insole_type in ('tci', 'cradle') and clinic_name in tariff_tci_clinics:
         passed_codes['TARIFF TCI\'S'] += 1
         if is_pair:
             passed_codes['TARIFF TCI\'S'] *= 2
         insole_tariff_added = True
-    elif clinic_name in tariff_simple_clinics:
+    elif insole_type == 'simple' and clinic_name in tariff_simple_clinics:
         passed_codes['TARIFF SIMPLE INSOLE'] += 1
         if is_pair:
             passed_codes['TARIFF SIMPLE INSOLE'] *= 2
         insole_tariff_added = True
-    elif clinic_name in tariff_polyprop_clinics:
+    elif insole_type == 'handmould' and clinic_name in tariff_polyprop_clinics:
         passed_codes['TARIFF POLYPROPS'] += 1
         if is_pair:
             passed_codes['TARIFF POLYPROPS'] *= 2
