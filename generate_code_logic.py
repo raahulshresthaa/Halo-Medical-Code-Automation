@@ -379,7 +379,7 @@ def generate_bespoke_codes(self, content):
     for side in ['left', 'right']:
         raise_inside_key = f'raise {side} inside'
         raise_outside_key = f'raise {side} outside'
-        raise_material_key = f'raise {side} material'
+        raise_material_key = f'{side} raise material'
 
         raise_material = content_dict.get(raise_material_key, '')
 
