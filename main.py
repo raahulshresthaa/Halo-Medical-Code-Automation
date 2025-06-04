@@ -293,7 +293,7 @@ class PdfButtonHandler:
         try:
             # Send the content, logic, and file context to the assistant
             response = openai.ChatCompletion.create(
-                model="gpt-4o-2024-08-06",  # Use the appropriate model
+                model="gpt-4.1-2025-04-14",  # Use the appropriate model
                 messages=[
                     {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nWrite your full working out and then write **Final Codes:** and output the final codes each on a new line, including the passed codes."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}"}
