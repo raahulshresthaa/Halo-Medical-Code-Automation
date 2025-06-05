@@ -1499,7 +1499,7 @@ def generate_modular_codes(self, content):
         if content_dict.get('insole pair', '') == 'selected':
             codes_to_double_insole = [
                 'A10', 'B54C', 'B40B', 'B54A',
-                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C', 'B54B'
+                'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C', 'B54B', 'TARIFF TCI\'S', 'TARIFF SIMPLE INSOLE', 'TARIFF POLYPROPS'
             ]
             for code in codes_to_double_insole:
                 if code in passed_codes:
