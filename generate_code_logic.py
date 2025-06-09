@@ -1165,19 +1165,12 @@ def generate_modular_codes(self, content):
     insole_tariff_added = False
 
     # --- Medway Tariffs for Modular ---
-    # If medway:
-    # - If simple: add MEDBNS71
-    # - Otherwise: add MEDBNS72
-    # In all cases: add MEDFOOTWEAR
     if clinic_name == 'medway':
         if insole_type == 'simple':
             passed_codes['MEDBNS71'] += 1
         else:
             passed_codes['MEDBNS72'] += 1
-
-        # Add MEDFOOTWEAR in all medway cases
         passed_codes['MEDFOOTWEAR'] += 1
-        # Mark modular tariff as added so filters run later
         modular_tariff_added = True
         insole_tariff_added = True
 
@@ -1197,8 +1190,6 @@ def generate_modular_codes(self, content):
         passed_codes['TARIFF POLYPROPS'] += 1
         insole_tariff_added = True
 
-    # Note: Continue normal logic to allow code filtering at the end
-
     # Last Type Checks
     if content_dict.get('last type', '').strip().lower() == 'wide extra deep':
         count = 1
@@ -1206,21 +1197,39 @@ def generate_modular_codes(self, content):
             count = 2
         passed_codes['6MM'] += count
 
-    # Insole Allowance Checks - Updated to include 'addition option 1 length'
+    # Insole Allowance Checks - Updated logic to use the maximum code for pairs
     allowance_codes = {'3MM', '6MM', '9MM', '12MM'}
     pattern_allowances = {'9MM', '12MM'}
+    allowance_order = ['3MM', '6MM', '9MM', '12MM']
+
+    left_code = None
+    right_code = None
 
     for side in ['left', 'right']:
         allowance_key = f'{side} insole allowance'
         addition_length_key = f'{side} addition option 1 length'
         value = content_dict.get(allowance_key, '') or content_dict.get(addition_length_key, '')
         if value:
-            # Convert value to uppercase, e.g., '6mm' -> '6MM'
             code = value.upper().replace('MM', 'MM')
             if code in allowance_codes:
-                passed_codes[code] += 1
-                if code in pattern_allowances:
-                    passed_codes['PATTERN'] += 1
+                if side == 'left':
+                    left_code = code
+                else:
+                    right_code = code
+
+    if is_pair and left_code and right_code:
+        max_code = max(left_code, right_code, key=allowance_order.index)
+        passed_codes[max_code] += 2
+        if max_code in pattern_allowances:
+            passed_codes['PATTERN'] += 2
+    elif left_code:
+        passed_codes[left_code] += 1
+        if left_code in pattern_allowances:
+            passed_codes['PATTERN'] += 1
+    elif right_code:
+        passed_codes[right_code] += 1
+        if right_code in pattern_allowances:
+            passed_codes['PATTERN'] += 1
 
     # Sole and Style Checks
     sole_value = content_dict.get('sole', '')
@@ -1232,22 +1241,13 @@ def generate_modular_codes(self, content):
 
     style = content_dict.get('styles', '').lower()
 
-    sport_styles = {
-        'sneaker', 'greenock', 'greeock', 'colwyn', 'lineham', 'hove', 'plymouth', 
-        'drayton', 'olympic', 'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'
-    } 
+    sport_styles = {'sneaker', 'greenock', 'greeock', 'colwyn', 'lineham', 'hove', 'plymouth', 
+                    'drayton', 'olympic', 'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'} 
+    shoe_styles = {'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
+                   'truro', 'hendon', 'stirling', 'exeter', 'chester', 'shelby'}
+    boot_styles = {'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
+                   'dundee', 'brigg', 'elgin', 'highland'}
 
-    shoe_styles = {
-        'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
-        'truro', 'hendon', 'stirling', 'exeter', 'chester', 'shelby'
-    }
-
-    boot_styles = {
-        'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
-        'dundee', 'brigg', 'elgin', 'highland'
-    }
-
-    # If style is recognized use style lists
     if style in sport_styles:
         passed_codes['MODULAR SPORTS'] += 1
     elif style in shoe_styles:
@@ -1255,11 +1255,7 @@ def generate_modular_codes(self, content):
     elif style in boot_styles:
         passed_codes['MODULAR BOOTS'] += 1
     else:
-        # --- ADDED WARNING LOGIC HERE ---
-        # The style wasn't found in sport, shoe, or boot sets, so fallback to tick boxes.
-        # We'll also build a warning message to show the user that we are “guessing.”
         fallback_styles_used = []
-
         if content_dict.get('shoes', '') == 'selected':
             passed_codes['MODULAR SHOES'] += 1
             fallback_styles_used.append('shoes')
@@ -1271,16 +1267,13 @@ def generate_modular_codes(self, content):
             fallback_styles_used.append('trainers')
 
         if fallback_styles_used:
-            # Create a warning message letting the user know we didn't detect the style
             warning_message = (
                 f"Footwear style not detected!\n"
                 f"• Entered style: '{style}' may be spelled incorrectly.\n"
                 f"• Falling back to tick-box selections: {', '.join(fallback_styles_used)}"
             )
-            # Show the pop-up in the same way you handle other warnings
             self.root.after(0, messagebox.showinfo, "Warning", warning_message)
         else:
-            # If no tick boxes are also selected, you might want a different warning or default assumption.
             warning_message = (
                 f"Footwear style '{style}' not recognized, and no tick boxes selected. "
                 f"Please verify the footwear style."
@@ -1295,19 +1288,10 @@ def generate_modular_codes(self, content):
 
     # Straps Checks
     for side in ['left', 'right']:
-        strap_type_key = f'{side} strap type'
-        double_decker_key = f'{side} double decker'
-
-        strap_type = content_dict.get(strap_type_key, '')
-        double_decker = content_dict.get(double_decker_key, '')
-
-        if double_decker == 'yes':
+        strap_position_key = f'{side} strap position'
+        strap_position = content_dict.get(strap_position_key, '')
+        if strap_position == 'double decker':
             passed_codes['B34'] += 1
-        else:
-            if strap_type in ('t strap', 'y strap'):
-                passed_codes['B33'] += 1
-            elif strap_type in ('spur retaining strap', 'heel retaining strap'):
-                passed_codes['B8'] += 1
 
     # Sockets Type Checks
     socket_keys = ['left socket type', 'right socket type']
@@ -1332,16 +1316,10 @@ def generate_modular_codes(self, content):
 
     # Wedges
     wedges_keys = [
-        'left wedges heel lateral',
-        'left wedges heel medial',
-        'right wedges heel medial',
-        'right wedges heel lateral',
-        'left wedges sole lateral',
-        'left wedges sole medial',
-        'right wedges sole medial',
-        'right wedges sole lateral'
+        'left wedges heel lateral', 'left wedges heel medial', 'right wedges heel medial',
+        'right wedges heel lateral', 'left wedges sole lateral', 'left wedges sole medial',
+        'right wedges sole medial', 'right wedges sole lateral'
     ]
-
     for key in wedges_keys:
         if content_dict.get(key, '') == 'selected':
             if 'heel' in key:
@@ -1351,16 +1329,10 @@ def generate_modular_codes(self, content):
 
     # Floated
     floated_keys = [
-        'right floated heel lateral',
-        'right floated heel medial',
-        'left floated heel medial',
-        'left floated heel lateral',
-        'left floated sole lateral',
-        'left floated sole medial',
-        'right floated sole lateral',
-        'right floated sole medial'
+        'right floated heel lateral', 'right floated heel medial', 'left floated heel medial',
+        'left floated heel lateral', 'left floated sole lateral', 'left floated sole medial',
+        'right floated sole lateral', 'right floated sole medial'
     ]
-
     for key in floated_keys:
         if content_dict.get(key, '') == 'selected':
             if 'heel' in key:
@@ -1368,7 +1340,7 @@ def generate_modular_codes(self, content):
             elif 'sole' in key:
                 passed_codes['B19'] += 1
 
-    # beyond this point is the insole logic
+    # Insole logic
     shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
     if insole_type == 'cradle':
         if normalized_base in shore_bases:
@@ -1383,18 +1355,12 @@ def generate_modular_codes(self, content):
 
     if content_dict.get('base poron', '') == 'selected':
         passed_codes['B40B'] += 1
-
     if content_dict.get('base carbon fibre', '') == 'selected':
         passed_codes['B54A'] += 1
 
     foot_modifications = [
-        'cut out and additions',
-        '1st met head',
-        '1st met ray',
-        '5th met ray',
-        'navicular sweet spot',
-        'fascial accommodation',
-        'heel flange'
+        'cut out and additions', '1st met head', '1st met ray', '5th met ray',
+        'navicular sweet spot', 'fascial accommodation', 'heel flange'
     ]
     for side in ['left', 'right']:
         for mod in foot_modifications:
@@ -1406,16 +1372,10 @@ def generate_modular_codes(self, content):
         'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
         'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition'
     ]
-
     addition_code_mapping = {
-        'A45_B41': {
-            'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
-            'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
-            'sulcus crest', 'arch fill'
-        },
-        'A45_B56': {
-            "morton's extension", "reverse morton's extension", 'poron forefoot'
-        },
+        'A45_B41': {'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
+                    'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'},
+        'A45_B56': {"morton's extension", "reverse morton's extension", 'poron forefoot'},
         'A45_B43': {'kinetic wedge', 'heel raise'},
         'D8A': {'neurological footplate'},
         'BNS45': {'recess', 'hole & plug'},
@@ -1423,7 +1383,6 @@ def generate_modular_codes(self, content):
         'A46_B50': {'partial toe block'},
         'A47_B51': {'full toe block'}
     }
-
     for key in addition_positions:
         addition_value = content_dict.get(key, '')
         if addition_value:
@@ -1451,16 +1410,11 @@ def generate_modular_codes(self, content):
                 passed_codes[code] += 1
 
     posting_keys = [
-        'left medial rearfoot posting',
-        'left lateral rearfoot posting',
-        'right medial rearfoot posting',
-        'right lateral rearfoot posting',
-        'left medial forefoot posting',
-        'left lateral forefoot posting',
-        'right medial forefoot posting',
-        'right lateral forefoot posting',
+        'left medial rearfoot posting', 'left lateral rearfoot posting',
+        'right medial rearfoot posting', 'right lateral rearfoot posting',
+        'left medial forefoot posting', 'left lateral forefoot posting',
+        'right medial forefoot posting', 'right lateral forefoot posting'
     ]
-
     for key in posting_keys:
         if content_dict.get(key, '') == 'selected':
             code = 'A45' if insole_type == 'cradle' else 'B56'
@@ -1494,37 +1448,32 @@ def generate_modular_codes(self, content):
         passed_codes[code] += 1
 
     if content_dict.get('pair', '') == 'selected':
-        codes_to_double_general = [
-            'TWIST FASTEN', 'BNS62', 'VELCRO'
-        ]
+        codes_to_double_general = ['TWIST FASTEN', 'BNS62', 'VELCRO']
         for code in codes_to_double_general:
             if code in passed_codes:
                 passed_codes[code] *= 2
 
     if content_dict.get('insole pair', '') == 'selected':
         codes_to_double_insole = [
-            'A10', 'B54C', 'B40B', 'B54A',
-            'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C', 'B54B', 'TARIFF TCI\'S', 'TARIFF SIMPLE INSOLE', 'TARIFF POLYPROPS'
+            'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
+            'B55A', 'B55B', 'B55C', 'B54B', 'TARIFF TCI\'S', 'TARIFF SIMPLE INSOLE', 'TARIFF POLYPROPS'
         ]
         for code in codes_to_double_insole:
             if code in passed_codes:
                 passed_codes[code] *= 2
 
-    # Now we must double MEDBNS71 or MEDBNS72 if it's a pair, but NOT MEDFOOTWEAR
     if is_pair:
         if 'MEDBNS71' in passed_codes:
             passed_codes['MEDBNS71'] *= 2
         if 'MEDBNS72' in passed_codes:
             passed_codes['MEDBNS72'] *= 2
-        # Do not double MEDFOOTWEAR
 
-    # --- Filtering Step ---
+    # Filtering Step
     insole_filter_codes = {
         'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
         'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
         'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41', 'B54B'
     }
-
     modular_filter_codes = {
         '6MM', 'PATTERN', 'BNS62', 'MODULAR SHOES', 'MODULAR BOOTS',
         'MODULAR SPORTS', 'TWIST FASTEN', 'VELCRO', 'B34', 'B33', 'B8',
@@ -1535,21 +1484,21 @@ def generate_modular_codes(self, content):
         for c in insole_filter_codes:
             if c in passed_codes:
                 del passed_codes[c]
-
     if modular_tariff_added:
         for c in modular_filter_codes:
             if c in passed_codes:
                 del passed_codes[c]
 
-    # Format the passed codes with counts
+    # Format the passed codes with counts, excluding 'PATTERN'
     formatted_passed_codes = []
     for code, count in passed_codes.items():
-        if count > 1:
-            formatted_passed_codes.append(f"{code} x{count}")
-        else:
-            formatted_passed_codes.append(code)
+        if code != 'PATTERN':
+            if count > 1:
+                formatted_passed_codes.append(f"{code} x{count}")
+            else:
+                formatted_passed_codes.append(code)
 
     if formatted_passed_codes:
-        return ', '.join(f"{code} x{count}" if count > 1 else code for code, count in passed_codes.items())
+        return ', '.join(formatted_passed_codes)
     else:
         return None
