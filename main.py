@@ -295,7 +295,7 @@ class PdfButtonHandler:
             response = openai.ChatCompletion.create(
                 model="gpt-4.1-2025-04-14",  # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nWrite your full working out and then write **Final Codes:** and output the final codes each on a new line, including the passed codes."},
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nFirst, write your full working out. Then, write **Final Codes:** followed by the final codes each on a new line, including the passed codes. Do not include any additional text or summary after the final codes."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
