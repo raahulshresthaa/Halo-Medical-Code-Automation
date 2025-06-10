@@ -72,6 +72,11 @@ headers = {
 }
 auth = HttpNtlmAuth(username, password)
 
+def work_order(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
+
 def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, final_codes=None, patient_name=None, gender=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
@@ -152,7 +157,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             "Original_Order_Date": original_order_date,
             "Order_Date": today,
             "Document_Date": today,
-            "Order_Category_Code": order_category_code,  # Use the passed parameter
+            "Order_Category_Code": order_category_code,
             "Prescriber": prescriber,
             "Send_For": "Send for Finish",
             "Requested_Delivery_Date": request_delivery_date,
@@ -167,9 +172,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         attempt = 0
         while attempt < max_attempts:
             order_data["No"] = next_no
-            # Print the Order Category Code separately before the upload attempt
             print(f"Order Category Code for attempt {attempt + 1}: {order_data['Order_Category_Code']}")
-            # Print the full order_data for reference
             print(f"Attempt {attempt + 1}: Sending order_data:\n{json.dumps(order_data, indent=2)}")
             create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
             if create_response.status_code == 201:
@@ -209,8 +212,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     medical_get_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails?{filter_medical}"
     medical_response = requests.get(medical_get_url, headers=headers, auth=auth)
     
-    target_operation = "Special Instructions"
-    target_text = "Refer to Prescription form " + auto_doc_ref
+    target_operation, target_text = work_order(auto_doc_ref)
     
     if medical_response.status_code == 200:
         existing_details = medical_response.json()['value']
