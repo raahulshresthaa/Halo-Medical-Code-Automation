@@ -418,8 +418,8 @@ class PdfButtonHandler:
 
             # Pass order_category_code to attempt_nav_upload
             success, sales_order_no, messages = attempt_nav_upload(
-                customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
-                log_file_path, final_codes, patient_name, gender_full
+            customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
+            form_type_for_filename, log_file_path, final_codes, patient_name, gender_full
             )
             for text, tag in messages:
                 self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
@@ -811,7 +811,7 @@ class PdfButtonHandler:
         content_lower = content.lower()
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
-def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, log_file_path=None, final_codes=None, patient_name=None, gender_full=None):
+def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, log_file_path=None, final_codes=None, patient_name=None, gender_full=None):
     """
     Attempts to create a sales order in NAV using the provided parameters with enhanced error handling.
     
@@ -822,6 +822,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         request_delivery_date (str): The requested delivery date in 'YYYY-MM-DD' format.
         auto_doc_ref (str): The auto document reference.
         order_category_code (str): The dynamic order category code.
+        form_type (str): The type of form ('insoles', 'afos', 'bespoke', 'modular', or 'unknown').
         log_file_path (str, optional): Path to the log file for recording outcomes.
         final_codes (list, optional): List of final codes to include in the sales order lines.
         patient_name (str, optional): The patient's name.
@@ -838,6 +839,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             request_delivery_date=request_delivery_date,
             auto_doc_ref=auto_doc_ref,
             order_category_code=order_category_code,
+            form_type=form_type,  # Pass form_type here
             final_codes=final_codes if final_codes else [],
             patient_name=patient_name if patient_name else "",
             gender=gender_full
@@ -854,23 +856,24 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             ui_messages.append((f"✅ Created Sales Order: {sales_order_no}", 'success'))
             log_messages.append(f"[SUCCESS] Created Sales Order: {sales_order_no}")
             if error_messages:
+                # Handle error messages as before...
                 for error in error_messages:
                     if "Internal_InvalidTableRelation" in error:
                         if "Prescriber" in error:
                             prescriber_no = prescriber
                             clinician_name = get_clinician_name(prescriber_no)
                             if clinician_name != "Unknown":
-                                ui_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' exists in the app database but not in NAV. Please check if the prescriber number is correct."
+                                ui_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' exists in the app database but not in NAV."
                             else:
-                                ui_msg = f"❌ Prescriber number '{prescriber_no}' not found in the app database or NAV. Please ensure the clinician is added to both systems."
+                                ui_msg = f"❌ Prescriber number '{prescriber_no}' not found in the app database or NAV."
                         elif "Sell-to Customer No." in error:
                             match = re.search(r"\((\w+)\)", error)
                             customer_no_from_error = match.group(1) if match else customer_no
                             clinic_name = get_clinic_name(customer_no_from_error)
                             if clinic_name != "Unknown":
-                                ui_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' exists in the app database but not in NAV. Please check if the sell to number is correct."
+                                ui_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' exists in the app database but not in NAV."
                             else:
-                                ui_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in the app database or NAV. Please ensure the clinic is added to both systems."
+                                ui_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in the app database or NAV."
                         else:
                             ui_msg = "❌ Error uploading to NAV. Please check order details."
                     else:
@@ -879,6 +882,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                     log_messages.append(f"[ERROR] {error}")
         else:
             for error in error_messages:
+                # Handle error messages as before...
                 if "Internal_InvalidTableRelation" in error:
                     if "Prescriber" in error:
                         prescriber_no = prescriber

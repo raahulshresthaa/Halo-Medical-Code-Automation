@@ -72,12 +72,33 @@ headers = {
 }
 auth = HttpNtlmAuth(username, password)
 
-def work_order(auto_doc_ref):
+# Define specific work order functions
+def work_order_insole(auto_doc_ref):
     target_operation = "Special Instructions"
     target_text = "Refer to Prescription form " + auto_doc_ref
     return target_operation, target_text
 
-def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, final_codes=None, patient_name=None, gender=None):
+def work_order_bespoke(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
+
+def work_order_modular(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
+
+def work_order_afo(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
+
+def work_order_undefined(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
+
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
     error_messages = []
@@ -212,7 +233,16 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     medical_get_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails?{filter_medical}"
     medical_response = requests.get(medical_get_url, headers=headers, auth=auth)
     
-    target_operation, target_text = work_order(auto_doc_ref)
+    # Select the appropriate work order function based on form_type
+    work_order_funcs = {
+        'insoles': work_order_insole,
+        'bespoke': work_order_bespoke,
+        'modular': work_order_modular,
+        'afos': work_order_afo,
+        'unknown': work_order_undefined
+    }
+    work_order_func = work_order_funcs.get(form_type.lower(), work_order_undefined)
+    target_operation, target_text = work_order_func(auto_doc_ref)
     
     if medical_response.status_code == 200:
         existing_details = medical_response.json()['value']
