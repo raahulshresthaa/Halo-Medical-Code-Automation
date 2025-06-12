@@ -233,7 +233,6 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     medical_get_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails?{filter_medical}"
     medical_response = requests.get(medical_get_url, headers=headers, auth=auth)
     
-    # Select the appropriate work order function based on form_type
     work_order_funcs = {
         'insoles': work_order_insole,
         'bespoke': work_order_bespoke,
@@ -266,7 +265,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
                     print(f"❌ {error_msg}")
                     error_messages.append(error_msg)
         elif len(matching_details) == 0:
-            next_line_no = 20000 if not existing_details else max(detail['Line_No'] for detail in existing_details) + 10000
+            # Use a higher starting Line_No for medical details to avoid overlap
+            next_line_no = 100000 if not existing_details else max(detail['Line_No'] for detail in existing_details) + 10000
             medical_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails"
             payload = {
                 "Document_No": sales_order_no,
@@ -294,12 +294,32 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         print(f"Processing {len(final_codes)} codes for sales order lines")
         valid_codes = [code for code in final_codes if code.strip() != "```"]
         item_lines = [parse_code_string(code_str) for code_str in valid_codes]
-        base_line_no = 100000
-        for i, (item_no, quantity) in enumerate(item_lines):
+
+        for item_no, quantity in item_lines:
+            # Fetch current existing sales order lines to determine the next Line_No
+            filter_lines = f"$filter=Document_No eq '{sales_order_no}' and Document_Type eq 'Order'"
+            existing_lines_url = f"{lines_url}?{filter_lines}"
+            lines_response = requests.get(existing_lines_url, headers=headers, auth=auth)
+
+            if lines_response.status_code == 200:
+                existing_lines = lines_response.json()['value']
+                print(f"Existing sales lines before adding {item_no}: {[line['Line_No'] for line in existing_lines]}")
+                if existing_lines:
+                    max_line_no = max(line['Line_No'] for line in existing_lines)
+                    next_line_no = max_line_no + 10000
+                else:
+                    next_line_no = 10000
+            else:
+                error_msg = f"Failed to retrieve existing lines for {item_no}: {lines_response.status_code} - {lines_response.text}"
+                print(f"❌ {error_msg}")
+                error_messages.append(error_msg)
+                next_line_no = 10000  # Fallback to default
+
+            # Add the line with the determined next_line_no
             line_data = {
                 "Document_Type": "Order",
                 "Document_No": sales_order_no,
-                "Line_No": base_line_no + i * 30000,
+                "Line_No": next_line_no,
                 "Type": "Item",
                 "No": item_no,
                 "Quantity": quantity,
