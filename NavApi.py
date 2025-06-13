@@ -98,6 +98,11 @@ def work_order_undefined(auto_doc_ref):
     target_text = "Refer to Prescription form " + auto_doc_ref
     return target_operation, target_text
 
+def work_order_adapts_and_repairs(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
+
 def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
@@ -238,6 +243,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         'bespoke': work_order_bespoke,
         'modular': work_order_modular,
         'afos': work_order_afo,
+        'adapts_and_repairs': work_order_adapts_and_repairs,
         'unknown': work_order_undefined
     }
     work_order_func = work_order_funcs.get(form_type.lower(), work_order_undefined)

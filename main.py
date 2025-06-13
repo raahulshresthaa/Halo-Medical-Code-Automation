@@ -36,14 +36,15 @@ import concurrent.futures
 import requests.exceptions
 
 # Version number
-VERSION = "6.1.3-alpha"
+VERSION = "6.2.0-alpha"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
     'Insoles': 'InsoleFullReaderV8',
     'AFOs': 'AfoReaderV10',
     'Bespoke': 'BespokeReaderFullV7',
-    'Modular': 'ModularReaderFullV5'
+    'Modular': 'ModularReaderFullV5',
+    'Adapts and Repairs': 'AdaptsAndRepairsReader1'
 }
 
 if getattr(sys, 'frozen', False):
@@ -103,6 +104,9 @@ def determine_order_category_code(model_id, fields_data):
         if fields_data.get('insole type tci', '').lower() == 'selected':
             return 'MODULAR/TCI'
         return 'MODULAR'
+    
+    elif model_id == MODEL_IDS['Adapts and Repairs']:
+        return 'ADAPTS_REPAIRS'  # Placeholder, adjust based on NAV requirements
     
     else:
         return 'UNKNOWN'  # Fallback for unrecognized model_id
@@ -538,7 +542,7 @@ class PdfButtonHandler:
                 except requests.exceptions.RequestException as e:
                     raise RuntimeError(f"Network error during Azure API call: {str(e)}")
 
-            self.root.after(0, self.update_loading_message, "Please wait, calculating the codes")
+            self.root.after(0, self.update_loading_message, "Please wait, processing the form")
 
             fields_data = self.extract_fields_from_result(result)
             order_category_code = determine_order_category_code(model_id, fields_data)
@@ -561,7 +565,8 @@ class PdfButtonHandler:
                 '(Repeat) Insole Prescription Form': MODEL_IDS['Insoles'],
                 'AFO Prescription Form': MODEL_IDS['AFOs'],
                 'Bespoke Footwear Prescription Form': MODEL_IDS['Bespoke'],
-                'Modular Footwear Prescription Form': MODEL_IDS['Modular']
+                'Modular Footwear Prescription Form': MODEL_IDS['Modular'],
+                'Adapts, Repairs & Modifications': MODEL_IDS['Adapts and Repairs']
             }
 
             correct_model_id = form_to_model.get(form_confirmation, None)
@@ -585,128 +590,251 @@ class PdfButtonHandler:
                     self.process_pdf_and_call_api(pdf_file_path, attempt + 1)
                     return
 
-            # Proceed with normal processing if form confirmation matches
-            content = self.parse_extracted_data(fields_data)
-            print(f"Extracted content:\n{content}")
+            # Handle 'Adapts and Repairs' form type differently
+            if model_id == MODEL_IDS['Adapts and Repairs']:
+                # Extract fields and upload directly to NAV
+                content = self.parse_extracted_data(fields_data)
+                print(f"Extracted content:\n{content}")
 
-            if model_id == MODEL_IDS['Insoles']:
-                if "insole type other" in fields_data:
-                    self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
-                if self.is_carbon_selected(content):
-                    self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
+                AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
+                clinic = fields_data.get('Clinic', 'N/A')
 
-            AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
-            clinic = fields_data.get('Clinic', 'N/A')
-
-            # Extract and clean patient name
-            patient_raw = fields_data.get('patient', '').strip()
-            print(f"Raw patient field: '{patient_raw}'")  # Debugging
-            if patient_raw.lower().startswith('name'):
-                if patient_raw.lower().startswith('name:'):
-                    patient_name = patient_raw[5:].strip()
+                # Extract and clean patient name
+                patient_raw = fields_data.get('patient', '').strip()
+                print(f"Raw patient field: '{patient_raw}'")  # Debugging
+                if patient_raw.lower().startswith('name'):
+                    if patient_raw.lower().startswith('name:'):
+                        patient_name = patient_raw[5:].strip()
+                    else:
+                        patient_name = patient_raw[4:].strip()
                 else:
-                    patient_name = patient_raw[4:].strip()
+                    patient_name = patient_raw
+                if not patient_name:
+                    patient_name = 'Unknown'
+                print(f"Cleaned patient_name: '{patient_name}'")  # Debugging
+
+                # Extract creation date
+                creation_date_str = fields_data.get('creation date', '28/04/2025')
+                try:
+                    day, month, year = creation_date_str.split('/')
+                    day = int(day)
+                    month = int(month)
+                    if len(year) == 2:
+                        year = int('20' + year)
+                    else:
+                        year = int(year)
+                    creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')
+                    print(f"Extracted creation_date: {creation_date}")
+                except (ValueError, AttributeError):
+                    creation_date = datetime.date.today().strftime('%Y-%m-%d')
+                    print(f"Failed to parse creation_date, using today's date: {creation_date}")
+
+                # Extract and convert gender
+                gender = fields_data.get('gender', 'N/A').strip().upper()
+                if gender == 'M':
+                    gender_full = 'Male'
+                elif gender == 'F':
+                    gender_full = 'Female'
+                else:
+                    gender_full = 'Unknown'
+
+                order_category_code = determine_order_category_code(model_id, fields_data)
+                form_type_for_filename = get_form_type_from_model_id(model_id)
+
+                # Log the extracted data
+                log_file_path = self.write_to_log_file("", AutoDocRef, clinic, content, form_type_for_filename)
+
+                # Get customer_no and prescriber
+                clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
+                clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
+
+                if not clinician:
+                    message = "Clinician field not found in the extracted data."
+                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                    if log_file_path:
+                        with open(log_file_path, 'a', encoding='utf-8') as f:
+                            f.write(f"\n[ERROR] {message}\n")
+                    self.root.after(0, messagebox.showinfo, "Clinician Not Found", message)
+                    self.root.after(0, self.close_loading_popup)
+                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                    return
+
+                conn = sqlite3.connect(customers_db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT Sell_to_Customer_No FROM customers WHERE TRIM(LOWER(Docuware_Clinic_Name)) = TRIM(LOWER(?))", (clinic,))
+                clinic_result = cursor.fetchone()
+                conn.close()
+                customer_no = clinic_result[0] if clinic_result else None
+                if not customer_no:
+                    message = f"Customer not found for clinic: {clinic}"
+                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                    if log_file_path:
+                        with open(log_file_path, 'a', encoding='utf-8') as f:
+                            f.write(f"\n[ERROR] {message}\n")
+                    self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
+                    add_missing_contact('clinic', clinic)
+                    self.root.after(0, self.close_loading_popup)
+                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                    return
+
+                conn = sqlite3.connect(clinician_db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
+                clinician_result = cursor.fetchone()
+                conn.close()
+                prescriber = clinician_result[0] if clinician_result else None
+                if not prescriber:
+                    message = f"Prescriber not found for clinician: {clinician}"
+                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                    if log_file_path:
+                        with open(log_file_path, 'a', encoding='utf-8') as f:
+                            f.write(f"\n[ERROR] {message}\n")
+                    self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
+                    add_missing_contact('clinician', clinician)
+                    self.root.after(0, self.close_loading_popup)
+                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                    return
+
+                today = datetime.date.today()
+                request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
+
+                success, sales_order_no, messages = attempt_nav_upload(
+                    customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
+                    form_type_for_filename, log_file_path, final_codes=None, patient_name=patient_name, gender_full=gender_full
+                )
+                for text, tag in messages:
+                    self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
+
+                # Display results
+                current_datetime = datetime.datetime.now()
+                formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+                self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, "Adapts and Repairs form uploaded directly to NAV.", None)
+
+                self.root.after(0, self.close_loading_popup)
+                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
             else:
-                patient_name = patient_raw
-            if not patient_name:
-                patient_name = 'Unknown'
-            print(f"Cleaned patient_name: '{patient_name}'")  # Debugging
+                # Proceed with normal processing for other form types
+                content = self.parse_extracted_data(fields_data)
+                print(f"Extracted content:\n{content}")
 
-            # Extract creation date
-            creation_date_str = fields_data.get('creation date', '28/04/2025')
-            try:
-                day, month, year = creation_date_str.split('/')
-                day = int(day)
-                month = int(month)
-                if len(year) == 2:
-                    year = int('20' + year)
+                if model_id == MODEL_IDS['Insoles']:
+                    if "insole type other" in fields_data:
+                        self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
+                    if self.is_carbon_selected(content):
+                        self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
+
+                AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
+                clinic = fields_data.get('Clinic', 'N/A')
+
+                # Extract and clean patient name
+                patient_raw = fields_data.get('patient', '').strip()
+                print(f"Raw patient field: '{patient_raw}'")  # Debugging
+                if patient_raw.lower().startswith('name'):
+                    if patient_raw.lower().startswith('name:'):
+                        patient_name = patient_raw[5:].strip()
+                    else:
+                        patient_name = patient_raw[4:].strip()
                 else:
-                    year = int(year)
-                creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')
-                print(f"Extracted creation_date: {creation_date}")
-            except (ValueError, AttributeError):
-                creation_date = datetime.date.today().strftime('%Y-%m-%d')
-                print(f"Failed to parse creation_date, using today's date: {creation_date}")
+                    patient_name = patient_raw
+                if not patient_name:
+                    patient_name = 'Unknown'
+                print(f"Cleaned patient_name: '{patient_name}'")  # Debugging
 
-            # Extract and convert gender
-            gender = fields_data.get('gender', 'N/A').strip().upper()
-            if gender == 'M':
-                gender_full = 'Male'
-            elif gender == 'F':
-                gender_full = 'Female'
-            else:
-                gender_full = 'Unknown'
+                # Extract creation date
+                creation_date_str = fields_data.get('creation date', '28/04/2025')
+                try:
+                    day, month, year = creation_date_str.split('/')
+                    day = int(day)
+                    month = int(month)
+                    if len(year) == 2:
+                        year = int('20' + year)
+                    else:
+                        year = int(year)
+                    creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')
+                    print(f"Extracted creation_date: {creation_date}")
+                except (ValueError, AttributeError):
+                    creation_date = datetime.date.today().strftime('%Y-%m-%d')
+                    print(f"Failed to parse creation_date, using today's date: {creation_date}")
 
-            logic_file_name = None
-
-            if model_id == MODEL_IDS['Insoles']:
-                form_type = self.determine_form_type(fields_data)
-                if not form_type:
-                    query_message = "No form type found in the extracted data. Please raise a query."
-                    self.root.after(0, messagebox.showinfo, "Query", query_message)
-                    form_type = 'tci'
-                elif form_type == 'other':
-                    form_type = 'tci'
-                form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
-                print(f"Form type: {form_type}")
-                logic_file_mapping = {
-                    'tci': 'tci_logic.txt',
-                    'simple': 'simple_insole_logic.txt',
-                    'cradle': 'tci_logic.txt',
-                    'handmold': 'tci_logic.txt'
-                }
-                logic_file_name = logic_file_mapping.get(form_type)
-                print(f"Logic file name: {logic_file_name}")
-                if not logic_file_name:
-                    raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
-                passed_codes = generate_insole_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
+                # Extract and convert gender
+                gender = fields_data.get('gender', 'N/A').strip().upper()
+                if gender == 'M':
+                    gender_full = 'Male'
+                elif gender == 'F':
+                    gender_full = 'Female'
                 else:
-                    print("No passed codes generated.")
+                    gender_full = 'Unknown'
 
-            elif model_id == MODEL_IDS['AFOs']:
-                logic_file_name = 'afo_logic.txt'
-                print(f"Logic file name: {logic_file_name}")
-                passed_codes = generate_afo_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
+                logic_file_name = None
+
+                if model_id == MODEL_IDS['Insoles']:
+                    form_type = self.determine_form_type(fields_data)
+                    if not form_type:
+                        query_message = "No form type found in the extracted data. Please raise a query."
+                        self.root.after(0, messagebox.showinfo, "Query", query_message)
+                        form_type = 'tci'
+                    elif form_type == 'other':
+                        form_type = 'tci'
+                    form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
+                    print(f"Form type: {form_type}")
+                    logic_file_mapping = {
+                        'tci': 'tci_logic.txt',
+                        'simple': 'simple_insole_logic.txt',
+                        'cradle': 'tci_logic.txt',
+                        'handmold': 'tci_logic.txt'
+                    }
+                    logic_file_name = logic_file_mapping.get(form_type)
+                    print(f"Logic file name: {logic_file_name}")
+                    if not logic_file_name:
+                        raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
+                    passed_codes = generate_insole_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
+
+                elif model_id == MODEL_IDS['AFOs']:
+                    logic_file_name = 'afo_logic.txt'
+                    print(f"Logic file name: {logic_file_name}")
+                    passed_codes = generate_afo_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
+
+                elif model_id == MODEL_IDS['Bespoke']:
+                    logic_file_name = 'bespoke_logic.txt'
+                    print(f"Logic file name: {logic_file_name}")
+                    passed_codes = generate_bespoke_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
+
+                elif model_id == MODEL_IDS['Modular']:
+                    logic_file_name = 'modular_logic.txt'
+                    print(f"Logic file name: {logic_file_name}")
+                    passed_codes = generate_modular_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
+
                 else:
-                    print("No passed codes generated.")
+                    raise ValueError(f"Unknown model ID '{model_id}'.")
 
-            elif model_id == MODEL_IDS['Bespoke']:
-                logic_file_name = 'bespoke_logic.txt'
-                print(f"Logic file name: {logic_file_name}")
-                passed_codes = generate_bespoke_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
-                else:
-                    print("No passed codes generated.")
+                logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
+                print(f"Logic file path: {logic_file_path}")
 
-            elif model_id == MODEL_IDS['Modular']:
-                logic_file_name = 'modular_logic.txt'
-                print(f"Logic file name: {logic_file_name}")
-                passed_codes = generate_modular_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
-                else:
-                    print("No passed codes generated.")
+                logic_content = self.read_logic_file(logic_file_path)
+                if "Error" in logic_content:
+                    raise ValueError(logic_content)
 
-            else:
-                raise ValueError(f"Unknown model ID '{model_id}'.")
-
-            logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
-            print(f"Logic file path: {logic_file_path}")
-
-            logic_content = self.read_logic_file(logic_file_path)
-            if "Error" in logic_content:
-                raise ValueError(logic_content)
-
-            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code)
+                self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code)
 
         except TimeoutError as e:
             error_msg = f"Timeout error: {str(e)}"
@@ -1544,9 +1672,10 @@ model_label = ttk.Label(model_frame, text='Select Form Type:', font=label_font)
 model_label.pack(side='left', padx=(0, 2))
 
 for model_name, model_id_value in MODEL_IDS.items():
+    display_name = "A&R" if model_name == 'Adapts and Repairs' else model_name
     radio_button = ttk.Radiobutton(
         model_frame,
-        text=model_name,
+        text=display_name,
         variable=model_id_var,
         value=model_id_value
     )
