@@ -43,7 +43,8 @@ MODEL_IDS = {
     'Insoles': 'InsoleFullReaderV8',
     'AFOs': 'AfoReaderV10',
     'Bespoke': 'BespokeReaderFullV7',
-    'Modular': 'ModularReaderFullV5'
+    'Modular': 'ModularReaderFullV5',
+    'AdaptRepair': 'AdaptRepairReaderV1'  # For Adapts and Repairs
 }
 
 if getattr(sys, 'frozen', False):
@@ -103,7 +104,10 @@ def determine_order_category_code(model_id, fields_data):
         if fields_data.get('insole type tci', '').lower() == 'selected':
             return 'MODULAR/TCI'
         return 'MODULAR'
-    
+
+    elif model_id == MODEL_IDS['AdaptRepair']:
+        return 'REPAIR' # Category code for Adapts and Repairs
+
     else:
         return 'UNKNOWN'  # Fallback for unrecognized model_id
 
@@ -220,8 +224,9 @@ class PdfButtonHandler:
         self.display_results = display_results
         self.model_id_var = model_id_var
 
-        # Reference to the upload PDF button (will be set later)
+        # Reference to the upload buttons (will be set later)
         self.upload_pdf_button = None
+        self.upload_adapt_repair_button = None
 
         # Read Azure credentials from files
         self.endpoint = self.read_azure_credential_file('azure_endpoint.txt', 'Azure Endpoint')
@@ -246,6 +251,138 @@ class PdfButtonHandler:
 
     def set_upload_pdf_button(self, button):
         self.upload_pdf_button = button
+    
+    def set_upload_adapt_repair_button(self, button):
+        self.upload_adapt_repair_button = button
+
+    def handle_adapt_repair_upload(self):
+        """
+        Handles the click event for the "Upload Adapt/Repair" button.
+        """
+        pdf_file_path = filedialog.askopenfilename(
+            title="Select Adapt/Repair PDF File",
+            filetypes=[("PDF Files", "*.pdf")]
+        )
+
+        if not pdf_file_path:
+            return  # User cancelled
+
+        # Disable both upload buttons during processing
+        self.upload_pdf_button.config(state='disabled')
+        self.upload_adapt_repair_button.config(state='disabled')
+
+        try:
+            self.show_loading_popup()
+            # Start processing in a separate thread to keep the UI responsive
+            threading.Thread(target=self.process_adapt_repair_pdf, args=(pdf_file_path,)).start()
+        except Exception as e:
+            messagebox.showerror("Error", f"Error starting adapt/repair process: {str(e)}")
+            # Re-enable buttons on error
+            self.upload_pdf_button.config(state='normal')
+            self.upload_adapt_repair_button.config(state='normal')
+            self.close_loading_popup()
+
+    def process_adapt_repair_pdf(self, pdf_file_path):
+        """
+        The core logic for processing an Adapt/Repair form.
+        This skips AI coding and uploads directly.
+        """
+        try:
+            # 1. Analyze the PDF with Azure to get essential fields
+            self.root.after(0, self.update_loading_message, "Reading Adapt/Repair form...")
+            model_id = MODEL_IDS['AdaptRepair']
+            
+            with open(pdf_file_path, "rb") as pdf_file:
+                poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
+                result = poller.result()
+
+            fields_data = self.extract_fields_from_result(result)
+            if not fields_data:
+                raise ValueError("No data could be extracted from the Adapt/Repair PDF.")
+
+            # 2. Extract and validate required data
+            AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
+            clinic = fields_data.get('Clinic', 'N/A')
+            clinician = fields_data.get('Clinician', 'N/A') # Assuming 'Clinician' is the field name
+            patient_raw = fields_data.get('patient', '').strip()
+            
+            if patient_raw.lower().startswith('name'):
+                patient_name = patient_raw.split(':', 1)[-1].strip()
+            else:
+                patient_name = patient_raw
+
+            if not patient_name:
+                patient_name = 'Unknown'
+            
+            gender = fields_data.get('gender', 'N/A').strip().upper()
+            if gender == 'M':
+                gender_full = 'Male'
+            elif gender == 'F':
+                gender_full = 'Female'
+            else:
+                gender_full = 'Unknown'
+
+            try:
+                creation_date_str = fields_data.get('creation date', '')
+                day, month, year = creation_date_str.split('/')
+                if len(year) == 2: year = '20' + year
+                creation_date = datetime.date(int(year), int(month), int(day)).strftime('%Y-%m-%d')
+            except (ValueError, AttributeError):
+                creation_date = datetime.date.today().strftime('%Y-%m-%d')
+            
+            if AutoDocRef == 'N/A' or clinic == 'N/A' or clinician == 'N/A':
+                raise ValueError("Could not extract AutoDocRef, Clinic, or Clinician from the form.")
+
+            # 3. Look up customer and prescriber numbers
+            conn_cust = sqlite3.connect(customers_db_path)
+            cursor_cust = conn_cust.cursor()
+            cursor_cust.execute("SELECT Sell_to_Customer_No FROM customers WHERE TRIM(LOWER(Docuware_Clinic_Name)) = TRIM(LOWER(?))", (clinic,))
+            customer_result = cursor_cust.fetchone()
+            conn_cust.close()
+            customer_no = customer_result[0] if customer_result else None
+            if not customer_no:
+                raise ValueError(f"Customer number for clinic '{clinic}' not found in the database.")
+
+            conn_clin = sqlite3.connect(clinician_db_path)
+            cursor_clin = conn_clin.cursor()
+            cursor_clin.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
+            clinician_result = cursor_clin.fetchone()
+            conn_clin.close()
+            prescriber = clinician_result[0] if clinician_result else None
+            if not prescriber:
+                raise ValueError(f"Prescriber number for clinician '{clinician}' not found in the database.")
+
+            # 4. Display the "no coding" message to the user
+            self.root.after(0, self.update_loading_message, "Uploading to NAV...")
+            self.root.after(0, lambda: self.append_to_result_text("\nNo coding required, uploading now...", 'info'))
+
+            # 5. Prepare data for NAV upload
+            order_category_code = determine_order_category_code(model_id, fields_data)
+            form_type_for_filename = get_form_type_from_model_id(model_id)
+            request_delivery_date = (datetime.date.today() + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
+            
+            # Use a pre-defined item code for the NAV sales line. This must be a valid item number in NAV.
+            final_codes = ['REPAIR']
+
+            # 6. Call the NAV upload function
+            success, sales_order_no, messages = attempt_nav_upload(
+                customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef,
+                order_category_code, form_type_for_filename, None, final_codes, patient_name, gender_full
+            )
+
+            # 7. Display the upload result
+            for text, tag in messages:
+                self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
+
+        except Exception as e:
+            error_msg = f"Error processing Adapt/Repair PDF: {str(e)}"
+            self.root.after(0, messagebox.showerror, "Error", error_msg)
+            self.root.after(0, lambda: self.append_to_result_text(error_msg, 'error'))
+        finally:
+            # 8. Re-enable buttons and close the popup
+            self.root.after(0, self.close_loading_popup)
+            self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+            self.root.after(0, lambda: self.upload_adapt_repair_button.config(state='normal'))
 
     def read_azure_credential_file(self, filename, credential_name):
         """Reads and decodes the Azure credential from a file."""
@@ -1766,10 +1903,19 @@ copy_codes_button.pack(pady=2)
 copy_so_button = ttk.Button(main_tab, text="Copy SO Number", command=copy_sales_order_number)
 copy_so_button.pack(pady=2)
 
+
 upload_pdf_button = ttk.Button(main_tab, text="Upload PDF", command=pdf_handler.upload_pdf_file)
 upload_pdf_button.pack(pady=2)
 
+upload_adapt_repair_button = ttk.Button(
+    main_tab,
+    text="Upload Adapt/Repair",
+    command=pdf_handler.handle_adapt_repair_upload
+)
+upload_adapt_repair_button.pack(pady=2)
+
 pdf_handler.set_upload_pdf_button(upload_pdf_button)
+pdf_handler.set_upload_adapt_repair_button(upload_adapt_repair_button)
 
 exit_button = ttk.Button(main_tab, text="Exit", command=root.quit)
 exit_button.pack(pady=2)
