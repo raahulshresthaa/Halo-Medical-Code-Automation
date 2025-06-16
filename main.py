@@ -107,7 +107,7 @@ def determine_order_category_code(model_id, fields_data):
         return 'MODULAR'
     
     elif model_id == MODEL_IDS['A&R']:
-        return 'ADAPTS_AND_REPAIRS'  # Added for A&R model type
+        return 'ADAPTION'  # Added for A&R model type
     
     else:
         return 'UNKNOWN'  # Fallback for unrecognized model_id
