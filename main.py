@@ -45,7 +45,7 @@ MODEL_IDS = {
     'AFOs': 'AfoReaderV10',
     'Bespoke': 'BespokeReaderFullV7',
     'Modular': 'ModularReaderFullV5',
-    'A&R': 'AdaptsAndRepairsReader1'
+    'A&R': 'AdaptsAndRepairsReader2'
 }
 
 if getattr(sys, 'frozen', False):
