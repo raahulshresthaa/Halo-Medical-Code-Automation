@@ -28,7 +28,8 @@ from generate_code_logic import (
     generate_bespoke_codes,
     generate_insole_codes,
     generate_afo_codes,
-    generate_modular_codes
+    generate_modular_codes,
+    generate_a_and_r_codes  
 )
 from NavApi import create_sales_order
 from tkinter import messagebox
@@ -104,6 +105,9 @@ def determine_order_category_code(model_id, fields_data):
         if fields_data.get('insole type tci', '').lower() == 'selected':
             return 'MODULAR/TCI'
         return 'MODULAR'
+    
+    elif model_id == MODEL_IDS['A&R']:
+        return 'ADAPTS_AND_REPAIRS'  # Added for A&R model type
     
     else:
         return 'UNKNOWN'  # Fallback for unrecognized model_id
@@ -521,6 +525,7 @@ class PdfButtonHandler:
             print(f"Using model ID: {model_id}")
             form_type_for_filename = get_form_type_from_model_id(model_id)
 
+            # Set timeout and retry parameters
             timeout_seconds = 30
             max_retries = 2
             for attempt_num in range(max_retries + 1):
@@ -538,13 +543,14 @@ class PdfButtonHandler:
                 except requests.exceptions.RequestException as e:
                     raise RuntimeError(f"Network error during Azure API call: {str(e)}")
 
-            self.root.after(0, self.update_loading_message, "Please wait, processing the form")
+            self.root.after(0, self.update_loading_message, "Please wait, calculating the codes")
 
             fields_data = self.extract_fields_from_result(result)
             order_category_code = determine_order_category_code(model_id, fields_data)
             if not fields_data:
                 raise ValueError("No data extracted from the PDF.")
 
+            # Check form confirmation
             form_confirmation = fields_data.get('form confirmation', '').strip()
             if not form_confirmation:
                 error_msg = "No form confirmation found in the extracted data."
@@ -553,6 +559,7 @@ class PdfButtonHandler:
                 self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
                 return
 
+            # Mapping of form confirmation values to model IDs
             form_to_model = {
                 'Insole Prescription Form': MODEL_IDS['Insoles'],
                 '(Internal Digitised) Insole Prescription Form': MODEL_IDS['Insoles'],
@@ -560,7 +567,7 @@ class PdfButtonHandler:
                 'AFO Prescription Form': MODEL_IDS['AFOs'],
                 'Bespoke Footwear Prescription Form': MODEL_IDS['Bespoke'],
                 'Modular Footwear Prescription Form': MODEL_IDS['Modular'],
-                'Adapts, Repairs & Modifications': MODEL_IDS['A&R']
+                'Adapts, Repairs & Modifications': MODEL_IDS['A&R']  # Added for A&R
             }
 
             correct_model_id = form_to_model.get(form_confirmation, None)
@@ -584,116 +591,7 @@ class PdfButtonHandler:
                     self.process_pdf_and_call_api(pdf_file_path, attempt + 1)
                     return
 
-            if model_id == MODEL_IDS['A&R']:
-                content = self.parse_extracted_data(fields_data)
-                print(f"Extracted content:\n{content}")
-                AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
-                clinic = fields_data.get('Clinic', 'N/A')
-
-                patient_raw = fields_data.get('patient', '').strip()
-                if patient_raw.lower().startswith('name'):
-                    if patient_raw.lower().startswith('name:'):
-                        patient_name = patient_raw[5:].strip()
-                    else:
-                        patient_name = patient_raw[4:].strip()
-                else:
-                    patient_name = patient_raw
-                if not patient_name:
-                    patient_name = 'Unknown'
-
-                creation_date_str = fields_data.get('creation date', '28/04/2025')
-                try:
-                    day, month, year = creation_date_str.split('/')
-                    day = int(day)
-                    month = int(month)
-                    if len(year) == 2:
-                        year = int('20' + year)
-                    else:
-                        year = int(year)
-                    creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')
-                except (ValueError, AttributeError):
-                    creation_date = datetime.date.today().strftime('%Y-%m-%d')
-
-                gender = fields_data.get('gender', 'N/A').strip().upper()
-                if gender == 'M':
-                    gender_full = 'Male'
-                elif gender == 'F':
-                    gender_full = 'Female'
-                else:
-                    gender_full = 'Unknown'
-
-                order_category_code = determine_order_category_code(model_id, fields_data)
-                form_type_for_filename = get_form_type_from_model_id(model_id)
-
-                log_file_path = self.write_to_log_file("", AutoDocRef, clinic, content, form_type_for_filename)
-
-                clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
-                clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
-                if not clinician:
-                    message = "Clinician field not found in the extracted data."
-                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                    if log_file_path:
-                        with open(log_file_path, 'a', encoding='utf-8') as f:
-                            f.write(f"\n[ERROR] {message}\n")
-                    self.root.after(0, messagebox.showinfo, "Clinician Not Found", message)
-                    self.root.after(0, self.close_loading_popup)
-                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-                    return
-
-                conn = sqlite3.connect(customers_db_path)
-                cursor = conn.cursor()
-                cursor.execute("SELECT Sell_to_Customer_No FROM customers WHERE TRIM(LOWER(Docuware_Clinic_Name)) = TRIM(LOWER(?))", (clinic,))
-                clinic_result = cursor.fetchone()
-                conn.close()
-                customer_no = clinic_result[0] if clinic_result else None
-                if not customer_no:
-                    message = f"Customer not found for clinic: {clinic}"
-                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                    if log_file_path:
-                        with open(log_file_path, 'a', encoding='utf-8') as f:
-                            f.write(f"\n[ERROR] {message}\n")
-                    self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
-                    add_missing_contact('clinic', clinic)
-                    self.root.after(0, self.close_loading_popup)
-                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-                    return
-
-                conn = sqlite3.connect(clinician_db_path)
-                cursor = conn.cursor()
-                cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
-                clinician_result = cursor.fetchone()
-                conn.close()
-                prescriber = clinician_result[0] if clinician_result else None
-                if not prescriber:
-                    message = f"Prescriber not found for clinician: {clinician}"
-                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                    if log_file_path:
-                        with open(log_file_path, 'a', encoding='utf-8') as f:
-                            f.write(f"\n[ERROR] {message}\n")
-                    self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
-                    add_missing_contact('clinician', clinician)
-                    self.root.after(0, self.close_loading_popup)
-                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-                    return
-
-                today = datetime.date.today()
-                request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
-
-                success, sales_order_no, messages = attempt_nav_upload(
-                    customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
-                    form_type_for_filename, log_file_path, final_codes=None, patient_name=patient_name, gender_full=gender_full
-                )
-
-                for text, tag in messages:
-                    self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
-
-                current_datetime = datetime.datetime.now()
-                formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
-                self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, "A&R form uploaded directly to NAV.", None)
-                self.root.after(0, self.close_loading_popup)
-                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-                return
-
+            # Proceed with normal processing if form confirmation matches
             content = self.parse_extracted_data(fields_data)
             print(f"Extracted content:\n{content}")
 
@@ -706,6 +604,7 @@ class PdfButtonHandler:
             AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
             clinic = fields_data.get('Clinic', 'N/A')
 
+            # Extract and clean patient name
             patient_raw = fields_data.get('patient', '').strip()
             print(f"Raw patient field: '{patient_raw}'")
             if patient_raw.lower().startswith('name'):
@@ -719,6 +618,7 @@ class PdfButtonHandler:
                 patient_name = 'Unknown'
             print(f"Cleaned patient_name: '{patient_name}'")
 
+            # Extract creation date
             creation_date_str = fields_data.get('creation date', '28/04/2025')
             try:
                 day, month, year = creation_date_str.split('/')
@@ -734,6 +634,7 @@ class PdfButtonHandler:
                 creation_date = datetime.date.today().strftime('%Y-%m-%d')
                 print(f"Failed to parse creation_date, using today's date: {creation_date}")
 
+            # Extract and convert gender
             gender = fields_data.get('gender', 'N/A').strip().upper()
             if gender == 'M':
                 gender_full = 'Male'
@@ -801,6 +702,16 @@ class PdfButtonHandler:
                 else:
                     print("No passed codes generated.")
 
+            elif model_id == MODEL_IDS['A&R']:
+                logic_file_name = 'a_and_r_logic.txt'  # Assuming this file exists in logic_folder
+                print(f"Logic file name: {logic_file_name}")
+                passed_codes = generate_a_and_r_codes(self, content)
+                if passed_codes:
+                    content += f"\n\nPassed code:\n{passed_codes}"
+                    print(f"Passed codes added to content: {passed_codes}")
+                else:
+                    print("No passed codes generated.")
+
             else:
                 raise ValueError(f"Unknown model ID '{model_id}'.")
 
@@ -840,55 +751,39 @@ class PdfButtonHandler:
                     fields_data[name.strip()] = field_value.strip()
         return fields_data
         
-    def determine_order_category_code(model_id, fields_data):
+    def determine_form_type(self, data):
         """
-        Determines the Order Category Code based on the model_id and extracted fields_data.
-        
-        Args:
-            model_id (str): The model ID corresponding to the form type.
-            fields_data (dict): Dictionary of fields extracted from Azure Form Recognizer.
-        
-        Returns:
-            str: The determined Order Category Code.
+        Determine the form type based on the extracted data.
+        (Now also checks for 'insole type other' if no standard form is found)
         """
-        if model_id == MODEL_IDS['Insoles']:
-            insole_type = None
-            if fields_data.get('insole type tci', '').lower() == 'selected':
-                insole_type = 'tci'
-            elif fields_data.get('insole type cradle', '').lower() == 'selected':
-                insole_type = 'cradle'
-            elif fields_data.get('insole type simple', '').lower() == 'selected':
-                insole_type = 'simple'
-            elif fields_data.get('insole type hand mould', '').lower() == 'selected':
-                insole_type = 'handmould'
-            
-            base = fields_data.get('base', '').strip().lower()
-            if base in ('polypropylene', 'carbon fibre'):
-                return 'MOULDED INSOLE'
-            elif insole_type == 'simple':
-                return 'SIMPLE INSOLE'
-            elif insole_type in ('tci', 'cradle'):
-                return 'MILLED INSOLES'
-            else:
-                return 'MILLED INSOLES'
-        
-        elif model_id == MODEL_IDS['AFOs']:
-            return 'PLASTICS'
-        
-        elif model_id == MODEL_IDS['Bespoke']:
-            if fields_data.get('insole type tci', '').lower() == 'selected':
-                return 'BESPOKE/TCI'
-            return 'BESPOKE'
-        
-        elif model_id == MODEL_IDS['Modular']:
-            if fields_data.get('insole type tci', '').lower() == 'selected':
-                return 'MODULAR/TCI'
-            return 'MODULAR'
-        
-        elif model_id == MODEL_IDS['A&R']:
-            return 'ADAPTS_REPAIRS'
-        else:
-            return 'UNKNOWN'
+        form_type = None
+
+        for key, value in data.items():
+            key_lower = key.lower()
+            value_lower = value.lower()
+            if key_lower == 'insole type tci' and value_lower == 'selected':
+                form_type = 'tci'
+                break
+            elif key_lower == 'insole type simple' and value_lower == 'selected':
+                form_type = 'simple'
+                break
+            elif key_lower == 'insole type hand mould' and value_lower == 'selected':
+                form_type = 'handmold'
+                break
+            elif key_lower == 'insole type cradle' and value_lower == 'selected':
+                form_type = 'cradle'
+                break
+            elif key_lower == 'afo' and value_lower == 'selected':
+                form_type = 'afo'
+                break
+
+        # -- New: If we found nothing, check if 'insole type other' has a value
+        if not form_type:
+            other_value = data.get('insole type other', '').strip().lower()
+            if other_value and other_value != 'unselected':
+                # We'll treat "other" as a valid form type and skip the popup
+                form_type = 'other'
+        return form_type
 
     def update_loading_message(self, new_message):
         """Update the loading pop-up message."""
