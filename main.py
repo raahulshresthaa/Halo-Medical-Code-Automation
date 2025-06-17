@@ -45,7 +45,7 @@ MODEL_IDS = {
     'AFOs': 'AfoReaderV10',
     'Bespoke': 'BespokeReaderFullV7',
     'Modular': 'ModularReaderFullV5',
-    'A&R': 'AdaptsAndRepairsReader2'
+    'A&R': 'AdaptsAndRepairsReader3'
 }
 
 if getattr(sys, 'frozen', False):
@@ -107,7 +107,10 @@ def determine_order_category_code(model_id, fields_data):
         return 'MODULAR'
     
     elif model_id == MODEL_IDS['A&R']:
-        return 'ADAPTION'  # Added for A&R model type
+        if fields_data.get('form type afo', '').lower() == 'selected' or fields_data.get('form type kafo', '').lower() == 'selected':
+            return 'REPAIRS PLASTIC'
+        else:
+            return 'ADAPTION'
     
     else:
         return 'UNKNOWN'  # Fallback for unrecognized model_id
