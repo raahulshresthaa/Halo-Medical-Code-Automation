@@ -174,7 +174,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             "Pad_No": auto_doc_ref,
             "Patient_Name": patient_name if patient_name else "Unknown",
             "Patient_Gender": gender,
-            "External_Document_No": "DNI"
+            "External_Document_No": f"DNI-{next_no}"
         }
 
         post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
