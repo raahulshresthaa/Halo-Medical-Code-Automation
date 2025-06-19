@@ -1,1 +1,1 @@
-For this form you dont do any codes, so ignore everything and just return the same stuff.
+For this form you dont do any codes, so ignore everything and leave blank.

@@ -565,7 +565,7 @@ class PdfButtonHandler:
                 'Bespoke Footwear Prescription Form': MODEL_IDS['Bespoke'],
                 'Modular Footwear Prescription Form': MODEL_IDS['Modular'],
                 'Adapts, Repairs & Modifications': MODEL_IDS['A&R'],
-                'Kafo Prescription Form': MODEL_IDS['Kafo']
+                'KAFO Prescription Form': MODEL_IDS['Kafo']
             }
 
             correct_model_id = form_to_model.get(form_confirmation, None)
