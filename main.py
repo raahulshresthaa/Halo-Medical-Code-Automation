@@ -29,7 +29,8 @@ from generate_code_logic import (
     generate_insole_codes,
     generate_afo_codes,
     generate_modular_codes,
-    generate_a_and_r_codes  
+    generate_a_and_r_codes,
+    generate_kafo_codes
 )
 from NavApi import create_sales_order
 from tkinter import messagebox
@@ -45,7 +46,8 @@ MODEL_IDS = {
     'AFOs': 'AfoReaderV10',
     'Bespoke': 'BespokeReaderFullV7',
     'Modular': 'ModularReaderFullV5',
-    'A&R': 'AdaptsAndRepairsReader3'
+    'A&R': 'AdaptsAndRepairsReader3',
+    'Kafo': 'KafoFormReaderV2' 
 }
 
 if getattr(sys, 'frozen', False):
@@ -60,19 +62,9 @@ clinician_db_path = os.path.join(base_path, 'databases', 'clinician_nav_contacts
 missing_db_path = os.path.join(base_path, 'databases', 'missing_contacts.db')
 
 def determine_order_category_code(model_id, fields_data):
-    """
-    Determines the Order Category Code based on the model_id and extracted fields_data.
-    
-    Args:
-        model_id (str): The model ID corresponding to the form type.
-        fields_data (dict): Dictionary of fields extracted from Azure Form Recognizer.
-    
-    Returns:
-        str: The determined Order Category Code.
-    """
     if model_id == MODEL_IDS['Insoles']:
+        # Existing Insoles logic remains unchanged
         insole_type = None
-        # Determine insole type based on selected fields
         if fields_data.get('insole type tci', '').lower() == 'selected':
             insole_type = 'tci'
         elif fields_data.get('insole type cradle', '').lower() == 'selected':
@@ -80,10 +72,9 @@ def determine_order_category_code(model_id, fields_data):
         elif fields_data.get('insole type simple', '').lower() == 'selected':
             insole_type = 'simple'
         elif fields_data.get('insole type hand mould', '').lower() == 'selected':
-            insole_type = 'handmould'  # Assuming handmould follows default unless specified
+            insole_type = 'handmould'
         
         base = fields_data.get('base', '').strip().lower()
-        # Check base first, as it takes precedence per user query
         if base in ('polypropylene', 'carbon fibre'):
             return 'MOULDED INSOLE'
         elif insole_type == 'simple':
@@ -91,7 +82,7 @@ def determine_order_category_code(model_id, fields_data):
         elif insole_type in ('tci', 'cradle'):
             return 'MILLED INSOLES'
         else:
-            return 'MILLED INSOLES'  # Default for insoles if no specific condition met
+            return 'MILLED INSOLES'
     
     elif model_id == MODEL_IDS['AFOs']:
         return 'PLASTICS'
@@ -112,8 +103,11 @@ def determine_order_category_code(model_id, fields_data):
         else:
             return 'ADAPTION'
     
+    elif model_id == MODEL_IDS['Kafo']:  # New condition for Kafo
+        return 'REPAIRS PLASTIC'  # Matches A&R behavior when KAFO is relevant
+    
     else:
-        return 'UNKNOWN'  # Fallback for unrecognized model_id
+        return 'UNKNOWN'
 
 # Functions to get all clinics and clinicians
 def get_all_clinics():
@@ -570,7 +564,8 @@ class PdfButtonHandler:
                 'AFO Prescription Form': MODEL_IDS['AFOs'],
                 'Bespoke Footwear Prescription Form': MODEL_IDS['Bespoke'],
                 'Modular Footwear Prescription Form': MODEL_IDS['Modular'],
-                'Adapts, Repairs & Modifications': MODEL_IDS['A&R']  # Added for A&R
+                'Adapts, Repairs & Modifications': MODEL_IDS['A&R'],
+                'Kafo Prescription Form': MODEL_IDS['Kafo']
             }
 
             correct_model_id = form_to_model.get(form_confirmation, None)
@@ -649,74 +644,84 @@ class PdfButtonHandler:
             logic_file_name = None
 
             if model_id == MODEL_IDS['Insoles']:
-                form_type = self.determine_form_type(fields_data)
-                if not form_type:
-                    query_message = "No form type found in the extracted data. Please raise a query."
-                    self.root.after(0, messagebox.showinfo, "Query", query_message)
-                    form_type = 'tci'
-                elif form_type == 'other':
-                    form_type = 'tci'
-                form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
-                print(f"Form type: {form_type}")
-                logic_file_mapping = {
-                    'tci': 'tci_logic.txt',
-                    'simple': 'simple_insole_logic.txt',
-                    'cradle': 'tci_logic.txt',
-                    'handmold': 'tci_logic.txt'
-                }
-                logic_file_name = logic_file_mapping.get(form_type)
-                print(f"Logic file name: {logic_file_name}")
-                if not logic_file_name:
-                    raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
-                passed_codes = generate_insole_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
-                else:
-                    print("No passed codes generated.")
+                    form_type = self.determine_form_type(fields_data)
+                    if not form_type:
+                        query_message = "No form type found in the extracted data. Please raise a query."
+                        self.root.after(0, messagebox.showinfo, "Query", query_message)
+                        form_type = 'tci'
+                    elif form_type == 'other':
+                        form_type = 'tci'
+                    form_type = ''.join(char for char in form_type if char.isalnum() or char in ('_', '-')).lower()
+                    print(f"Form type: {form_type}")
+                    logic_file_mapping = {
+                        'tci': 'tci_logic.txt',
+                        'simple': 'simple_insole_logic.txt',
+                        'cradle': 'tci_logic.txt',
+                        'handmold': 'tci_logic.txt'
+                    }
+                    logic_file_name = logic_file_mapping.get(form_type)
+                    print(f"Logic file name: {logic_file_name}")
+                    if not logic_file_name:
+                        raise ValueError(f"No logic file mapping found for form type '{form_type}'.")
+                    passed_codes = generate_insole_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
 
             elif model_id == MODEL_IDS['AFOs']:
-                logic_file_name = 'afo_logic.txt'
-                print(f"Logic file name: {logic_file_name}")
-                passed_codes = generate_afo_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
-                else:
-                    print("No passed codes generated.")
+                    logic_file_name = 'afo_logic.txt'
+                    print(f"Logic file name: {logic_file_name}")
+                    passed_codes = generate_afo_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
 
             elif model_id == MODEL_IDS['Bespoke']:
-                logic_file_name = 'bespoke_logic.txt'
-                print(f"Logic file name: {logic_file_name}")
-                passed_codes = generate_bespoke_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
-                else:
-                    print("No passed codes generated.")
+                    logic_file_name = 'bespoke_logic.txt'
+                    print(f"Logic file name: {logic_file_name}")
+                    passed_codes = generate_bespoke_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
 
             elif model_id == MODEL_IDS['Modular']:
-                logic_file_name = 'modular_logic.txt'
-                print(f"Logic file name: {logic_file_name}")
-                passed_codes = generate_modular_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
-                else:
-                    print("No passed codes generated.")
+                    logic_file_name = 'modular_logic.txt'
+                    print(f"Logic file name: {logic_file_name}")
+                    passed_codes = generate_modular_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
 
             elif model_id == MODEL_IDS['A&R']:
-                logic_file_name = 'a_and_r_logic.txt'  # Assuming this file exists in logic_folder
-                print(f"Logic file name: {logic_file_name}")
-                passed_codes = generate_a_and_r_codes(self, content)
-                if passed_codes:
-                    content += f"\n\nPassed code:\n{passed_codes}"
-                    print(f"Passed codes added to content: {passed_codes}")
-                else:
-                    print("No passed codes generated.")
+                    logic_file_name = 'a_and_r_logic.txt'
+                    print(f"Logic file name: {logic_file_name}")
+                    passed_codes = generate_a_and_r_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
+
+            elif model_id == MODEL_IDS['Kafo']:  # New condition for Kafo
+                    logic_file_name = 'kafo_logic.txt'
+                    print(f"Logic file name: {logic_file_name}")
+                    passed_codes = generate_kafo_codes(self, content)
+                    if passed_codes:
+                        content += f"\n\nPassed code:\n{passed_codes}"
+                        print(f"Passed codes added to content: {passed_codes}")
+                    else:
+                        print("No passed codes generated.")
 
             else:
-                raise ValueError(f"Unknown model ID '{model_id}'.")
+                    raise ValueError(f"Unknown model ID '{model_id}'.")
 
             logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
             print(f"Logic file path: {logic_file_path}")

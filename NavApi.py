@@ -94,7 +94,7 @@ def work_order_a_and_r(auto_doc_ref):
     target_text = "Refer to Prescription form " + auto_doc_ref
     return target_operation, target_text
 
-def work_order_undefined(auto_doc_ref):
+def work_order_kafo(auto_doc_ref):
     target_operation = "Special Instructions"
     target_text = "Refer to Prescription form " + auto_doc_ref
     return target_operation, target_text
@@ -219,10 +219,10 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         'bespoke': work_order_bespoke,
         'modular': work_order_modular,
         'afos': work_order_afo,
-        'a&r': work_order_a_and_r,  # Added for A&R
-        'unknown': work_order_undefined
-    }
-    work_order_func = work_order_funcs.get(form_type.lower(), work_order_undefined)
+        'a&r': work_order_a_and_r,
+        'kafo': work_order_a_and_r
+}
+    work_order_func = work_order_funcs.get(form_type.lower())
     target_operation, target_text = work_order_func(auto_doc_ref)
     
     if medical_response.status_code == 200:
