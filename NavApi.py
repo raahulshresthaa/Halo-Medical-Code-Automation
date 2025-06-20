@@ -1,3 +1,4 @@
+#NavApi.py
 import requests
 from requests_ntlm import HttpNtlmAuth
 import json
@@ -99,7 +100,20 @@ def work_order_kafo(auto_doc_ref):
     target_text = "Refer to Prescription form " + auto_doc_ref
     return target_operation, target_text
 
-def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None):
+def parse_pre_app_date(date_str):
+    """Parse 'pre app date' from formats 'dd.mm.yy' or 'd/m/yyyy'. Returns None if invalid."""
+    if not date_str:
+        return None
+    formats = ["%d.%m.%y", "%d.%m.%Y", "%d/%m/%y", "%d/%m/%Y"]
+    for fmt in formats:
+        try:
+            dt = datetime.datetime.strptime(date_str, fmt)
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+    return None
+
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
     error_messages = []
@@ -176,6 +190,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             "Patient_Gender": gender,
             "External_Document_No": f"DNI-{next_no}"
         }
+        if pre_app_date:
+            order_data["Pre_App_Date"] = pre_app_date
 
         post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
         
@@ -221,7 +237,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         'afos': work_order_afo,
         'a&r': work_order_a_and_r,
         'kafo': work_order_a_and_r
-}
+    }
     work_order_func = work_order_funcs.get(form_type.lower())
     target_operation, target_text = work_order_func(auto_doc_ref)
     
