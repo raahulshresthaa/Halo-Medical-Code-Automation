@@ -191,7 +191,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             "External_Document_No": f"DNI-{next_no}"
         }
         if pre_app_date:
-            order_data["Pre_App_Date"] = pre_app_date
+            order_data["Pre-appointed_Date"] = pre_app_date
 
         post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
         
