@@ -32,7 +32,7 @@ from generate_code_logic import (
     generate_a_and_r_codes,
     generate_kafo_codes
 )
-from NavApi import create_sales_order
+from NavApi import create_sales_order, parse_pre_app_date
 from tkinter import messagebox
 import concurrent.futures
 import requests.exceptions
@@ -310,7 +310,7 @@ class PdfButtonHandler:
         except Exception as e:
             return f"Error: {str(e)}"
 
-    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code):
+    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code, pre_app_date):
         try:
             price_codes = self.get_price_codes_from_content(content, logic_content)
             print(f"Price codes received: {price_codes}")
@@ -418,10 +418,10 @@ class PdfButtonHandler:
             today = datetime.date.today()
             request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
 
-            # Pass order_category_code to attempt_nav_upload
+            # Pass order_category_code and pre_app_date to attempt_nav_upload
             success, sales_order_no, messages = attempt_nav_upload(
-            customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
-            form_type_for_filename, log_file_path, final_codes, patient_name, gender_full
+                customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
+                form_type_for_filename, log_file_path, final_codes, patient_name, gender_full, pre_app_date
             )
             for text, tag in messages:
                 self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
@@ -511,139 +511,149 @@ class PdfButtonHandler:
             messagebox.showinfo("No PDF File Selected", "Please select a PDF file to process.")
 
     def process_pdf_and_call_api(self, pdf_file_path, attempt=1):
-        def azure_api_call():
-            with open(pdf_file_path, "rb") as pdf_file:
-                poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
-                result = poller.result()
-            return result
+            def azure_api_call():
+                with open(pdf_file_path, "rb") as pdf_file:
+                    poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
+                    result = poller.result()
+                return result
 
-        try:
-            model_id = self.model_id_var.get()
-            print(f"Using model ID: {model_id}")
-            form_type_for_filename = get_form_type_from_model_id(model_id)
+            try:
+                model_id = self.model_id_var.get()
+                print(f"Using model ID: {model_id}")
+                form_type_for_filename = get_form_type_from_model_id(model_id)
 
-            # Set timeout and retry parameters
-            timeout_seconds = 30
-            max_retries = 2
-            for attempt_num in range(max_retries + 1):
-                try:
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(azure_api_call)
-                        result = future.result(timeout=timeout_seconds)
-                    break
-                except concurrent.futures.TimeoutError:
-                    if attempt_num < max_retries:
-                        print(f"Azure API call timed out. Retrying... (Attempt {attempt_num + 1}/{max_retries})")
-                        self.root.after(0, lambda: self.update_loading_message(f"Retrying Azure API call... (Attempt {attempt_num + 1})"))
-                    else:
-                        raise TimeoutError("Azure API call timed out after maximum retries.")
-                except requests.exceptions.RequestException as e:
-                    raise RuntimeError(f"Network error during Azure API call: {str(e)}")
+                # Set timeout and retry parameters
+                timeout_seconds = 30
+                max_retries = 2
+                for attempt_num in range(max_retries + 1):
+                    try:
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(azure_api_call)
+                            result = future.result(timeout=timeout_seconds)
+                        break
+                    except concurrent.futures.TimeoutError:
+                        if attempt_num < max_retries:
+                            print(f"Azure API call timed out. Retrying... (Attempt {attempt_num + 1}/{max_retries})")
+                            self.root.after(0, lambda: self.update_loading_message(f"Retrying Azure API call... (Attempt {attempt_num + 1})"))
+                        else:
+                            raise TimeoutError("Azure API call timed out after maximum retries.")
+                    except requests.exceptions.RequestException as e:
+                        raise RuntimeError(f"Network error during Azure API call: {str(e)}")
 
-            self.root.after(0, self.update_loading_message, "Please wait, calculating the codes")
+                self.root.after(0, self.update_loading_message, "Please wait, calculating the codes")
 
-            fields_data = self.extract_fields_from_result(result)
-            order_category_code = determine_order_category_code(model_id, fields_data)
-            if not fields_data:
-                raise ValueError("No data extracted from the PDF.")
+                fields_data = self.extract_fields_from_result(result)
+                order_category_code = determine_order_category_code(model_id, fields_data)
+                if not fields_data:
+                    raise ValueError("No data extracted from the PDF.")
 
-            # Check form confirmation
-            form_confirmation = fields_data.get('form confirmation', '').strip()
-            if not form_confirmation:
-                error_msg = "No form confirmation found in the extracted data."
-                self.root.after(0, messagebox.showerror, "Error", error_msg)
-                self.root.after(0, self.close_loading_popup)
-                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-                return
-
-            # Mapping of form confirmation values to model IDs
-            form_to_model = {
-                'Insole Prescription Form': MODEL_IDS['Insoles'],
-                '(Internal Digitised) Insole Prescription Form': MODEL_IDS['Insoles'],
-                '(Repeat) Insole Prescription Form': MODEL_IDS['Insoles'],
-                'AFO Prescription Form': MODEL_IDS['AFOs'],
-                'Bespoke Footwear Prescription Form': MODEL_IDS['Bespoke'],
-                'Modular Footwear Prescription Form': MODEL_IDS['Modular'],
-                'Adapts, Repairs & Modifications': MODEL_IDS['A&R'],
-                'KAFO Prescription Form': MODEL_IDS['Kafo']
-            }
-
-            correct_model_id = form_to_model.get(form_confirmation, None)
-            if correct_model_id is None:
-                error_msg = f"Unknown form confirmation: {form_confirmation}"
-                self.root.after(0, messagebox.showerror, "Error", error_msg)
-                self.root.after(0, self.close_loading_popup)
-                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
-                return
-
-            if correct_model_id != model_id:
-                if attempt >= 2:
-                    error_msg = f"Form confirmation '{form_confirmation}' does not match the selected model after switching."
+                # Check form confirmation
+                form_confirmation = fields_data.get('form confirmation', '').strip()
+                if not form_confirmation:
+                    error_msg = "No form confirmation found in the extracted data."
                     self.root.after(0, messagebox.showerror, "Error", error_msg)
                     self.root.after(0, self.close_loading_popup)
                     self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
                     return
-                else:
-                    self.model_id_var.set(correct_model_id)
-                    self.root.after(0, self.update_loading_message, f"Switching to model {correct_model_id}")
-                    self.process_pdf_and_call_api(pdf_file_path, attempt + 1)
+
+                # Mapping of form confirmation values to model IDs
+                form_to_model = {
+                    'Insole Prescription Form': MODEL_IDS['Insoles'],
+                    '(Internal Digitised) Insole Prescription Form': MODEL_IDS['Insoles'],
+                    '(Repeat) Insole Prescription Form': MODEL_IDS['Insoles'],
+                    'AFO Prescription Form': MODEL_IDS['AFOs'],
+                    'Bespoke Footwear Prescription Form': MODEL_IDS['Bespoke'],
+                    'Modular Footwear Prescription Form': MODEL_IDS['Modular'],
+                    'Adapts, Repairs & Modifications': MODEL_IDS['A&R'],
+                    'KAFO Prescription Form': MODEL_IDS['Kafo']
+                }
+
+                correct_model_id = form_to_model.get(form_confirmation, None)
+                if correct_model_id is None:
+                    error_msg = f"Unknown form confirmation: {form_confirmation}"
+                    self.root.after(0, messagebox.showerror, "Error", error_msg)
+                    self.root.after(0, self.close_loading_popup)
+                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
                     return
 
-            # Proceed with normal processing if form confirmation matches
-            content = self.parse_extracted_data(fields_data)
-            print(f"Extracted content:\n{content}")
+                if correct_model_id != model_id:
+                    if attempt >= 2:
+                        error_msg = f"Form confirmation '{form_confirmation}' does not match the selected model after switching."
+                        self.root.after(0, messagebox.showerror, "Error", error_msg)
+                        self.root.after(0, self.close_loading_popup)
+                        self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                        return
+                    else:
+                        self.model_id_var.set(correct_model_id)
+                        self.root.after(0, self.update_loading_message, f"Switching to model {correct_model_id}")
+                        self.process_pdf_and_call_api(pdf_file_path, attempt + 1)
+                        return
 
-            if model_id == MODEL_IDS['Insoles']:
-                if "insole type other" in fields_data:
-                    self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
-                if self.is_carbon_selected(content):
-                    self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
+                # Proceed with normal processing if form confirmation matches
+                content = self.parse_extracted_data(fields_data)
+                print(f"Extracted content:\n{content}")
 
-            AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
-            clinic = fields_data.get('Clinic', 'N/A')
+                if model_id == MODEL_IDS['Insoles']:
+                    if "insole type other" in fields_data:
+                        self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
+                    if self.is_carbon_selected(content):
+                        self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
 
-            # Extract and clean patient name
-            patient_raw = fields_data.get('patient', '').strip()
-            print(f"Raw patient field: '{patient_raw}'")
-            if patient_raw.lower().startswith('name'):
-                if patient_raw.lower().startswith('name:'):
-                    patient_name = patient_raw[5:].strip()
+                AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
+                clinic = fields_data.get('Clinic', 'N/A')
+
+                # Extract and clean patient name
+                patient_raw = fields_data.get('patient', '').strip()
+                print(f"Raw patient field: '{patient_raw}'")
+                if patient_raw.lower().startswith('name'):
+                    if patient_raw.lower().startswith('name:'):
+                        patient_name = patient_raw[5:].strip()
+                    else:
+                        patient_name = patient_raw[4:].strip()
                 else:
-                    patient_name = patient_raw[4:].strip()
-            else:
-                patient_name = patient_raw
-            if not patient_name:
-                patient_name = 'Unknown'
-            print(f"Cleaned patient_name: '{patient_name}'")
+                    patient_name = patient_raw
+                if not patient_name:
+                    patient_name = 'Unknown'
+                print(f"Cleaned patient_name: '{patient_name}'")
 
-            # Extract creation date
-            creation_date_str = fields_data.get('creation date', '28/04/2025')
-            try:
-                day, month, year = creation_date_str.split('/')
-                day = int(day)
-                month = int(month)
-                if len(year) == 2:
-                    year = int('20' + year)
+                # Extract creation date
+                creation_date_str = fields_data.get('creation date', '28/04/2025')
+                try:
+                    day, month, year = creation_date_str.split('/')
+                    day = int(day)
+                    month = int(month)
+                    if len(year) == 2:
+                        year = int('20' + year)
+                    else:
+                        year = int(year)
+                    creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')
+                    print(f"Extracted creation_date: {creation_date}")
+                except (ValueError, AttributeError):
+                    creation_date = datetime.date.today().strftime('%Y-%m-%d')
+                    print(f"Failed to parse creation_date, using today's date: {creation_date}")
+
+                # Extract and convert gender
+                gender = fields_data.get('gender', 'N/A').strip().upper()
+                if gender == 'M':
+                    gender_full = 'Male'
+                elif gender == 'F':
+                    gender_full = 'Female'
                 else:
-                    year = int(year)
-                creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')
-                print(f"Extracted creation_date: {creation_date}")
-            except (ValueError, AttributeError):
-                creation_date = datetime.date.today().strftime('%Y-%m-%d')
-                print(f"Failed to parse creation_date, using today's date: {creation_date}")
+                    gender_full = 'Unknown'
 
-            # Extract and convert gender
-            gender = fields_data.get('gender', 'N/A').strip().upper()
-            if gender == 'M':
-                gender_full = 'Male'
-            elif gender == 'F':
-                gender_full = 'Female'
-            else:
-                gender_full = 'Unknown'
+                # Extract and parse pre_app_date
+                pre_app_date_str = fields_data.get('pre app date', '').strip()
+                if pre_app_date_str:
+                    pre_app_date = parse_pre_app_date(pre_app_date_str)
+                    if pre_app_date is None:
+                        print(f"Failed to parse pre_app_date: '{pre_app_date_str}'")
+                else:
+                    pre_app_date = None
+                print(f"Parsed pre_app_date: {pre_app_date}")
 
-            logic_file_name = None
+                logic_file_name = None
 
-            if model_id == MODEL_IDS['Insoles']:
+                if model_id == MODEL_IDS['Insoles']:
                     form_type = self.determine_form_type(fields_data)
                     if not form_type:
                         query_message = "No form type found in the extracted data. Please raise a query."
@@ -670,7 +680,7 @@ class PdfButtonHandler:
                     else:
                         print("No passed codes generated.")
 
-            elif model_id == MODEL_IDS['AFOs']:
+                elif model_id == MODEL_IDS['AFOs']:
                     logic_file_name = 'afo_logic.txt'
                     print(f"Logic file name: {logic_file_name}")
                     passed_codes = generate_afo_codes(self, content)
@@ -680,7 +690,7 @@ class PdfButtonHandler:
                     else:
                         print("No passed codes generated.")
 
-            elif model_id == MODEL_IDS['Bespoke']:
+                elif model_id == MODEL_IDS['Bespoke']:
                     logic_file_name = 'bespoke_logic.txt'
                     print(f"Logic file name: {logic_file_name}")
                     passed_codes = generate_bespoke_codes(self, content)
@@ -690,7 +700,7 @@ class PdfButtonHandler:
                     else:
                         print("No passed codes generated.")
 
-            elif model_id == MODEL_IDS['Modular']:
+                elif model_id == MODEL_IDS['Modular']:
                     logic_file_name = 'modular_logic.txt'
                     print(f"Logic file name: {logic_file_name}")
                     passed_codes = generate_modular_codes(self, content)
@@ -700,7 +710,7 @@ class PdfButtonHandler:
                     else:
                         print("No passed codes generated.")
 
-            elif model_id == MODEL_IDS['A&R']:
+                elif model_id == MODEL_IDS['A&R']:
                     logic_file_name = 'a_and_r_logic.txt'
                     print(f"Logic file name: {logic_file_name}")
                     passed_codes = generate_a_and_r_codes(self, content)
@@ -710,7 +720,7 @@ class PdfButtonHandler:
                     else:
                         print("No passed codes generated.")
 
-            elif model_id == MODEL_IDS['Kafo']:  # New condition for Kafo
+                elif model_id == MODEL_IDS['Kafo']:
                     logic_file_name = 'kafo_logic.txt'
                     print(f"Logic file name: {logic_file_name}")
                     passed_codes = generate_kafo_codes(self, content)
@@ -720,34 +730,35 @@ class PdfButtonHandler:
                     else:
                         print("No passed codes generated.")
 
-            else:
+                else:
                     raise ValueError(f"Unknown model ID '{model_id}'.")
 
-            logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
-            print(f"Logic file path: {logic_file_path}")
+                logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
+                print(f"Logic file path: {logic_file_path}")
 
-            logic_content = self.read_logic_file(logic_file_path)
-            if "Error" in logic_content:
-                raise ValueError(logic_content)
+                logic_content = self.read_logic_file(logic_file_path)
+                if "Error" in logic_content:
+                    raise ValueError(logic_content)
 
-            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code)
+                self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, 
+                                    patient_name, gender_full, order_category_code, pre_app_date)
 
-        except TimeoutError as e:
-            error_msg = f"Timeout error: {str(e)}"
-            self.root.after(0, messagebox.showerror, "Timeout Error", error_msg)
-            print(error_msg)
-        except RuntimeError as e:
-            error_msg = str(e)
-            self.root.after(0, messagebox.showerror, "Network Error", error_msg)
-            print(error_msg)
-        except Exception as e:
-            error_msg = f"Error processing the PDF file: {str(e)}"
-            self.root.after(0, messagebox.showerror, "Error", error_msg)
-            print(error_msg)
-        finally:
-            if attempt == 1:
-                self.root.after(0, self.close_loading_popup)
-                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+            except TimeoutError as e:
+                error_msg = f"Timeout error: {str(e)}"
+                self.root.after(0, messagebox.showerror, "Timeout Error", error_msg)
+                print(error_msg)
+            except RuntimeError as e:
+                error_msg = str(e)
+                self.root.after(0, messagebox.showerror, "Network Error", error_msg)
+                print(error_msg)
+            except Exception as e:
+                error_msg = f"Error processing the PDF file: {str(e)}"
+                self.root.after(0, messagebox.showerror, "Error", error_msg)
+                print(error_msg)
+            finally:
+                if attempt == 1:
+                    self.root.after(0, self.close_loading_popup)
+                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
     def extract_fields_from_result(self, result):
         """Extract relevant fields from Azure analysis result."""
@@ -835,7 +846,9 @@ class PdfButtonHandler:
         content_lower = content.lower()
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
-def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, log_file_path=None, final_codes=None, patient_name=None, gender_full=None):
+def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, 
+                      auto_doc_ref, order_category_code, form_type, log_file_path=None, 
+                      final_codes=None, patient_name=None, gender_full=None, pre_app_date=None):
     """
     Attempts to create a sales order in NAV using the provided parameters with enhanced error handling.
     
@@ -851,6 +864,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         final_codes (list, optional): List of final codes to include in the sales order lines.
         patient_name (str, optional): The patient's name.
         gender_full (str, optional): The patient's gender ("Male", "Female", or "Unknown").
+        pre_app_date (str, optional): The pre-appointed date in 'YYYY-MM-DD' format.
     
     Returns:
         tuple: (success (bool), sales_order_no (str or None), messages (list of (text, tag)))
@@ -863,10 +877,11 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             request_delivery_date=request_delivery_date,
             auto_doc_ref=auto_doc_ref,
             order_category_code=order_category_code,
-            form_type=form_type,  # Pass form_type here
+            form_type=form_type,
             final_codes=final_codes if final_codes else [],
             patient_name=patient_name if patient_name else "",
-            gender=gender_full
+            gender=gender_full,
+            pre_app_date=pre_app_date  # Pass pre_app_date to create_sales_order
         )
         
         success = result.get('success', False)
@@ -880,7 +895,6 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             ui_messages.append((f"✅ Created Sales Order: {sales_order_no}", 'success'))
             log_messages.append(f"[SUCCESS] Created Sales Order: {sales_order_no}")
             if error_messages:
-                # Handle error messages as before...
                 for error in error_messages:
                     if "Internal_InvalidTableRelation" in error:
                         if "Prescriber" in error:
@@ -906,7 +920,6 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                     log_messages.append(f"[ERROR] {error}")
         else:
             for error in error_messages:
-                # Handle error messages as before...
                 if "Internal_InvalidTableRelation" in error:
                     if "Prescriber" in error:
                         prescriber_no = prescriber

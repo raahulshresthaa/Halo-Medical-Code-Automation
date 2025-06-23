@@ -104,6 +104,8 @@ def parse_pre_app_date(date_str):
     """Parse 'pre app date' from formats 'dd.mm.yy' or 'd/m/yyyy'. Returns None if invalid."""
     if not date_str:
         return None
+    # Remove "Date:" prefix if present
+    date_str = re.sub(r'^Date:\s*', '', date_str).strip()
     formats = ["%d.%m.%y", "%d.%m.%Y", "%d/%m/%y", "%d/%m/%Y"]
     for fmt in formats:
         try:
@@ -191,6 +193,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             "External_Document_No": f"DNI-{next_no}"
         }
         if pre_app_date:
+            print(f"Pre App Date (Formatted): {pre_app_date}")
             order_data["Pre-appointed_Date"] = pre_app_date
 
         post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
