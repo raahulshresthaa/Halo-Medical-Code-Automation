@@ -130,22 +130,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         existing_order = check_response.json()['value'][0]
         sales_order_no = existing_order['No']
         print(f"Order {sales_order_no} already exists for auto_doc_ref {auto_doc_ref}. Proceeding to clean up duplicates.")
-        
-        # Check order status before proceeding
-        order_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService('{sales_order_no}')"
-        order_response = requests.get(order_url, headers=headers, auth=auth)
-        if order_response.status_code == 200:
-            order_data = order_response.json()
-            if order_data.get('Status') != 'Open':
-                error_msg = f"Cannot add lines to order {sales_order_no} because its status is '{order_data.get('Status')}' (must be 'Open')."
-                error_messages.append(error_msg)
-                return {'success': False, 'sales_order_no': sales_order_no, 'error_messages': error_messages}
-        else:
-            error_msg = f"Failed to retrieve order status for {sales_order_no}: {order_response.status_code} - {order_response.text}"
-            error_messages.append(error_msg)
-            return {'success': False, 'sales_order_no': sales_order_no, 'error_messages': error_messages}
     else:
-        # Create new order if it doesn't exist
         filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=2"
         get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
         response = requests.get(get_url, headers=headers, auth=auth)
@@ -168,7 +153,11 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             if match_last and match_second:
                 last_num = int(match_last.groups()[1])
                 second_num = int(match_second.groups()[1])
-                next_num = max(last_num, second_num) + 1 if last_num - second_num != 1 else last_num + 1
+                
+                if last_num - second_num == 1:
+                    next_num = last_num + 1
+                else:
+                    next_num = max(last_num, second_num) + 1
             else:
                 error_msg = "Could not parse top SOA numbers."
                 error_messages.append(error_msg)
@@ -176,7 +165,12 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         elif len(orders) == 1:
             last_soa = orders[0]['No']
             match = re.match(r"(GB-SOA)(\d+)", last_soa)
-            next_num = int(match.groups()[1]) + 1 if match else 1
+            if match:
+                next_num = int(match.groups()[1]) + 1
+            else:
+                error_msg = f"Could not parse SOA number: {last_soa}"
+                error_messages.append(error_msg)
+                return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
         else:
             next_num = 1
         
@@ -199,9 +193,11 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             "External_Document_No": f"DNI-{next_no}"
         }
         if pre_app_date:
+            print(f"Pre App Date (Formatted): {pre_app_date}")
             order_data["Pre-appointed_Date"] = pre_app_date
 
         post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
+        
         max_attempts = 5
         attempt = 0
         while attempt < max_attempts:
@@ -210,9 +206,20 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             if create_response.status_code == 201:
                 sales_order_no = next_no
                 break
-            elif create_response.status_code == 400 and "Internal_EntityWithSameKeyExists" in create_response.text:
-                next_no = increment_order_no(next_no)
-                attempt += 1
+            elif create_response.status_code == 400:
+                try:
+                    error_data = create_response.json()
+                    if error_data.get("error", {}).get("code") == "Internal_EntityWithSameKeyExists":
+                        next_no = increment_order_no(next_no)
+                        attempt += 1
+                    else:
+                        error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
+                        error_messages.append(error_msg)
+                        return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+                except json.JSONDecodeError:
+                    error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
+                    error_messages.append(error_msg)
+                    return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
             else:
                 error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
                 error_messages.append(error_msg)
@@ -222,7 +229,6 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             error_messages.append(error_msg)
             return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
 
-    # Handle medical details
     filter_medical = f"$filter=Document_No eq '{sales_order_no}'"
     medical_get_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails?{filter_medical}"
     medical_response = requests.get(medical_get_url, headers=headers, auth=auth)
@@ -233,9 +239,9 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         'modular': work_order_modular,
         'afos': work_order_afo,
         'a&r': work_order_a_and_r,
-        'kafo': work_order_kafo
+        'kafo': work_order_a_and_r
     }
-    work_order_func = work_order_funcs.get(form_type.lower(), work_order_afo)  # Default to AFO if unknown
+    work_order_func = work_order_funcs.get(form_type.lower())
     target_operation, target_text = work_order_func(auto_doc_ref)
     
     if medical_response.status_code == 200:
@@ -251,10 +257,10 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
                 delete_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails(Document_No='{sales_order_no}',Line_No={detail['Line_No']})"
                 delete_response = requests.delete(delete_url, headers=headers, auth=auth)
                 if delete_response.status_code != 204:
-                    error_msg = f"Failed to delete duplicate medical detail: {delete_response.status_code} - {delete_response.text}"
+                    error_msg = f"Failed to delete duplicate: {delete_response.status_code} - {delete_response.text}"
                     error_messages.append(error_msg)
-        elif not matching_details:
-            next_line_no = 10000 if not existing_details else max(detail['Line_No'] for detail in existing_details) + 10000
+        elif len(matching_details) == 0:
+            next_line_no = 100000 if not existing_details else max(detail['Line_No'] for detail in existing_details) + 10000
             medical_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails"
             payload = {
                 "Document_No": sales_order_no,
@@ -270,10 +276,9 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         error_msg = f"Failed to retrieve medical details: {medical_response.status_code} - {medical_response.text}"
         error_messages.append(error_msg)
 
-    # Add sales order lines if status is Open
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
     if final_codes and len(final_codes) > 0:
-        valid_codes = [code for code in final_codes if code.strip() and code.strip() != "```"]
+        valid_codes = [code for code in final_codes if code.strip() != "```"]
         item_lines = [parse_code_string(code_str) for code_str in valid_codes]
 
         for item_no, quantity in item_lines:
@@ -300,12 +305,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             }
             response = requests.post(lines_url, headers=headers, data=json.dumps(line_data), auth=auth)
             if response.status_code != 201:
-                try:
-                    error_data = response.json()
-                    error_message = error_data.get('error', {}).get('message', 'Unknown error')
-                except json.JSONDecodeError:
-                    error_message = response.text
-                error_msg = f"Failed to add line {item_no}: {response.status_code} - {error_message}"
+                error_msg = f"Failed to add line {item_no}: {response.status_code} - {response.text}"
                 error_messages.append(error_msg)
 
     success = len(error_messages) == 0
