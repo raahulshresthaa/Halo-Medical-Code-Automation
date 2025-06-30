@@ -1132,7 +1132,7 @@ def create_missing_contacts_tab(notebook):
     tree_frame.pack(fill='both', expand=True)
 
     # Treeview to display missing entries with custom style and centered data
-    tree = ttk.Treeview(tree_frame, columns=('Type', 'Name'), show='headings', style="Custom.Treeview")
+    tree = ttk.Treeview(tree_frame, columns=('Type', 'Name'), show='headings', style="Custom.Treeview", selectmode='extended')
     tree.heading('Type', text='Type')
     tree.heading('Name', text='Name')
     tree.column('Type', width=150, minwidth=150, anchor='center')  # Width for 'Type'
@@ -1156,16 +1156,12 @@ def create_missing_contacts_tab(notebook):
         tree.delete(*tree.get_children())
         conn = sqlite3.connect(missing_db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT type, name FROM missing_entries")
+        cursor.execute("SELECT id, type, name FROM missing_entries")
         for row in cursor.fetchall():
-            tree.insert('', 'end', values=row)
+            tree.insert('', 'end', values=(row[1], row[2]), tags=(row[0],))
         conn.close()
 
     populate_tree()
-
-    # Refresh button
-    refresh_button = ttk.Button(missing_tab, text="Refresh", command=populate_tree)
-    refresh_button.pack(pady=5)
 
     def update_contact():
         """Update the selected missing contact with a user-provided code."""
@@ -1173,17 +1169,20 @@ def create_missing_contacts_tab(notebook):
         if not selection:
             messagebox.showinfo("No Selection", "Please select a missing contact to update.")
             return
-
+        if len(selection) > 1:
+            messagebox.showinfo("Multiple Selection", "Please select only one contact to update.")
+            return
         item = tree.item(selection[0])
+        id = item['tags'][0]
         type, name = item['values']
         code = simpledialog.askstring("Input Code", f"Enter the code for {type} '{name}':")
         if code:
             if type == 'clinic':
-                    conn = sqlite3.connect(customers_db_path)
-                    cursor = conn.cursor()
-                    cursor.execute("INSERT OR REPLACE INTO customers (Docuware_Clinic_Name, Sell_to_Customer_No) VALUES (?, ?)", (name, code))
-                    conn.commit()
-                    conn.close()
+                conn = sqlite3.connect(customers_db_path)
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR REPLACE INTO customers (Docuware_Clinic_Name, Sell_to_Customer_No) VALUES (?, ?)", (name, code))
+                conn.commit()
+                conn.close()
             elif type == 'clinician':
                 conn = sqlite3.connect(clinician_db_path)
                 cursor = conn.cursor()
@@ -1191,19 +1190,46 @@ def create_missing_contacts_tab(notebook):
                 conn.commit()
                 conn.close()
 
-            # Remove from missing_entries
+            # Remove from missing_entries using id
             conn = sqlite3.connect(missing_db_path)
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM missing_entries WHERE type = ? AND name = ?", (type, name))
+            cursor.execute("DELETE FROM missing_entries WHERE id = ?", (id,))
             conn.commit()
             conn.close()
 
             populate_tree()
             messagebox.showinfo("Success", f"Updated {type} '{name}' with code '{code}'.")
 
-    # Update button
+    def delete_contact():
+        """Delete the selected missing contacts after confirmation."""
+        selection = tree.selection()
+        if not selection:
+            messagebox.showinfo("No Selection", "Please select one or more missing contacts to delete.")
+            return
+        confirm = messagebox.askyesno("Confirm Deletion", "Are you sure you want to delete the selected contacts? This action cannot be undone.")
+        if confirm:
+            try:
+                conn = sqlite3.connect(missing_db_path)
+                cursor = conn.cursor()
+                for item_id in selection:
+                    id = tree.item(item_id)['tags'][0]
+                    cursor.execute("DELETE FROM missing_entries WHERE id = ?", (id,))
+                conn.commit()
+                conn.close()
+                populate_tree()
+                messagebox.showinfo("Success", "Deleted selected contacts.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to delete contacts: {str(e)}")
+
+    # Buttons
+    refresh_button = ttk.Button(missing_tab, text="Refresh", command=populate_tree)
+    refresh_button.pack(pady=5)
+
     update_button = ttk.Button(missing_tab, text="Update Selected", command=update_contact)
     update_button.pack(pady=5)
+
+    delete_button = ttk.Button(missing_tab, text="Delete Selected", command=delete_contact)
+    delete_button.pack(pady=5)
 
     return missing_tab, populate_tree  # Return both the tab and the populate function
 
