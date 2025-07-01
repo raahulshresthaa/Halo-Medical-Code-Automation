@@ -60,6 +60,7 @@ customers_db_path = os.path.join(base_path, 'databases', 'clinic_nav_sell_to.db'
 customers_db_path = os.path.join(base_path, 'databases', 'clinic_nav_sell_to.db')
 clinician_db_path = os.path.join(base_path, 'databases', 'clinician_nav_contacts.db')
 missing_db_path = os.path.join(base_path, 'databases', 'missing_contacts.db')
+release_times_db_path = os.path.join(base_path, 'databases', 'clinic_release_times.db')
 
 def determine_order_category_code(model_id, fields_data):
     if model_id == MODEL_IDS['Insoles']:
@@ -959,6 +960,138 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         return False, None, [(ui_error_message, 'error')]
     
 # --- Main Application Setup ---
+class EntryDialog(Toplevel):
+    def __init__(self, parent, title, initial_values=None):
+        Toplevel.__init__(self, parent)
+        self.transient(parent)
+        self.title(title)
+        self.result = None
+
+        self.customer_no_label = ttk.Label(self, text="Sell to Customer No:")
+        self.customer_no_entry = ttk.Entry(self)
+        self.customer_no_label.pack()
+        self.customer_no_entry.pack()
+
+        self.default_name_label = ttk.Label(self, text="Default Name:")
+        self.default_name_entry = ttk.Entry(self)
+        self.default_name_label.pack()
+        self.default_name_entry.pack()
+
+        self.required_by_days_label = ttk.Label(self, text="Required By Days:")
+        self.required_by_days_entry = ttk.Entry(self)
+        self.required_by_days_label.pack()
+        self.required_by_days_entry.pack()
+
+        if initial_values:
+            self.customer_no_entry.insert(0, initial_values[0])
+            self.default_name_entry.insert(0, initial_values[1])
+            self.required_by_days_entry.insert(0, initial_values[2])
+
+        self.ok_button = ttk.Button(self, text="OK", command=self.on_ok)
+        self.cancel_button = ttk.Button(self, text="Cancel", command=self.on_cancel)
+        self.ok_button.pack(side='left')
+        self.cancel_button.pack(side='left')
+
+    def on_ok(self):
+        self.result = (
+            self.customer_no_entry.get(),
+            self.default_name_entry.get(),
+            self.required_by_days_entry.get()
+        )
+        self.destroy()
+
+    def on_cancel(self):
+        self.result = None
+        self.destroy()
+
+def create_required_by_data_tab(notebook):
+    required_by_tab = ttk.Frame(notebook)
+    notebook.add(required_by_tab, text="Required By Data")
+
+    tree = ttk.Treeview(required_by_tab, columns=('Sell_to_Customer_No', 'default_name', 'required_by_days'), show='headings')
+    tree.heading('Sell_to_Customer_No', text='Sell to Customer No')
+    tree.heading('default_name', text='Default Name')
+    tree.heading('required_by_days', text='Required By Days')
+    tree.column('Sell_to_Customer_No', width=150, anchor='center')
+    tree.column('default_name', width=300, anchor='w')
+    tree.column('required_by_days', width=100, anchor='center')
+    tree.pack(fill='both', expand=True)
+
+    def populate_tree():
+        for item in tree.get_children():
+            tree.delete(item)
+        conn = sqlite3.connect(release_times_db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT Sell_to_Customer_No, default_name, required_by_days FROM release_times")
+        rows = cursor.fetchall()
+        for row in rows:
+            tree.insert('', 'end', values=row)
+        conn.close()
+
+    populate_tree()
+
+    # Define functions before creating buttons
+    def add_entry():
+        dialog = EntryDialog(root, "Add New Entry")
+        root.wait_window(dialog)
+        if dialog.result:
+            conn = sqlite3.connect(release_times_db_path)
+            cursor = conn.cursor()
+            try:
+                cursor.execute("INSERT INTO release_times (Sell_to_Customer_No, default_name, required_by_days) VALUES (?, ?, ?)", dialog.result)
+                conn.commit()
+            except sqlite3.IntegrityError:
+                messagebox.showerror("Error", "Duplicate Sell to Customer No.")
+            conn.close()
+            populate_tree()
+
+    def edit_entry():
+        selected = tree.selection()
+        if not selected:
+            messagebox.showinfo("No Selection", "Please select an entry to edit.")
+            return
+        item = tree.item(selected[0])
+        values = item['values']
+        dialog = EntryDialog(root, "Edit Entry", initial_values=values)
+        root.wait_window(dialog)
+        if dialog.result:
+            conn = sqlite3.connect(release_times_db_path)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE release_times SET default_name = ?, required_by_days = ? WHERE Sell_to_Customer_No = ?", (dialog.result[1], dialog.result[2], dialog.result[0]))
+            conn.commit()
+            conn.close()
+            populate_tree()
+
+    def delete_entry():
+        selected = tree.selection()
+        if not selected:
+            messagebox.showinfo("No Selection", "Please select an entry to delete.")
+            return
+        confirm = messagebox.askyesno("Confirm Deletion", "Are you sure you want to delete the selected entry?")
+        if confirm:
+            item = tree.item(selected[0])
+            customer_no = item['values'][0]
+            conn = sqlite3.connect(release_times_db_path)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM release_times WHERE Sell_to_Customer_No = ?", (customer_no,))
+            conn.commit()
+            conn.close()
+            populate_tree()
+
+    # Create buttons after defining functions
+    button_frame = ttk.Frame(required_by_tab)
+    button_frame.pack(pady=5)
+
+    add_button = ttk.Button(button_frame, text="Add", command=add_entry)
+    edit_button = ttk.Button(button_frame, text="Edit", command=edit_entry)
+    delete_button = ttk.Button(button_frame, text="Delete", command=delete_entry)
+
+    add_button.pack(side='left', padx=5)
+    edit_button.pack(side='left', padx=5)
+    delete_button.pack(side='left', padx=5)
+
+    return required_by_tab, populate_tree
+
 def create_search_tab(notebook):
     """
     Creates a new tab in the provided ttk.Notebook for searching
@@ -1872,11 +2005,13 @@ def on_tab_selected(event):
     if selected_tab_text == "Results Analysis":
         analysis_handles["refresh_chart"]()
     elif selected_tab_text == "Missing Contacts":
-        populate_tree()  # Automatically refresh the Treeview
+        populate_tree()
     elif selected_tab_text == "Clinics":
         populate_clinics_tree()
     elif selected_tab_text == "Clinicians":
         populate_clinicians_tree()
+    elif selected_tab_text == "Required By Data":
+        populate_required_by_tree()
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 
@@ -1889,6 +2024,7 @@ analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 
 clinics_tab, populate_clinics_tree = create_clinics_tab(notebook)
 clinicians_tab, populate_clinicians_tree = create_clinicians_tab(notebook)
+required_by_tab, populate_required_by_tree = create_required_by_data_tab(notebook)
 
 # Start watching the Downloads folder in the background
 watch_downloads_folder()

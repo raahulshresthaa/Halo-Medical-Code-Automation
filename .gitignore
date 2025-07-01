@@ -19,3 +19,5 @@ nav_url.txt
 nav_username.txt
 /databases
 get.py
+test.py
+test_clinic_release_times.py
