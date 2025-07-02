@@ -967,30 +967,54 @@ class EntryDialog(Toplevel):
         self.title(title)
         self.result = None
 
-        self.customer_no_label = ttk.Label(self, text="Sell to Customer No:")
-        self.customer_no_entry = ttk.Entry(self)
-        self.customer_no_label.pack()
-        self.customer_no_entry.pack()
+        # Create a frame for the form
+        form_frame = ttk.Frame(self)
+        form_frame.pack(padx=10, pady=10)
 
-        self.default_name_label = ttk.Label(self, text="Default Name:")
-        self.default_name_entry = ttk.Entry(self)
-        self.default_name_label.pack()
-        self.default_name_entry.pack()
+        # Labels and entries using grid
+        self.customer_no_label = ttk.Label(form_frame, text="Sell to Customer No:")
+        self.customer_no_entry = ttk.Entry(form_frame)
+        self.customer_no_label.grid(row=0, column=0, sticky='e', padx=5, pady=5)
+        self.customer_no_entry.grid(row=0, column=1, padx=5, pady=5)
 
-        self.required_by_days_label = ttk.Label(self, text="Required By Days:")
-        self.required_by_days_entry = ttk.Entry(self)
-        self.required_by_days_label.pack()
-        self.required_by_days_entry.pack()
+        self.default_name_label = ttk.Label(form_frame, text="Default Name:")
+        self.default_name_entry = ttk.Entry(form_frame)
+        self.default_name_label.grid(row=1, column=0, sticky='e', padx=5, pady=5)
+        self.default_name_entry.grid(row=1, column=1, padx=5, pady=5)
+
+        self.required_by_days_label = ttk.Label(form_frame, text="Required By Days:")
+        self.required_by_days_entry = ttk.Entry(form_frame)
+        self.required_by_days_label.grid(row=2, column=0, sticky='e', padx=5, pady=5)
+        self.required_by_days_entry.grid(row=2, column=1, padx=5, pady=5)
 
         if initial_values:
             self.customer_no_entry.insert(0, initial_values[0])
             self.default_name_entry.insert(0, initial_values[1])
             self.required_by_days_entry.insert(0, initial_values[2])
 
-        self.ok_button = ttk.Button(self, text="OK", command=self.on_ok)
-        self.cancel_button = ttk.Button(self, text="Cancel", command=self.on_cancel)
+        # Button frame
+        button_frame = ttk.Frame(self)
+        button_frame.pack(side='bottom', fill='x', padx=10, pady=10)
+
+        self.ok_button = ttk.Button(button_frame, text="OK", command=self.on_ok)
         self.ok_button.pack(side='left')
-        self.cancel_button.pack(side='left')
+
+        self.cancel_button = ttk.Button(button_frame, text="Cancel", command=self.on_cancel)
+        self.cancel_button.pack(side='right')
+
+        # Center the dialog
+        self.update_idletasks()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        dialog_width = self.winfo_width()
+        dialog_height = self.winfo_height()
+        x = (screen_width - dialog_width) // 2
+        y = (screen_height - dialog_height) // 2
+        self.geometry(f"+{x}+{y}")
+
+        # Grab focus
+        self.grab_set()
+        self.focus_set()
 
     def on_ok(self):
         self.result = (
