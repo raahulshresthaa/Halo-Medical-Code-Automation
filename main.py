@@ -1032,6 +1032,14 @@ def create_required_by_data_tab(notebook):
     required_by_tab = ttk.Frame(notebook)
     notebook.add(required_by_tab, text="Required By Data")
 
+    # Title label
+    title_label = ttk.Label(required_by_tab, text="Required By Data", font=("Calibri", 16, "bold"))
+    title_label.pack(pady=5)
+
+    # Description label with information symbol
+    description_label = ttk.Label(required_by_tab, text="\u2139 Description text for Required By Data.", font=("Calibri", 12))
+    description_label.pack(pady=5)
+
     tree = ttk.Treeview(required_by_tab, columns=('Sell_to_Customer_No', 'default_name', 'required_by_days'), show='headings')
     tree.heading('Sell_to_Customer_No', text='Sell to Customer No')
     tree.heading('default_name', text='Default Name')
@@ -1116,168 +1124,17 @@ def create_required_by_data_tab(notebook):
 
     return required_by_tab, populate_tree
 
-def create_search_tab(notebook):
-    """
-    Creates a new tab in the provided ttk.Notebook for searching
-    through the 'work_orders' folder by AutoDocRef (case-insensitive),
-    with smaller scrollable listbox and text box,
-    automatic searching with debouncing on each keystroke,
-    and double-click to open files.
-    """
-    import tkinter as tk
-    from tkinter import ttk, messagebox
-    import os
-
-    # Create a frame for the 'Search Work Orders' tab
-    search_tab = ttk.Frame(notebook)
-    notebook.add(search_tab, text="Search Work Orders")
-
-    # Label + Entry
-    search_label = ttk.Label(search_tab, text="Enter AutoDocRef (live search):")
-    search_label.pack(pady=5)
-
-    search_entry = ttk.Entry(search_tab, width=30)
-    search_entry.pack(pady=5)
-
-    # Frame to hold the listbox + scrollbar
-    listbox_frame = ttk.Frame(search_tab)
-    listbox_frame.pack(pady=5, fill='both', expand=True)
-
-    listbox_scrollbar = ttk.Scrollbar(listbox_frame, orient='vertical')
-    listbox_scrollbar.pack(side='right', fill='y')
-
-    # Make the listbox smaller: width=60, height=15
-    results_listbox = tk.Listbox(
-        listbox_frame, 
-        width=60, height=15, 
-        yscrollcommand=listbox_scrollbar.set
-    )
-    results_listbox.pack(side='left', fill='both', expand=True)
-
-    listbox_scrollbar.config(command=results_listbox.yview)
-
-    # Frame to hold the text widget + scrollbar
-    text_frame = ttk.Frame(search_tab)
-    text_frame.pack(pady=5, fill='both', expand=True)
-
-    text_scrollbar = ttk.Scrollbar(text_frame, orient='vertical')
-    text_scrollbar.pack(side='right', fill='y')
-
-    # Make the text box smaller: width=60, height=15
-    file_content_text = tk.Text(
-        text_frame,
-        wrap='word', width=60, height=15,
-        yscrollcommand=text_scrollbar.set
-    )
-    file_content_text.pack(side='left', fill='both', expand=True)
-    file_content_text.config(state='disabled')
-
-    text_scrollbar.config(command=file_content_text.yview)
-
-    # ------------- Functions -------------
-    search_after_id = None
-
-    def live_search():
-        """Handle keystrokes with debouncing for live search."""
-        nonlocal search_after_id
-        query = search_entry.get().strip()
-        if not query:
-            # Immediately clear the listbox if the query is empty
-            results_listbox.delete(0, tk.END)
-            file_content_text.config(state='normal')
-            file_content_text.delete('1.0', tk.END)
-            file_content_text.config(state='disabled')
-            if search_after_id:
-                root.after_cancel(search_after_id)
-            search_after_id = None
-        else:
-            # Cancel any pending search and schedule a new one
-            if search_after_id:
-                root.after_cancel(search_after_id)
-            search_after_id = root.after(300, perform_search)
-
-    def perform_search():
-        """Perform the case-insensitive search after the debounce delay."""
-        results_listbox.delete(0, tk.END)
-        file_content_text.config(state='normal')
-        file_content_text.delete('1.0', tk.END)
-        file_content_text.config(state='disabled')
-
-        query = search_entry.get().strip().lower()
-        work_orders_folder = os.path.join(os.getcwd(), 'work_orders')
-        if not os.path.exists(work_orders_folder):
-            return
-
-        for date_folder in os.listdir(work_orders_folder):
-            date_path = os.path.join(work_orders_folder, date_folder)
-            if os.path.isdir(date_path):
-                for filename in os.listdir(date_path):
-                    if query in filename.lower():
-                        full_path = os.path.join(date_path, filename)
-                        results_listbox.insert(tk.END, full_path)
-
-    def open_file():
-        """Open the selected file from the listbox and display its contents."""
-        selection = results_listbox.curselection()
-        if not selection:
-            messagebox.showinfo("No File Selected", "Please select a file from the list.")
-            return
-
-        selected_file = results_listbox.get(selection[0])
-
-        if not os.path.isfile(selected_file):
-            messagebox.showerror("Error", f"File does not exist: {selected_file}")
-            return
-
-        try:
-            with open(selected_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-            file_content_text.config(state='normal')
-            file_content_text.delete('1.0', tk.END)
-            file_content_text.insert(tk.END, content)
-            file_content_text.config(state='disabled')
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not open file:\n{str(e)}")
-
-    def copy_to_clipboard():
-        """Copy the displayed file text to the clipboard."""
-        file_content_text.config(state='normal')
-        contents = file_content_text.get('1.0', tk.END).strip()
-        file_content_text.config(state='disabled')
-
-        if contents:
-            search_tab.clipboard_clear()
-            search_tab.clipboard_append(contents)
-            messagebox.showinfo("Copied", "File contents copied to clipboard.")
-        else:
-            messagebox.showinfo("No Contents", "There is no file text to copy.")
-
-    def on_listbox_double_click(event):
-        """Double-click in the listbox -> open the file."""
-        open_file()
-
-    # Bind the live search to each key release in the entry
-    search_entry.bind("<KeyRelease>", lambda event: live_search())
-    # Bind double-click to open file
-    results_listbox.bind("<Double-Button-1>", on_listbox_double_click)
-
-    # ------------- Buttons Frame (only Copy for now) -------------
-    button_frame = ttk.Frame(search_tab)
-    button_frame.pack(pady=5)
-
-    copy_button = ttk.Button(button_frame, text="Copy to Clipboard", command=copy_to_clipboard)
-    copy_button.pack(side=tk.LEFT, padx=5)
-
-    return search_tab
-
 def create_missing_contacts_tab(notebook):
-    """Create a tab to view and update missing clinics and clinicians."""
     missing_tab = ttk.Frame(notebook)
     notebook.add(missing_tab, text="Missing Contacts")
 
-    # Label with larger font
+    # Existing title label
     label = ttk.Label(missing_tab, text="Missing Clinics and Clinicians", font=("Calibri", 16, "bold"))
     label.pack(pady=5)
+
+    # Add description label with information symbol
+    description_label = ttk.Label(missing_tab, text="\u2139 Description text for Missing Contacts.", font=("Calibri", 12))
+    description_label.pack(pady=5)
 
     # Define a custom style for the Treeview with larger font and increased row height
     style = ttk.Style()
@@ -1308,7 +1165,6 @@ def create_missing_contacts_tab(notebook):
     tree_frame.grid_columnconfigure(0, weight=1)
 
     def populate_tree():
-        """Populate the Treeview with data from missing_contacts.db."""
         ensure_missing_contacts_table()  # Ensure the table exists before querying
         tree.delete(*tree.get_children())
         conn = sqlite3.connect(missing_db_path)
@@ -1321,7 +1177,6 @@ def create_missing_contacts_tab(notebook):
     populate_tree()
 
     def update_contact():
-        """Update the selected missing contact with a user-provided code."""
         selection = tree.selection()
         if not selection:
             messagebox.showinfo("No Selection", "Please select a missing contact to update.")
@@ -1358,7 +1213,6 @@ def create_missing_contacts_tab(notebook):
             messagebox.showinfo("Success", f"Updated {type} '{name}' with code '{code}'.")
 
     def delete_contact():
-        """Delete the selected missing contacts after confirmation."""
         selection = tree.selection()
         if not selection:
             messagebox.showinfo("No Selection", "Please select one or more missing contacts to delete.")
@@ -1388,15 +1242,19 @@ def create_missing_contacts_tab(notebook):
     delete_button = ttk.Button(missing_tab, text="Delete Selected", command=delete_contact)
     delete_button.pack(pady=5)
 
-    return missing_tab, populate_tree  # Return both the tab and the populate function
+    return missing_tab, populate_tree
 
 def create_clinics_tab(notebook):
     clinics_tab = ttk.Frame(notebook)
     notebook.add(clinics_tab, text="Clinics")
 
-    # Label
+    # Existing title label
     label = ttk.Label(clinics_tab, text="Clinics Database", font=("Calibri", 16, "bold"))
     label.pack(pady=5)
+
+    # Add description label with information symbol
+    description_label = ttk.Label(clinics_tab, text="\u2139 Description text for Clinics.", font=("Calibri", 12))
+    description_label.pack(pady=5)
 
     # Create Treeview
     tree = ttk.Treeview(clinics_tab, columns=('Clinic Name', 'Sell To Number'), show='headings')
@@ -1454,9 +1312,13 @@ def create_clinicians_tab(notebook):
     clinicians_tab = ttk.Frame(notebook)
     notebook.add(clinicians_tab, text="Clinicians")
 
-    # Label
+    # Existing title label
     label = ttk.Label(clinicians_tab, text="Clinicians Database", font=("Calibri", 16, "bold"))
     label.pack(pady=5)
+
+    # Add description label with information symbol
+    description_label = ttk.Label(clinicians_tab, text="\u2139 Description text for Clinicians.", font=("Calibri", 12))
+    description_label.pack(pady=5)
 
     # Create Treeview
     tree = ttk.Treeview(clinicians_tab, columns=('Clinician Name', 'Prescriber Number'), show='headings')
