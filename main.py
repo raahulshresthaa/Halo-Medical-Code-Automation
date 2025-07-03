@@ -310,6 +310,22 @@ class PdfButtonHandler:
             return assistant_response
         except Exception as e:
             return f"Error: {str(e)}"
+        
+    def get_required_by_days(self, customer_no):
+        """Retrieve required_by_days from the release_times database based on Sell_to_Customer_No."""
+        try:
+            conn = sqlite3.connect(release_times_db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT required_by_days FROM release_times WHERE Sell_to_Customer_No = ?", (customer_no,))
+            result = cursor.fetchone()
+            conn.close()
+            if result:
+                return int(result[0])
+            else:
+                return 14  # Default to 14 days if no record is found
+        except Exception as e:
+            print(f"Error retrieving required_by_days: {e}")
+            return 14  # Default to 14 days on error
 
     def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code, pre_app_date):
         try:
@@ -416,8 +432,10 @@ class PdfButtonHandler:
                 add_missing_contact('clinician', clinician)
                 return
 
+            # Calculate request_delivery_date dynamically
             today = datetime.date.today()
-            request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
+            required_by_days = self.get_required_by_days(customer_no)
+            request_delivery_date = (today + datetime.timedelta(days=required_by_days)).strftime('%Y-%m-%d')
 
             # Pass order_category_code and pre_app_date to attempt_nav_upload
             success, sales_order_no, messages = attempt_nav_upload(
