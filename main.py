@@ -1055,7 +1055,7 @@ def create_required_by_data_tab(notebook):
     title_label.pack(pady=5)
 
     # Description label with information symbol
-    description_label = ttk.Label(required_by_tab, text="\u2139 Description text for Required By Data.", font=("Calibri", 12))
+    description_label = ttk.Label(required_by_tab, text="\u2139 You can change the reqired by date for different clinics here.", font=("Calibri", 12))
     description_label.pack(pady=5)
 
     tree = ttk.Treeview(required_by_tab, columns=('Sell_to_Customer_No', 'default_name', 'required_by_days'), show='headings')
@@ -1151,7 +1151,7 @@ def create_missing_contacts_tab(notebook):
     label.pack(pady=5)
 
     # Add description label with information symbol
-    description_label = ttk.Label(missing_tab, text="\u2139 Description text for Missing Contacts.", font=("Calibri", 12))
+    description_label = ttk.Label(missing_tab, text="\u2139 Unrecognised Clinics or Clinicians appear here, where you can edit and update the Contact number.", font=("Calibri", 12))
     description_label.pack(pady=5)
 
     # Define a custom style for the Treeview with larger font and increased row height
@@ -1271,7 +1271,7 @@ def create_clinics_tab(notebook):
     label.pack(pady=5)
 
     # Add description label with information symbol
-    description_label = ttk.Label(clinics_tab, text="\u2139 Description text for Clinics.", font=("Calibri", 12))
+    description_label = ttk.Label(clinics_tab, text="\u2139 This is the Clinics database, the clinic names come from Docuware. You can edit the Clinic Number here.", font=("Calibri", 12))
     description_label.pack(pady=5)
 
     # Create Treeview
@@ -1335,7 +1335,7 @@ def create_clinicians_tab(notebook):
     label.pack(pady=5)
 
     # Add description label with information symbol
-    description_label = ttk.Label(clinicians_tab, text="\u2139 Description text for Clinicians.", font=("Calibri", 12))
+    description_label = ttk.Label(clinicians_tab, text="\u2139 This is the Clinicians database, the clinic names come from Docuware. You can edit the Customer Number here.", font=("Calibri", 12))
     description_label.pack(pady=5)
 
     # Create Treeview
