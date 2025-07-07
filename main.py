@@ -1924,11 +1924,10 @@ ensure_customers_table()
 
 # Create tabs
 missing_tab, populate_tree = create_missing_contacts_tab(notebook)
-analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
-
 clinics_tab, populate_clinics_tree = create_clinics_tab(notebook)
 clinicians_tab, populate_clinicians_tree = create_clinicians_tab(notebook)
 required_by_tab, populate_required_by_tree = create_required_by_data_tab(notebook)
+analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 
 # Start watching the Downloads folder in the background
 watch_downloads_folder()
