@@ -21,3 +21,9 @@ nav_username.txt
 get.py
 test.py
 test_clinic_release_times.py
+create_clinic_release_times.py
+pulldata.py
+pullSalesOrderData.py
+create_clinic_database.py
+createNewDatabase.py
+database_query_test.py

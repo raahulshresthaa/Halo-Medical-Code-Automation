@@ -1045,7 +1045,7 @@ class EntryDialog(Toplevel):
     def on_cancel(self):
         self.result = None
         self.destroy()
-
+"""
 def create_required_by_data_tab(notebook):
     required_by_tab = ttk.Frame(notebook)
     notebook.add(required_by_tab, text="Required By Data")
@@ -1141,7 +1141,7 @@ def create_required_by_data_tab(notebook):
     delete_button.pack(side='left', padx=5)
 
     return required_by_tab, populate_tree
-
+"""
 def create_missing_contacts_tab(notebook):
     missing_tab = ttk.Frame(notebook)
     notebook.add(missing_tab, text="Missing Contacts")
@@ -1914,8 +1914,8 @@ def on_tab_selected(event):
         populate_clinics_tree()
     elif selected_tab_text == "Clinicians":
         populate_clinicians_tree()
-    elif selected_tab_text == "Required By Data":
-        populate_required_by_tree()
+#    elif selected_tab_text == "Required By Data":
+#        populate_required_by_tree()
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 
@@ -1926,7 +1926,7 @@ ensure_customers_table()
 missing_tab, populate_tree = create_missing_contacts_tab(notebook)
 clinics_tab, populate_clinics_tree = create_clinics_tab(notebook)
 clinicians_tab, populate_clinicians_tree = create_clinicians_tab(notebook)
-required_by_tab, populate_required_by_tree = create_required_by_data_tab(notebook)
+# required_by_tab, populate_required_by_tree = create_required_by_data_tab(notebook)
 analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 
 # Start watching the Downloads folder in the background
