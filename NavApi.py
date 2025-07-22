@@ -194,7 +194,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         }
         if pre_app_date:
             print(f"Pre App Date (Formatted): {pre_app_date}")
-            order_data["Pre-appointed_Date"] = pre_app_date
+            order_data["Pre_appointed_Date"] = pre_app_date
 
         post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
         
