@@ -338,128 +338,135 @@ class PdfButtonHandler:
             return 14  # Default to 14 days on error
 
     def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code, pre_app_date):
-        try:
-            price_codes = self.get_price_codes_from_content(content, logic_content)
-            print(f"Price codes received: {price_codes}")
+            try:
+                price_codes = self.get_price_codes_from_content(content, logic_content)
+                print(f"Price codes received: {price_codes}")
 
-            # Extract codes from the last occurrence of "**Final Codes:**"
-            sections = price_codes.split('**Final Codes:**')
-            if len(sections) > 1:
-                last_section = sections[-1].strip()
-                lines = last_section.split('\n')
-                final_codes = []
-                for line in lines:
-                    stripped = line.strip()
-                    if stripped and not all(c == '-' for c in stripped):
-                        final_codes.append(stripped)
-                    else:
-                        break  # Stop at separator line
-            else:
-                final_codes = []
-                print("No final codes found in the response.")
-                self.root.after(0, lambda: self.append_to_result_text("No final codes found in the response.", 'error'))
+                # Extract codes from the last occurrence of "**Final Codes:**"
+                sections = price_codes.split('**Final Codes:**')
+                if len(sections) > 1:
+                    last_section = sections[-1].strip()
+                    lines = last_section.split('\n')
+                    final_codes = []
+                    for line in lines:
+                        stripped = line.strip()
+                        if stripped and not all(c == '-' for c in stripped):
+                            final_codes.append(stripped)
+                        else:
+                            break  # Stop at separator line
+                else:
+                    final_codes = []
+                    print("No final codes found in the response.")
+                    self.root.after(0, lambda: self.append_to_result_text("No final codes found in the response.", 'error'))
 
-            model_id = self.model_id_var.get()
-            form_type_for_filename = get_form_type_from_model_id(model_id)
+                model_id = self.model_id_var.get()
+                form_type_for_filename = get_form_type_from_model_id(model_id)
 
-            current_datetime = datetime.datetime.now()
-            formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+                current_datetime = datetime.datetime.now()
+                formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-            if model_id == MODEL_IDS['Insoles']:
-                query_message = self.check_for_base(content)
-            else:
-                query_message = None
+                if model_id == MODEL_IDS['Insoles']:
+                    query_message = self.check_for_base(content)
+                else:
+                    query_message = None
 
-            messages = [query_message] if query_message else []
-            combined_messages = '\n'.join(messages) if messages else None
+                messages = [query_message] if query_message else []
+                combined_messages = '\n'.join(messages) if messages else None
 
-            self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes, combined_messages)
+                self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes, combined_messages)
 
-            log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
+                log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
 
-            if AutoDocRef == 'N/A':
-                message = "No AutoDocRef found in the extracted data. Please kick to query."
-                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                if log_file_path:
-                    with open(log_file_path, 'a', encoding='utf-8') as f:
-                        f.write(f"\n[ERROR] {message}\n")
-                self.root.after(0, messagebox.showinfo, "AutoDocRef Not Found", message)
-                return
+                if AutoDocRef == 'N/A':
+                    message = "No AutoDocRef found in the extracted data. Please kick to query."
+                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                    if log_file_path:
+                        with open(log_file_path, 'a', encoding='utf-8') as f:
+                            f.write(f"\n[ERROR] {message}\n")
+                    self.root.after(0, messagebox.showinfo, "AutoDocRef Not Found", message)
+                    return
 
-            clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
-            clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
+                clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
+                clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
 
-            if not clinician:
-                message = "Clinician field not found in the extracted data."
-                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                if log_file_path:
-                    with open(log_file_path, 'a', encoding='utf-8') as f:
-                        f.write(f"\n[ERROR] {message}\n")
-                self.root.after(0, messagebox.showinfo, "Clinician Not Found", message)
-                return
+                if not clinician:
+                    message = "Clinician field not found in the extracted data."
+                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                    if log_file_path:
+                        with open(log_file_path, 'a', encoding='utf-8') as f:
+                            f.write(f"\n[ERROR] {message}\n")
+                    self.root.after(0, messagebox.showinfo, "Clinician Not Found", message)
+                    return
 
-            db_path = customers_db_path
-            if not os.path.exists(db_path):
-                error_msg = f"Error: Customers database file not found at {db_path}"
-                print(error_msg)
-                raise FileNotFoundError(error_msg)
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            print(f"Querying for clinic: '{clinic}'")
-            cursor.execute("SELECT Sell_to_Customer_No FROM customers WHERE TRIM(LOWER(Docuware_Clinic_Name)) = TRIM(LOWER(?))", (clinic,))
-            clinic_result = cursor.fetchone()
-            conn.close()
+                db_path = customers_db_path
+                if not os.path.exists(db_path):
+                    error_msg = f"Error: Customers database file not found at {db_path}"
+                    print(error_msg)
+                    raise FileNotFoundError(error_msg)
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                print(f"Querying for clinic: '{clinic}'")
+                cursor.execute("SELECT Sell_to_Customer_No FROM customers WHERE TRIM(LOWER(Docuware_Clinic_Name)) = TRIM(LOWER(?))", (clinic,))
+                clinic_result = cursor.fetchone()
+                conn.close()
 
-            customer_no = clinic_result[0] if clinic_result else None
-            if not customer_no:
-                message = f"Customer not found for clinic: {clinic}"
-                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                if log_file_path:
-                    with open(log_file_path, 'a', encoding='utf-8') as f:
-                        f.write(f"\n[ERROR] {message}\n")
-                self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
-                add_missing_contact('clinic', clinic)
-                return
+                customer_no = clinic_result[0] if clinic_result else None
+                if not customer_no:
+                    message = f"Customer not found for clinic: {clinic}"
+                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                    if log_file_path:
+                        with open(log_file_path, 'a', encoding='utf-8') as f:
+                            f.write(f"\n[ERROR] {message}\n")
+                    self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
+                    add_missing_contact('clinic', clinic)
+                    return
 
-            if not os.path.exists(clinician_db_path):
-                error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
-                print(error_msg)
-                raise FileNotFoundError(error_msg)
-            conn = sqlite3.connect(clinician_db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
-            clinician_result = cursor.fetchone()
-            conn.close()
+                if not os.path.exists(clinician_db_path):
+                    error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
+                    print(error_msg)
+                    raise FileNotFoundError(error_msg)
+                conn = sqlite3.connect(clinician_db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
+                clinician_result = cursor.fetchone()
+                conn.close()
 
-            prescriber = clinician_result[0] if clinician_result else None
-            if not prescriber:
-                message = f"Prescriber not found for clinician: {clinician}"
-                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                if log_file_path:
-                    with open(log_file_path, 'a', encoding='utf-8') as f:
-                        f.write(f"\n[ERROR] {message}\n")
-                self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
-                add_missing_contact('clinician', clinician)
-                return
+                prescriber = clinician_result[0] if clinician_result else None
+                if not prescriber:
+                    message = f"Prescriber not found for clinician: {clinician}"
+                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                    if log_file_path:
+                        with open(log_file_path, 'a', encoding='utf-8') as f:
+                            f.write(f"\n[ERROR] {message}\n")
+                    self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
+                    add_missing_contact('clinician', clinician)
+                    return
 
-            # Calculate request_delivery_date dynamically
-            today = datetime.date.today()
-            required_by_days = self.get_required_by_days(customer_no)
-            request_delivery_date = (today + datetime.timedelta(days=required_by_days)).strftime('%Y-%m-%d')
+                # Calculate request_delivery_date dynamically
+                pre_app_dt = None
+                if pre_app_date:
+                    pre_app_dt = datetime.datetime.strptime(pre_app_date, '%Y-%m-%d').date()
+                if pre_app_dt:
+                    delivery_dt = pre_app_dt - datetime.timedelta(days=3)
+                else:
+                    creation_dt = datetime.datetime.strptime(creation_date, '%Y-%m-%d').date()
+                    required_by_days = self.get_required_by_days(customer_no, model_id)
+                    delivery_dt = creation_dt + datetime.timedelta(days=required_by_days)
+                request_delivery_date = delivery_dt.strftime('%Y-%m-%d')
 
-            # Pass order_category_code and pre_app_date to attempt_nav_upload
-            success, sales_order_no, messages = attempt_nav_upload(
-                customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
-                form_type_for_filename, log_file_path, final_codes, patient_name, gender_full, pre_app_date
-            )
-            for text, tag in messages:
-                self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
+                # Pass order_category_code and pre_app_date to attempt_nav_upload
+                success, sales_order_no, messages = attempt_nav_upload(
+                    customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
+                    form_type_for_filename, log_file_path, final_codes, patient_name, gender_full, pre_app_date
+                )
+                for text, tag in messages:
+                    self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
 
-        except Exception as e:
-            self.root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
-        finally:
-            self.root.after(0, self.close_loading_popup)
-            self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+            except Exception as e:
+                self.root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
+            finally:
+                self.root.after(0, self.close_loading_popup)
+                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
     def append_to_result_text(self, message, tag='success'):
         self.result_text.config(state=tk.NORMAL)
