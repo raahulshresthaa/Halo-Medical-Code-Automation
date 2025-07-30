@@ -1914,8 +1914,8 @@ def on_tab_selected(event):
         populate_clinics_tree()
     elif selected_tab_text == "Clinicians":
         populate_clinicians_tree()
-#    elif selected_tab_text == "Required By Data":
-#        populate_required_by_tree()
+    elif selected_tab_text == "Required By Data":
+        populate_required_by_tree()
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 
