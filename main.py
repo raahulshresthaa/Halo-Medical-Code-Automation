@@ -311,18 +311,28 @@ class PdfButtonHandler:
         except Exception as e:
             return f"Error: {str(e)}"
         
-    def get_required_by_days(self, customer_no):
-        """Retrieve required_by_days from the release_times database based on Sell_to_Customer_No."""
+    def get_required_by_days(self, customer_no, model_id):
+        """Retrieve the appropriate required_by_days from the release_times database based on Sell_to_Customer_No and model_id."""
         try:
+            if model_id == MODEL_IDS['Insoles']:
+                column = 'Insoles_required_by'
+                default_days = 14
+            elif model_id in (MODEL_IDS['Bespoke'], MODEL_IDS['Modular']):
+                column = 'footware_required_by'
+                default_days = 28
+            else:  # AFOs, A&R, Kafo
+                column = 'Adaptions_required_by'
+                default_days = 14
+
             conn = sqlite3.connect(release_times_db_path)
             cursor = conn.cursor()
-            cursor.execute("SELECT required_by_days FROM release_times WHERE Sell_to_Customer_No = ?", (customer_no,))
+            cursor.execute(f"SELECT {column} FROM release_times WHERE Sell_to_Customer_No = ?", (customer_no,))
             result = cursor.fetchone()
             conn.close()
             if result:
                 return int(result[0])
             else:
-                return 14  # Default to 14 days if no record is found
+                return default_days  # Default based on column if no record is found
         except Exception as e:
             print(f"Error retrieving required_by_days: {e}")
             return 14  # Default to 14 days on error
@@ -1000,15 +1010,27 @@ class EntryDialog(Toplevel):
         self.default_name_label.grid(row=1, column=0, sticky='e', padx=5, pady=5)
         self.default_name_entry.grid(row=1, column=1, padx=5, pady=5)
 
-        self.required_by_days_label = ttk.Label(form_frame, text="Required By Days:")
-        self.required_by_days_entry = ttk.Entry(form_frame)
-        self.required_by_days_label.grid(row=2, column=0, sticky='e', padx=5, pady=5)
-        self.required_by_days_entry.grid(row=2, column=1, padx=5, pady=5)
+        self.insoles_required_by_label = ttk.Label(form_frame, text="Insoles Required By:")
+        self.insoles_required_by_entry = ttk.Entry(form_frame)
+        self.insoles_required_by_label.grid(row=2, column=0, sticky='e', padx=5, pady=5)
+        self.insoles_required_by_entry.grid(row=2, column=1, padx=5, pady=5)
+
+        self.footware_required_by_label = ttk.Label(form_frame, text="Footware Required By:")
+        self.footware_required_by_entry = ttk.Entry(form_frame)
+        self.footware_required_by_label.grid(row=3, column=0, sticky='e', padx=5, pady=5)
+        self.footware_required_by_entry.grid(row=3, column=1, padx=5, pady=5)
+
+        self.adaptions_required_by_label = ttk.Label(form_frame, text="Adaptions Required By:")
+        self.adaptions_required_by_entry = ttk.Entry(form_frame)
+        self.adaptions_required_by_label.grid(row=4, column=0, sticky='e', padx=5, pady=5)
+        self.adaptions_required_by_entry.grid(row=4, column=1, padx=5, pady=5)
 
         if initial_values:
             self.customer_no_entry.insert(0, initial_values[0])
             self.default_name_entry.insert(0, initial_values[1])
-            self.required_by_days_entry.insert(0, initial_values[2])
+            self.insoles_required_by_entry.insert(0, initial_values[2])
+            self.footware_required_by_entry.insert(0, initial_values[3])
+            self.adaptions_required_by_entry.insert(0, initial_values[4])
 
         # Button frame
         button_frame = ttk.Frame(self)
@@ -1038,6 +1060,20 @@ class EntryDialog(Toplevel):
         self.result = (
             self.customer_no_entry.get(),
             self.default_name_entry.get(),
+            self.insoles_required_by_entry.get(),
+            self.footware_required_by_entry.get(),
+            self.adaptions_required_by_entry.get()
+        )
+        self.destroy()
+
+    def on_cancel(self):
+        self.result = None
+        self.destroy()
+
+    def on_ok(self):
+        self.result = (
+            self.customer_no_entry.get(),
+            self.default_name_entry.get(),
             self.required_by_days_entry.get()
         )
         self.destroy()
@@ -1058,13 +1094,17 @@ def create_required_by_data_tab(notebook):
     description_label = ttk.Label(required_by_tab, text="\u2139 You can change the reqired by date for different clinics here.", font=("Calibri", 12))
     description_label.pack(pady=5)
 
-    tree = ttk.Treeview(required_by_tab, columns=('Sell_to_Customer_No', 'default_name', 'required_by_days'), show='headings')
+    tree = ttk.Treeview(required_by_tab, columns=('Sell_to_Customer_No', 'default_name', 'Insoles_required_by', 'footware_required_by', 'Adaptions_required_by'), show='headings')
     tree.heading('Sell_to_Customer_No', text='Sell to Customer No')
     tree.heading('default_name', text='Default Name')
-    tree.heading('required_by_days', text='Required By Days')
+    tree.heading('Insoles_required_by', text='Insoles Required By')
+    tree.heading('footware_required_by', text='Footware Required By')
+    tree.heading('Adaptions_required_by', text='Adaptions Required By')
     tree.column('Sell_to_Customer_No', width=150, anchor='center')
-    tree.column('default_name', width=300, anchor='w')
-    tree.column('required_by_days', width=100, anchor='center')
+    tree.column('default_name', width=200, anchor='w')
+    tree.column('Insoles_required_by', width=100, anchor='center')
+    tree.column('footware_required_by', width=100, anchor='center')
+    tree.column('Adaptions_required_by', width=100, anchor='center')
     tree.pack(fill='both', expand=True)
 
     def populate_tree():
@@ -1072,7 +1112,7 @@ def create_required_by_data_tab(notebook):
             tree.delete(item)
         conn = sqlite3.connect(release_times_db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT Sell_to_Customer_No, default_name, required_by_days FROM release_times")
+        cursor.execute("SELECT Sell_to_Customer_No, default_name, Insoles_required_by, footware_required_by, Adaptions_required_by FROM release_times")
         rows = cursor.fetchall()
         for row in rows:
             tree.insert('', 'end', values=row)
@@ -1088,7 +1128,7 @@ def create_required_by_data_tab(notebook):
             conn = sqlite3.connect(release_times_db_path)
             cursor = conn.cursor()
             try:
-                cursor.execute("INSERT INTO release_times (Sell_to_Customer_No, default_name, required_by_days) VALUES (?, ?, ?)", dialog.result)
+                cursor.execute("INSERT INTO release_times (Sell_to_Customer_No, default_name, Insoles_required_by, footware_required_by, Adaptions_required_by) VALUES (?, ?, ?, ?, ?)", dialog.result)
                 conn.commit()
             except sqlite3.IntegrityError:
                 messagebox.showerror("Error", "Duplicate Sell to Customer No.")
@@ -1107,7 +1147,7 @@ def create_required_by_data_tab(notebook):
         if dialog.result:
             conn = sqlite3.connect(release_times_db_path)
             cursor = conn.cursor()
-            cursor.execute("UPDATE release_times SET default_name = ?, required_by_days = ? WHERE Sell_to_Customer_No = ?", (dialog.result[1], dialog.result[2], dialog.result[0]))
+            cursor.execute("UPDATE release_times SET default_name = ?, Insoles_required_by = ?, footware_required_by = ?, Adaptions_required_by = ? WHERE Sell_to_Customer_No = ?", (dialog.result[1], dialog.result[2], dialog.result[3], dialog.result[4], dialog.result[0]))
             conn.commit()
             conn.close()
             populate_tree()
@@ -1914,8 +1954,8 @@ def on_tab_selected(event):
         populate_clinics_tree()
     elif selected_tab_text == "Clinicians":
         populate_clinicians_tree()
-    elif selected_tab_text == "Required By Data":
-        populate_required_by_tree()
+#    elif selected_tab_text == "Required By Data":
+#        populate_required_by_tree()
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 
