@@ -1001,54 +1001,43 @@ class EntryDialog(Toplevel):
         self.transient(parent)
         self.title(title)
         self.result = None
-
         # Create a frame for the form
         form_frame = ttk.Frame(self)
         form_frame.pack(padx=10, pady=10)
-
         # Labels and entries using grid
         self.customer_no_label = ttk.Label(form_frame, text="Sell to Customer No:")
         self.customer_no_entry = ttk.Entry(form_frame)
         self.customer_no_label.grid(row=0, column=0, sticky='e', padx=5, pady=5)
         self.customer_no_entry.grid(row=0, column=1, padx=5, pady=5)
-
         self.default_name_label = ttk.Label(form_frame, text="Default Name:")
         self.default_name_entry = ttk.Entry(form_frame)
         self.default_name_label.grid(row=1, column=0, sticky='e', padx=5, pady=5)
         self.default_name_entry.grid(row=1, column=1, padx=5, pady=5)
-
         self.insoles_required_by_label = ttk.Label(form_frame, text="Insoles Required By:")
         self.insoles_required_by_entry = ttk.Entry(form_frame)
         self.insoles_required_by_label.grid(row=2, column=0, sticky='e', padx=5, pady=5)
         self.insoles_required_by_entry.grid(row=2, column=1, padx=5, pady=5)
-
         self.footware_required_by_label = ttk.Label(form_frame, text="Footware Required By:")
         self.footware_required_by_entry = ttk.Entry(form_frame)
         self.footware_required_by_label.grid(row=3, column=0, sticky='e', padx=5, pady=5)
         self.footware_required_by_entry.grid(row=3, column=1, padx=5, pady=5)
-
         self.adaptions_required_by_label = ttk.Label(form_frame, text="Adaptions Required By:")
         self.adaptions_required_by_entry = ttk.Entry(form_frame)
         self.adaptions_required_by_label.grid(row=4, column=0, sticky='e', padx=5, pady=5)
         self.adaptions_required_by_entry.grid(row=4, column=1, padx=5, pady=5)
-
         if initial_values:
             self.customer_no_entry.insert(0, initial_values[0])
             self.default_name_entry.insert(0, initial_values[1])
             self.insoles_required_by_entry.insert(0, initial_values[2])
             self.footware_required_by_entry.insert(0, initial_values[3])
             self.adaptions_required_by_entry.insert(0, initial_values[4])
-
         # Button frame
         button_frame = ttk.Frame(self)
         button_frame.pack(side='bottom', fill='x', padx=10, pady=10)
-
         self.ok_button = ttk.Button(button_frame, text="OK", command=self.on_ok)
         self.ok_button.pack(side='left')
-
         self.cancel_button = ttk.Button(button_frame, text="Cancel", command=self.on_cancel)
         self.cancel_button.pack(side='right')
-
         # Center the dialog
         self.update_idletasks()
         screen_width = self.winfo_screenwidth()
@@ -1058,11 +1047,9 @@ class EntryDialog(Toplevel):
         x = (screen_width - dialog_width) // 2
         y = (screen_height - dialog_height) // 2
         self.geometry(f"+{x}+{y}")
-
         # Grab focus
         self.grab_set()
         self.focus_set()
-
     def on_ok(self):
         self.result = (
             self.customer_no_entry.get(),
@@ -1072,19 +1059,6 @@ class EntryDialog(Toplevel):
             self.adaptions_required_by_entry.get()
         )
         self.destroy()
-
-    def on_cancel(self):
-        self.result = None
-        self.destroy()
-
-    def on_ok(self):
-        self.result = (
-            self.customer_no_entry.get(),
-            self.default_name_entry.get(),
-            self.required_by_days_entry.get()
-        )
-        self.destroy()
-
     def on_cancel(self):
         self.result = None
         self.destroy()
