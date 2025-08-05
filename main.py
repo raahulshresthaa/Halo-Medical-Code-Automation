@@ -1075,7 +1075,11 @@ def create_required_by_data_tab(notebook):
     description_label = ttk.Label(required_by_tab, text="\u2139 You can change the reqired by date for different clinics here.", font=("Calibri", 12))
     description_label.pack(pady=5)
 
-    tree = ttk.Treeview(required_by_tab, columns=('Sell_to_Customer_No', 'default_name', 'Insoles_required_by', 'footware_required_by', 'Adaptions_required_by'), show='headings')
+    # Frame for Treeview and scrollbars
+    tree_frame = ttk.Frame(required_by_tab)
+    tree_frame.pack(fill='both', expand=True)
+
+    tree = ttk.Treeview(tree_frame, columns=('Sell_to_Customer_No', 'default_name', 'Insoles_required_by', 'footware_required_by', 'Adaptions_required_by'), show='headings')
     tree.heading('Sell_to_Customer_No', text='Sell to Customer No')
     tree.heading('default_name', text='Default Name')
     tree.heading('Insoles_required_by', text='Insoles Required By')
@@ -1086,7 +1090,18 @@ def create_required_by_data_tab(notebook):
     tree.column('Insoles_required_by', width=100, anchor='center')
     tree.column('footware_required_by', width=100, anchor='center')
     tree.column('Adaptions_required_by', width=100, anchor='center')
-    tree.pack(fill='both', expand=True)
+
+    # Scrollbars
+    vertical_scrollbar = ttk.Scrollbar(tree_frame, orient='vertical', command=tree.yview)
+    horizontal_scrollbar = ttk.Scrollbar(tree_frame, orient='horizontal', command=tree.xview)
+    tree.configure(yscrollcommand=vertical_scrollbar.set, xscrollcommand=horizontal_scrollbar.set)
+
+    # Grid layout for Treeview and scrollbars
+    tree.grid(row=0, column=0, sticky='nsew')
+    vertical_scrollbar.grid(row=0, column=1, sticky='ns')
+    horizontal_scrollbar.grid(row=1, column=0, sticky='ew')
+    tree_frame.grid_rowconfigure(0, weight=1)
+    tree_frame.grid_columnconfigure(0, weight=1)
 
     def populate_tree():
         for item in tree.get_children():
@@ -1100,6 +1115,9 @@ def create_required_by_data_tab(notebook):
         conn.close()
 
     populate_tree()
+
+    # Bind double-click to edit
+    tree.bind('<Double-1>', lambda event: edit_entry())
 
     # Define functions before creating buttons
     def add_entry():
@@ -1935,8 +1953,8 @@ def on_tab_selected(event):
         populate_clinics_tree()
     elif selected_tab_text == "Clinicians":
         populate_clinicians_tree()
-#    elif selected_tab_text == "Required By Data":
-#        populate_required_by_tree()
+    elif selected_tab_text == "Required By Data":
+        populate_required_by_tree()
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 
