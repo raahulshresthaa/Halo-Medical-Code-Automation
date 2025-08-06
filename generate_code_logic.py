@@ -3,18 +3,51 @@ import math
 from collections import defaultdict
 from tkinter import messagebox
 import re
+import sqlite3
+import os
+
+# Define the tariff customer number sets outside the functions
+tariff_tci_customer_nos = {
+    'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02090',
+    'GB-CUST02295', 'GB-CUST02554', 'GB-CUST02583'
+}
+tariff_simple_customer_nos = {
+    'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02090',
+    'GB-CUST02295', 'GB-CUST02496', 'GB-CUST02554', 'GB-CUST02583'
+}
+tariff_polyprop_customer_nos = {
+    'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02090',
+    'GB-CUST02295', 'GB-CUST02554', 'GB-CUST02583'
+}
+tariff_bespoke_customer_nos = {
+    'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554'
+}
+tariff_afo_customer_nos = {
+    'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554'
+}
+tariff_modular_customer_nos = {
+    'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554'
+}
+
+# Database path
+db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'clinic_nav_sell_to.db')
+
+def get_customer_no(clinic_name):
+    """Retrieve the Sell_to_Customer_No for a given clinic name."""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT Sell_to_Customer_No FROM customers WHERE LOWER(Docuware_Clinic_Name) = LOWER(?)", (clinic_name,))
+        row = cursor.fetchone()
+        conn.close()
+        return row[0] if row else None
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return None
 
 def generate_bespoke_codes(self, content):
     """Generates codes based on the content for the Bespoke model, counting duplicates."""
     passed_codes = defaultdict(float)  # Use float to allow fractional counts
-
-    # Define lists of clinics for each insole tariff code (edit these lists as needed)
-    tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough', 'w. suffolk', 'west suffolk hospital', 'oxted', 'peterborough city hostital', 'peteborough']
-    tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough', 'w. suffolk', 'west suffolk hospital', 'oxted', 'peterborough city hostital', 'peteborough']
-    tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch', 'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough', 'w. suffolk', 'west suffolk hospital', 'oxted', 'peterborough city hostital', 'peteborough']
-
-    # Define list of clinics for Tariff Bespoke
-    tariff_bespoke_clinics = ['bury cdc', 'east surrey', 'sudbury', 'w.s.h', 'ws', 'wsh', 'w. suffolk', 'west suffolk hospital']
 
     # Split the content into lines for easier processing
     lines = content.split('\n')
@@ -27,6 +60,7 @@ def generate_bespoke_codes(self, content):
             content_dict[key.strip().lower()] = value.strip().lower()
 
     clinic_name = content_dict.get('clinic', '').lower()
+    customer_no = get_customer_no(clinic_name)
 
     # Check if it's a pair
     is_pair = content_dict.get('pair', '') == 'selected' or content_dict.get('insole pair', '') == 'selected'
@@ -57,22 +91,22 @@ def generate_bespoke_codes(self, content):
         insole_tariff_added = True
 
     # Bespoke Tariff Check
-    if clinic_name in tariff_bespoke_clinics:
+    if customer_no in tariff_bespoke_customer_nos:
         passed_codes['TARIFF BESPOKE'] += 1
         bespoke_tariff_added = True
 
-    # Insole Tariff Checks - Updated to consider both insole_type and clinic
-    if insole_type in ('tci', 'cradle') and clinic_name in tariff_tci_clinics:
+    # Insole Tariff Checks - Updated to consider both insole_type and customer_no
+    if insole_type in ('tci', 'cradle') and customer_no in tariff_tci_customer_nos:
         passed_codes['TARIFF TCI\'S'] += 1
         if is_pair:
             passed_codes['TARIFF TCI\'S'] *= 2
         insole_tariff_added = True
-    elif insole_type == 'simple' and clinic_name in tariff_simple_clinics:
+    elif insole_type == 'simple' and customer_no in tariff_simple_customer_nos:
         passed_codes['TARIFF SIMPLE INSOLE'] += 1
         if is_pair:
             passed_codes['TARIFF SIMPLE INSOLE'] *= 2
         insole_tariff_added = True
-    elif insole_type == 'handmould' and clinic_name in tariff_polyprop_clinics:
+    elif insole_type == 'handmould' and customer_no in tariff_polyprop_customer_nos:
         passed_codes['TARIFF POLYPROPS'] += 1
         if is_pair:
             passed_codes['TARIFF POLYPROPS'] *= 2
@@ -466,369 +500,421 @@ def generate_bespoke_codes(self, content):
 
     if content_dict.get('base poron', '') == 'selected':
         passed_codes['B40B'] += 1
-
     if content_dict.get('base carbon fibre', '') == 'selected':
         passed_codes['B54A'] += 1
 
-    # Pair Handling for normal codes (excluding 'A6')
-    if content_dict.get('insole pair', '') == 'selected':
-        codes_to_double_general = [
-            'A1K', 'A18A', 'TWIST FASTEN'  # 'A6' excluded to avoid doubling
-        ]
-        for code in codes_to_double_general:
-            if code in passed_codes:
-                passed_codes[code] *= 2
+    foot_modifications = [
+        'cut out and additions', '1st met head', '1st met ray', '5th met ray',
+        'navicular sweet spot', 'fascial accommodation', 'heel flange'
+    ]
+    for side in ['left', 'right']:
+        for mod in foot_modifications:
+            key = f"{side} {mod}"
+            if content_dict.get(key, '') == 'selected':
+                passed_codes['BNS45'] += 1
 
-    if content_dict.get('insole pair', '') == 'selected':
-        codes_to_double_insole = [
-            'A10', 'B54C', 'B40B', 'B54A',
-            'A44A', 'A44B', 'A44C', 'B55A', 'B55B', 'B55C', 'B54B'
-        ]
-        for code in codes_to_double_insole:
-            if code in passed_codes:
-                passed_codes[code] *= 2
-
-    # If it's a pair, double MEDBNS71 or MEDBNS72 if present, but not MEDFOOTWEAR
-    if is_pair:
-        if 'MEDBNS71' in passed_codes:
-            passed_codes['MEDBNS71'] *= 2
-        if 'MEDBNS72' in passed_codes:
-            passed_codes['MEDBNS72'] *= 2
-        # Do not double MEDFOOTWEAR
-
-    # --- Final Filtering Step ---
-    insole_filter_codes = {
-        'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
-        'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
-        'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41'
+    addition_positions = [
+        'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
+        'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition'
+    ]
+    addition_code_mapping = {
+        'A45_B41': {'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
+                    'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'},
+        'A45_B56': {"morton's extension", "reverse morton's extension", 'poron forefoot'},
+        'A45_B43': {'kinetic wedge', 'heel raise'},
+        'D8A': {'neurological footplate'},
+        'BNS45': {'recess', 'hole & plug'},
+        'A20_B20': {'rigid 1st extension'},
+        'A46_B50': {'partial toe block'},
+        'A47_B51': {'full toe block'}
     }
+    for key in addition_positions:
+        addition_value = content_dict.get(key, '')
+        if addition_value:
+            if addition_value in addition_code_mapping['A45_B41']:
+                code = 'A45' if insole_type == 'cradle' else 'B41'
+                passed_codes[code] += 1
+            elif addition_value in addition_code_mapping['A45_B56']:
+                code = 'A45' if insole_type == 'cradle' else 'B56'
+                passed_codes[code] += 1
+            elif addition_value in addition_code_mapping['A45_B43']:
+                code = 'A45' if insole_type == 'cradle' else 'B43'
+                passed_codes[code] += 1
+            elif addition_value in addition_code_mapping['D8A']:
+                passed_codes['D8A'] += 1
+            elif addition_value in addition_code_mapping['BNS45']:
+                passed_codes['BNS45'] += 1
+            elif addition_value in addition_code_mapping['A20_B20']:
+                code = 'A20' if insole_type == 'cradle' else 'B20'
+                passed_codes[code] += 1
+            elif addition_value in addition_code_mapping['A46_B50']:
+                code = 'A46' if insole_type == 'cradle' else 'B50'
+                passed_codes[code] += 1
+            elif addition_value in addition_code_mapping['A47_B51']:
+                code = 'A47' if insole_type == 'cradle' else 'B51'
+                passed_codes[code] += 1
 
-    bespoke_filter_codes = {
-        'A1B', 'A1A', 'A1K', 'A22', 'A23', 'A24', 'A25',
-        'TWIST FASTEN', 'A18A', 'A6', 'A15', 'A16', 'A37A',
-        'A37B', 'A31', 'A19', 'A26', 'A8', 'A13A', 'A12A',
-        'A39', 'A38', 'A40', 'B54B'
-    }
+    posting_keys = [
+        'left medial rearfoot posting', 'left lateral rearfoot posting',
+        'right medial rearfoot posting', 'right lateral rearfoot posting',
+        'left medial forefoot posting', 'left lateral forefoot posting',
+        'right medial forefoot posting', 'right lateral forefoot posting'
+    ]
+    for key in posting_keys:
+        if content_dict.get(key, '') == 'selected':
+            code = 'A45' if insole_type == 'cradle' else 'B56'
+            passed_codes[code] += 1
 
-    # If insole tariff selected, remove insole_filter_codes
-    if insole_tariff_added:
-        for c in insole_filter_codes:
-            if c in passed_codes:
-                del passed_codes[c]
+    # Insole coding section - MATHS!
+    x = 1
+    print(f"Initial value: x = {x}")
 
-    # If bespoke tariff selected, remove bespoke_filter_codes
-    if bespoke_tariff_added:
-        for c in bespoke_filter_codes:
-            if c in passed_codes:
-                del passed_codes[c]
+    if insole_type == 'simple':
+        x -= 1
+        print(f"After insole_type 'simple' check: x = {x}")
+    if content_dict.get('insole top cover length', '') == 'not required':
+        x -= 1
+    if content_dict.get('lining to shell', '') == 'selected':
+        x += 1
+    if content_dict.get('lining to sulcus', '') == 'selected':
+        x += 1
+    if content_dict.get('lining full', '') == 'selected':
+        x += 1
 
-    # Format the passed codes with counts, handling both int and float
+    if content_dict.get('insole top cover material', '') == 'spenco (green)':
+        x += 1
+        print(f"After spenco check: x = {x}")
+
+    if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
+        x += 1
+        print(f"After base check: x = {x}")
+
+    if x >= 3:
+        passed_codes['B55C'] += 1
+        print(f"x >= 3, incrementing B55C: {passed_codes['B55C']}")
+    elif x == 2:
+        passed_codes['B55B'] += 1
+        print(f"x == 2, incrementing B55B: {passed_codes['B55B']}")
+    elif x == 1:
+        passed_codes['B55A'] += 1
+        print(f"x == 1, incrementing B55A: {passed_codes['B55A']}")
+
+    # CLCH Simple Logic
+    if clinic_name == 'clch' and insole_type == 'simple':
+        total_posts = (passed_codes['B41'] + passed_codes['B56'] +
+                       passed_codes['B43'] + passed_codes['BNS45'])
+
+        # Decide tariff
+        if total_posts <= 4:
+            chosen_tariff = 'TARIFF INSOLE>4 POST'
+        else:
+            chosen_tariff = 'TARIFF INSOLE<5 POST'
+
+        passed_codes[chosen_tariff] += 1
+
+        # Remove all non-tariff codes (all except chosen_tariff)
+        for code in list(passed_codes.keys()):
+            if code != chosen_tariff:
+                del passed_codes[code]
+
+        # Now handle pairs including chosen_tariff
+        if is_pair:
+            # Double the chosen tariff code if it's still present
+            if chosen_tariff in passed_codes:
+                passed_codes[chosen_tariff] *= 2
+    else:
+        # Normal pair handling if not CLCH simple
+        if is_pair:
+            codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B']
+            for code in codes_to_double_insole:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
+
+    # Format output
     formatted_passed_codes = []
     for code, count in passed_codes.items():
-        if count.is_integer() and count > 1:
-            formatted_passed_codes.append(f"{code} x{int(count)}")
-        elif count == 1.0:
-            formatted_passed_codes.append(code)
+        if count > 1:
+            formatted_passed_codes.append(f"{code} x{count}")
         else:
-            formatted_passed_codes.append(f"{code} x{count:.1f}")
+            formatted_passed_codes.append(code)
 
     if formatted_passed_codes:
-        return ', '.join(formatted_passed_codes)
+        return ', '.join(f"{code} x{count}" if count > 1 else code for code, count in passed_codes.items())
     else:
         return None
     
 def generate_insole_codes(self, content):
-        """Generates insole codes based on the content."""
+    """Generates insole codes based on the content."""
+    passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
-        from collections import defaultdict
-        passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
+    # Split the content into lines
+    lines = content.split('\n')
 
-        # Define lists of clinics for each insole tariff code (edit these lists as needed)
-        tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                            'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough', 'w. suffolk', 'west suffolk hospital', 'oxted', 'peterborough city hostital', 'peteborough']
-        tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough', 'w. suffolk', 'west suffolk hospital', 'oxted', 'peterborough city hostital', 'peteborough']
-        tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                                'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough', 'w. suffolk', 'west suffolk hospital', 'oxted', 'peterborough city hostital', 'peteborough']
+    # Convert lines to a dictionary
+    content_dict = {}
+    for line in lines:
+        if ':' in line:
+            key, value = line.split(':', 1)
+            content_dict[key.strip().lower()] = value.strip().lower()
 
-        # Split the content into lines
-        lines = content.split('\n')
+    clinic_name = content_dict.get('clinic', '').lower()
+    customer_no = get_customer_no(clinic_name)
 
-        # Convert lines to a dictionary
-        content_dict = {}
-        for line in lines:
-            if ':' in line:
-                key, value = line.split(':', 1)
-                content_dict[key.strip().lower()] = value.strip().lower()
+    # Check if it's a pair
+    is_pair = (content_dict.get('pair', '') == 'selected' or 
+               content_dict.get('insole pair', '') == 'selected')
 
-        clinic_name = content_dict.get('clinic', '').lower()
+    # Determine insole type early for medway logic
+    insole_type = None
+    if content_dict.get('insole type tci', '') == 'selected' or content_dict.get('cradle', '') == 'selected':
+        insole_type = 'tci'
+    elif content_dict.get('insole type simple', '') == 'selected':
+        insole_type = 'simple'
+    elif content_dict.get('insole type hand mould', '') == 'selected':
+        insole_type = 'handmould'
 
-        # Check if it's a pair
-        is_pair = (content_dict.get('pair', '') == 'selected' or 
-                content_dict.get('insole pair', '') == 'selected')
-
-        # Determine insole type early for medway logic
-        insole_type = None
-        if content_dict.get('insole type tci', '') == 'selected' or content_dict.get('cradle', '') == 'selected':
-            insole_type = 'tci'
-        elif content_dict.get('insole type simple', '') == 'selected':
-            insole_type = 'simple'
-        elif content_dict.get('insole type hand mould', '') == 'selected':
-            insole_type = 'handmould'
-
-        # --- Medway Tariff Logic ---
-        if clinic_name == 'medway':
-            if insole_type == 'simple':
-                passed_codes['MEDBNS71'] += 1
-                if is_pair:
-                    passed_codes['MEDBNS71'] *= 2
-                return 'MEDBNS71' if passed_codes['MEDBNS71'] == 1 else f'MEDBNS71 x{passed_codes["MEDBNS71"]}'
-            else:
-                passed_codes['MEDBNS72'] += 1
-                if is_pair:
-                    passed_codes['MEDBNS72'] *= 2
-                return 'MEDBNS72' if passed_codes['MEDBNS72'] == 1 else f'MEDBNS72 x{passed_codes["MEDBNS72"]}'
-
-        # Now unify the three tariff checks in a single block:
-        base = content_dict.get('base', '').strip().lower()
-
-        # Create a combined set of all tariff clinics
-        all_tariff_clinics = set(tariff_polyprop_clinics + tariff_simple_clinics + tariff_tci_clinics)
-
-        if clinic_name in all_tariff_clinics:
-            # 1) If the clinic allows polyprop & base == 'polypropylene'
-            if clinic_name in tariff_polyprop_clinics and base == 'polypropylene':
-                passed_codes['TARIFF POLYPROPS'] += 1
-                if is_pair:
-                    passed_codes['TARIFF POLYPROPS'] *= 2
-                return (
-                    'TARIFF POLYPROPS'
-                    if passed_codes['TARIFF POLYPROPS'] == 1
-                    else f"TARIFF POLYPROPS x{passed_codes['TARIFF POLYPROPS']}"
-                )
-
-            # 2) Else if the clinic allows "simple" & insole_type == 'simple'
-            elif clinic_name in tariff_simple_clinics and insole_type == 'simple':
-                passed_codes['TARIFF SIMPLE INSOLE'] += 1
-                if is_pair:
-                    passed_codes['TARIFF SIMPLE INSOLE'] *= 2
-                return (
-                    'TARIFF SIMPLE INSOLE'
-                    if passed_codes['TARIFF SIMPLE INSOLE'] == 1
-                    else f"TARIFF SIMPLE INSOLE x{passed_codes['TARIFF SIMPLE INSOLE']}"
-                )
-
-            # 3) Else if the clinic is in the TCI list
-            elif clinic_name in tariff_tci_clinics:
-                passed_codes['TARIFF TCI\'S'] += 1
-                if is_pair:
-                    passed_codes['TARIFF TCI\'S'] *= 2
-                return (
-                    'TARIFF TCI\'S'
-                    if passed_codes['TARIFF TCI\'S'] == 1
-                    else f"TARIFF TCI\'S x{passed_codes['TARIFF TCI\'S']}"
-                )
-
-        # If we get here, then the clinic isn't in any of those lists, or no conditions matched:
-        # Continue with your normal "base logic" here.
-        #
-        # (the rest of your normal logic follows...)
-
-        # Normal logic if no immediate tariff matched
-        from collections import defaultdict
-        passed_codes = defaultdict(int)
-
-        base = content_dict.get('base', '').strip().lower()
-        print(f"Base value: '{base}'")  # For debugging
-
-        if content_dict.get('base poron', '').lower() == 'selected':
-            passed_codes['B40B'] += 1
-
-        # 2) Otherwise, use the base logic
-        else:
-            normalized_base = base.replace(' ', '').lower()
-            shore_bases = {'40shore', '50shore', '65shore'}
-
-            # Base codes
-            if normalized_base == 'polypropylene':
-                passed_codes['B54B'] += 1
-            elif insole_type == 'simple' and normalized_base in shore_bases:
-                passed_codes['B40B'] += 1
-            elif normalized_base in ['carbonfibre', 'carbonfiber']:
-                passed_codes['B54A'] += 1
-            else:
-                # If none match, default to B54C
-                passed_codes['B54C'] += 1
-
-        # Foot modifications -> BNS45
-        foot_modifications = [
-            'cut out and additions', '1st met head', '1st met ray', '5th met ray',
-            'navicular sweet spot', 'fascial accommodation', 'lateral heel flange', 'medial heel flange'
-        ]
-
-        left_modifications_count = 0
-        right_modifications_count = 0
-
-        for mod in foot_modifications:
-            left_key = f"left {mod}"
-            right_key = f"right {mod}"
-            if content_dict.get(left_key, '') == 'selected':
-                left_modifications_count += 1
-                passed_codes['BNS45'] += 1
-            if content_dict.get(right_key, '') == 'selected':
-                right_modifications_count += 1
-                passed_codes['BNS45'] += 1
-
-        # Postings
-        posting_keys_left = [
-            'left medial rearfoot posting', 'left lateral rearfoot posting',
-            'left medial forefoot posting', 'left lateral forefoot posting',
-        ]
-        posting_keys_right = [
-            'right medial rearfoot posting', 'right lateral rearfoot posting',
-            'right medial forefoot posting', 'right lateral forefoot posting',
-        ]
-
-        left_postings_count = 0
-        right_postings_count = 0
-
-        for key in posting_keys_left:
-            if content_dict.get(key, '') == 'selected':
-                left_postings_count += 1
-                passed_codes['B56'] += 1
-
-        for key in posting_keys_right:
-            if content_dict.get(key, '') == 'selected':
-                right_postings_count += 1
-                passed_codes['B56'] += 1
-
-        insole_right_as_left = content_dict.get('right as left insole modification', '') == 'selected'
-
-        # Right as Left for modifications
-        if insole_right_as_left and ((left_modifications_count == 0 and right_modifications_count > 0) or
-                                    (left_modifications_count > 0 and right_modifications_count == 0)):
-            passed_codes['BNS45'] *= 2
-
-        # Right as Left for postings
-        if insole_right_as_left and 'B56' in passed_codes and passed_codes['B56'] > 0:
-            if (left_postings_count == 0 and right_postings_count > 0) or (left_postings_count > 0 and right_postings_count == 0):
-                passed_codes['B56'] *= 2
-
-
-        # Additions
-        addition_positions = [
-            'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
-            'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition'
-        ]
-
-        addition_code_mapping = {
-            'B41': {'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
-                    'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
-                    'sulcus crest', 'arch fill'},
-            'B56': {"morton's extension", "reverse morton's extension", 'poron forefoot'},
-            'B43': {'kinetic wedge', 'heel raise'},
-            'D8A': {'neurological footplate'},
-            'BNS45': {'recess', 'hole & plug'},
-            'B20': {'rigid 1st extension'},
-            'B50': {'partial toe block'},
-            'B51': {'full toe block'}
-        }
-
-        for key in addition_positions:
-            addition_value = content_dict.get(key, '')
-            if addition_value:
-                for code, additions in addition_code_mapping.items():
-                    if addition_value in additions:
-                        passed_codes[code] += 1
-                        break
-                else:
-                    print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
-
-        # Insole coding - MATHS
-        x = 1
-        print(f"Initial value: x = {x}")
-
+    # --- Medway Tariff Logic ---
+    if clinic_name == 'medway':
         if insole_type == 'simple':
-            x -= 1
-            print(f"After insole_type 'simple' check: x = {x}")
-        if content_dict.get('insole top cover length', '') == 'not required':
-            x -= 1
-        if content_dict.get('lining to shell', '') == 'selected':
-            x += 1
-        if content_dict.get('lining to sulcus', '') == 'selected':
-            x += 1
-        if content_dict.get('lining full', '') == 'selected':
-            x += 1
-
-        if content_dict.get('insole top cover material', '') == 'spenco (green)':
-            x += 1
-            print(f"After spenco check: x = {x}")
-
-        if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
-            x += 1
-            print(f"After base check: x = {x}")
-
-        if x >= 3:
-            passed_codes['B55C'] += 1
-            print(f"x >= 3, incrementing B55C: {passed_codes['B55C']}")
-        elif x == 2:
-            passed_codes['B55B'] += 1
-            print(f"x == 2, incrementing B55B: {passed_codes['B55B']}")
-        elif x == 1:
-            passed_codes['B55A'] += 1
-            print(f"x == 1, incrementing B55A: {passed_codes['B55A']}")
-
-        # CLCH Simple Logic
-        if clinic_name == 'clch' and insole_type == 'simple':
-            total_posts = (passed_codes['B41'] + passed_codes['B56'] +
-                        passed_codes['B43'] + passed_codes['BNS45'])
-
-            # Decide tariff
-            if total_posts <= 4:
-                chosen_tariff = 'TARIFF INSOLE>4 POST'
-            else:
-                chosen_tariff = 'TARIFF INSOLE<5 POST'
-
-            passed_codes[chosen_tariff] += 1
-
-            # Remove all non-tariff codes (all except chosen_tariff)
-            for code in list(passed_codes.keys()):
-                if code != chosen_tariff:
-                    del passed_codes[code]
-
-            # Now handle pairs including chosen_tariff
+            passed_codes['MEDBNS71'] += 1
             if is_pair:
-                # Double the chosen tariff code if it's still present
-                if chosen_tariff in passed_codes:
-                    passed_codes[chosen_tariff] *= 2
+                passed_codes['MEDBNS71'] *= 2
+            return 'MEDBNS71' if passed_codes['MEDBNS71'] == 1 else f'MEDBNS71 x{passed_codes["MEDBNS71"]}'
         else:
-            # Normal pair handling if not CLCH simple
+            passed_codes['MEDBNS72'] += 1
             if is_pair:
-                codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B']
-                for code in codes_to_double_insole:
-                    if code in passed_codes:
-                        passed_codes[code] *= 2
+                passed_codes['MEDBNS72'] *= 2
+            return 'MEDBNS72' if passed_codes['MEDBNS72'] == 1 else f'MEDBNS72 x{passed_codes["MEDBNS72"]}'
 
-        # Format output
-        formatted_passed_codes = []
-        for code, count in passed_codes.items():
-            if count > 1:
-                formatted_passed_codes.append(f"{code} x{count}")
-            else:
-                formatted_passed_codes.append(code)
+    # Now unify the three tariff checks in a single block:
+    base = content_dict.get('base', '').strip().lower()
 
-        if formatted_passed_codes:
-            return ', '.join(f"{code} x{count}" if count > 1 else code for code, count in passed_codes.items())
+    # 1) If the customer_no allows polyprop & base == 'polypropylene'
+    if customer_no in tariff_polyprop_customer_nos and base == 'polypropylene':
+        passed_codes['TARIFF POLYPROPS'] += 1
+        if is_pair:
+            passed_codes['TARIFF POLYPROPS'] *= 2
+        return (
+            'TARIFF POLYPROPS'
+            if passed_codes['TARIFF POLYPROPS'] == 1
+            else f"TARIFF POLYPROPS x{passed_codes['TARIFF POLYPROPS']}"
+        )
+
+    # 2) Else if the customer_no allows "simple" & insole_type == 'simple'
+    elif customer_no in tariff_simple_customer_nos and insole_type == 'simple':
+        passed_codes['TARIFF SIMPLE INSOLE'] += 1
+        if is_pair:
+            passed_codes['TARIFF SIMPLE INSOLE'] *= 2
+        return (
+            'TARIFF SIMPLE INSOLE'
+            if passed_codes['TARIFF SIMPLE INSOLE'] == 1
+            else f"TARIFF SIMPLE INSOLE x{passed_codes['TARIFF SIMPLE INSOLE']}"
+        )
+
+    # 3) Else if the customer_no is in the TCI list
+    elif customer_no in tariff_tci_customer_nos:
+        passed_codes['TARIFF TCI\'S'] += 1
+        if is_pair:
+            passed_codes['TARIFF TCI\'S'] *= 2
+        return (
+            'TARIFF TCI\'S'
+            if passed_codes['TARIFF TCI\'S'] == 1
+            else f"TARIFF TCI\'S x{passed_codes['TARIFF TCI\'S']}"
+        )
+
+    # If we get here, then the clinic isn't in any of those lists, or no conditions matched:
+    # Continue with your normal "base logic" here.
+
+    # Normal logic if no immediate tariff matched
+    passed_codes = defaultdict(int)
+
+    base = content_dict.get('base', '').strip().lower()
+    print(f"Base value: '{base}'")  # For debugging
+
+    if content_dict.get('base poron', '').lower() == 'selected':
+        passed_codes['B40B'] += 1
+
+    # 2) Otherwise, use the base logic
+    else:
+        normalized_base = base.replace(' ', '').lower()
+        shore_bases = {'40shore', '50shore', '65shore'}
+
+        # Base codes
+        if normalized_base == 'polypropylene':
+            passed_codes['B54B'] += 1
+        elif insole_type == 'simple' and normalized_base in shore_bases:
+            passed_codes['B40B'] += 1
+        elif normalized_base in ['carbonfibre', 'carbonfiber']:
+            passed_codes['B54A'] += 1
         else:
-            return None
+            # If none match, default to B54C
+            passed_codes['B54C'] += 1
+
+    # Foot modifications -> BNS45
+    foot_modifications = [
+        'cut out and additions', '1st met head', '1st met ray', '5th met ray',
+        'navicular sweet spot', 'fascial accommodation', 'lateral heel flange', 'medial heel flange'
+    ]
+
+    left_modifications_count = 0
+    right_modifications_count = 0
+
+    for mod in foot_modifications:
+        left_key = f"left {mod}"
+        right_key = f"right {mod}"
+        if content_dict.get(left_key, '') == 'selected':
+            left_modifications_count += 1
+            passed_codes['BNS45'] += 1
+        if content_dict.get(right_key, '') == 'selected':
+            right_modifications_count += 1
+            passed_codes['BNS45'] += 1
+
+    # Postings
+    posting_keys_left = [
+        'left medial rearfoot posting', 'left lateral rearfoot posting',
+        'left medial forefoot posting', 'left lateral forefoot posting',
+    ]
+    posting_keys_right = [
+        'right medial rearfoot posting', 'right lateral rearfoot posting',
+        'right medial forefoot posting', 'right lateral forefoot posting',
+    ]
+
+    left_postings_count = 0
+    right_postings_count = 0
+
+    for key in posting_keys_left:
+        if content_dict.get(key, '') == 'selected':
+            left_postings_count += 1
+            passed_codes['B56'] += 1
+
+    for key in posting_keys_right:
+        if content_dict.get(key, '') == 'selected':
+            right_postings_count += 1
+            passed_codes['B56'] += 1
+
+    insole_right_as_left = content_dict.get('right as left insole modification', '') == 'selected'
+
+    # Right as Left for modifications
+    if insole_right_as_left and ((left_modifications_count == 0 and right_modifications_count > 0) or
+                                (left_modifications_count > 0 and right_modifications_count == 0)):
+        passed_codes['BNS45'] *= 2
+
+    # Right as Left for postings
+    if insole_right_as_left and 'B56' in passed_codes and passed_codes['B56'] > 0:
+        if (left_postings_count == 0 and right_postings_count > 0) or (left_postings_count > 0 and right_postings_count == 0):
+            passed_codes['B56'] *= 2
+
+
+    # Additions
+    addition_positions = [
+        'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
+        'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition'
+    ]
+
+    addition_code_mapping = {
+        'B41': {'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
+                'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'},
+        'B56': {"morton's extension", "reverse morton's extension", 'poron forefoot'},
+        'B43': {'kinetic wedge', 'heel raise'},
+        'D8A': {'neurological footplate'},
+        'BNS45': {'recess', 'hole & plug'},
+        'B20': {'rigid 1st extension'},
+        'B50': {'partial toe block'},
+        'B51': {'full toe block'}
+    }
+
+    for key in addition_positions:
+        addition_value = content_dict.get(key, '')
+        if addition_value:
+            for code, additions in addition_code_mapping.items():
+                if addition_value in additions:
+                    passed_codes[code] += 1
+                    break
+            else:
+                print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
+
+    # Insole coding - MATHS
+    x = 1
+    print(f"Initial value: x = {x}")
+
+    if insole_type == 'simple':
+        x -= 1
+        print(f"After insole_type 'simple' check: x = {x}")
+    if content_dict.get('insole top cover length', '') == 'not required':
+        x -= 1
+    if content_dict.get('lining to shell', '') == 'selected':
+        x += 1
+    if content_dict.get('lining to sulcus', '') == 'selected':
+        x += 1
+    if content_dict.get('lining full', '') == 'selected':
+        x += 1
+
+    if content_dict.get('insole top cover material', '') == 'spenco (green)':
+        x += 1
+        print(f"After spenco check: x = {x}")
+
+    if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
+        x += 1
+        print(f"After base check: x = {x}")
+
+    if x >= 3:
+        passed_codes['B55C'] += 1
+        print(f"x >= 3, incrementing B55C: {passed_codes['B55C']}")
+    elif x == 2:
+        passed_codes['B55B'] += 1
+        print(f"x == 2, incrementing B55B: {passed_codes['B55B']}")
+    elif x == 1:
+        passed_codes['B55A'] += 1
+        print(f"x == 1, incrementing B55A: {passed_codes['B55A']}")
+
+    # CLCH Simple Logic
+    if clinic_name == 'clch' and insole_type == 'simple':
+        total_posts = (passed_codes['B41'] + passed_codes['B56'] +
+                       passed_codes['B43'] + passed_codes['BNS45'])
+
+        # Decide tariff
+        if total_posts <= 4:
+            chosen_tariff = 'TARIFF INSOLE>4 POST'
+        else:
+            chosen_tariff = 'TARIFF INSOLE<5 POST'
+
+        passed_codes[chosen_tariff] += 1
+
+        # Remove all non-tariff codes (all except chosen_tariff)
+        for code in list(passed_codes.keys()):
+            if code != chosen_tariff:
+                del passed_codes[code]
+
+        # Now handle pairs including chosen_tariff
+        if is_pair:
+            # Double the chosen tariff code if it's still present
+            if chosen_tariff in passed_codes:
+                passed_codes[chosen_tariff] *= 2
+    else:
+        # Normal pair handling if not CLCH simple
+        if is_pair:
+            codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B']
+            for code in codes_to_double_insole:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
+
+    # Format output
+    formatted_passed_codes = []
+    for code, count in passed_codes.items():
+        if count > 1:
+            formatted_passed_codes.append(f"{code} x{count}")
+        else:
+            formatted_passed_codes.append(code)
+
+    if formatted_passed_codes:
+        return ', '.join(f"{code} x{count}" if count > 1 else code for code, count in passed_codes.items())
+    else:
+        return None
             
 def generate_afo_codes(self, content):
     """Generates codes based on the content for the AFO model, counting duplicates."""
     from collections import defaultdict
     passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
-
-    # Define list of clinics for Tariff AFO (edit this list as needed)
-    tariff_afo_clinics = ['bury cdc', 'east surrey', 'sudbury', 'w.s.h', 'ws', 'wsh', 'w. suffolk', 'west suffolk hospital']
 
     # Split the content into lines for easier processing
     lines = content.split('\n')
@@ -842,6 +928,7 @@ def generate_afo_codes(self, content):
 
     # Extract the clinic name if it exists in the content
     clinic_name = content_dict.get('clinic', '').lower()
+    customer_no = get_customer_no(clinic_name)
 
     # Check if it's a pair for AFO
     is_pair = content_dict.get('pair', '') == 'selected' or content_dict.get('afo pair', '') == 'selected'
@@ -854,7 +941,7 @@ def generate_afo_codes(self, content):
         return 'MEDDNS2' if passed_codes['MEDDNS2'] == 1 else f'MEDDNS2 x{passed_codes["MEDDNS2"]}'
 
     # --- Tariff AFO Check ---
-    if clinic_name in tariff_afo_clinics:
+    if customer_no in tariff_afo_customer_nos:
         passed_codes['TARIFF AFO'] += 1
         if is_pair:
             passed_codes['TARIFF AFO'] *= 2
@@ -1116,19 +1203,7 @@ def generate_afo_codes(self, content):
     
 def generate_modular_codes(self, content):
     """Generates codes based on the content for the Modular model, with tariff logic."""
-    from collections import defaultdict
     passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
-
-    # Define lists of clinics for each insole tariff code (edit these lists as needed)
-    tariff_tci_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                          'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough', 'w. suffolk', 'west suffolk hospital', 'oxted', 'peterborough city hostital']
-    tariff_simple_clinics = ['bury cdc', 'ely', 'harpenden', 'hinchingbrooke', 'pch',
-                             'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough', 'w. suffolk', 'west suffolk hospital', 'oxted', 'peterborough city hostital']
-    tariff_polyprop_clinics = ['east surrey', 'bury cdc', 'ely', 'hinchingbrooke', 'pch',
-                               'peterborough city hospital', 'sudbury', 'w.s.h', 'ws', 'wsh', 'stamford', 'pch diab', 'doddington', 'peterborough', 'w. suffolk', 'west suffolk hospital', 'oxted', 'peterborough city hostital']
-
-    # Define list of clinics for Tariff Modular
-    tariff_modular_clinics = ['bury cdc', 'east surrey', 'sudbury', 'w.s.h', 'ws', 'wsh', 'w. suffolk', 'west suffolk hospital']
 
     # Split the content into lines
     lines = content.split('\n')
@@ -1141,6 +1216,7 @@ def generate_modular_codes(self, content):
             content_dict[key.strip().lower()] = value.strip().lower()
 
     clinic_name = content_dict.get('clinic', '').lower()
+    customer_no = get_customer_no(clinic_name)
     # Check if it's a pair
     is_pair = (content_dict.get('pair', '') == 'selected' or 
                content_dict.get('insole pair', '') == 'selected')
@@ -1175,18 +1251,18 @@ def generate_modular_codes(self, content):
         insole_tariff_added = True
 
     # Modular Tariff Check (other clinics)
-    if clinic_name in tariff_modular_clinics:
+    if customer_no in tariff_modular_customer_nos:
         passed_codes['TARIFF MODULAR'] += 1
         modular_tariff_added = True
 
     # Insole Tariff Checks
-    if clinic_name in tariff_tci_clinics:
+    if customer_no in tariff_tci_customer_nos:
         passed_codes['TARIFF TCI\'S'] += 1
         insole_tariff_added = True
-    elif clinic_name in tariff_simple_clinics:
+    elif customer_no in tariff_simple_customer_nos:
         passed_codes['TARIFF SIMPLE INSOLE'] += 1
         insole_tariff_added = True
-    elif clinic_name in tariff_polyprop_clinics:
+    elif customer_no in tariff_polyprop_customer_nos:
         passed_codes['TARIFF POLYPROPS'] += 1
         insole_tariff_added = True
 
@@ -1422,8 +1498,11 @@ def generate_modular_codes(self, content):
 
     # Insole coding section - MATHS!
     x = 1
+    print(f"Initial value: x = {x}")
+
     if insole_type == 'simple':
         x -= 1
+        print(f"After insole_type 'simple' check: x = {x}")
     if content_dict.get('insole top cover length', '') == 'not required':
         x -= 1
     if content_dict.get('lining to shell', '') == 'selected':
@@ -1432,74 +1511,66 @@ def generate_modular_codes(self, content):
         x += 1
     if content_dict.get('lining full', '') == 'selected':
         x += 1
+
     if content_dict.get('insole top cover material', '') == 'spenco (green)':
         x += 1
+        print(f"After spenco check: x = {x}")
+
     if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
         x += 1
+        print(f"After base check: x = {x}")
 
     if x >= 3:
-        code = 'A44C' if insole_type == 'cradle' else 'B55C'
-        passed_codes[code] += 1
+        passed_codes['B55C'] += 1
+        print(f"x >= 3, incrementing B55C: {passed_codes['B55C']}")
     elif x == 2:
-        code = 'A44B' if insole_type == 'cradle' else 'B55B'
-        passed_codes[code] += 1
+        passed_codes['B55B'] += 1
+        print(f"x == 2, incrementing B55B: {passed_codes['B55B']}")
     elif x == 1:
-        code = 'A44A' if insole_type == 'cradle' else 'B55A'
-        passed_codes[code] += 1
+        passed_codes['B55A'] += 1
+        print(f"x == 1, incrementing B55A: {passed_codes['B55A']}")
 
-    if content_dict.get('pair', '') == 'selected':
-        codes_to_double_general = ['TWIST FASTEN', 'BNS62', 'VELCRO']
-        for code in codes_to_double_general:
-            if code in passed_codes:
-                passed_codes[code] *= 2
+    # CLCH Simple Logic
+    if clinic_name == 'clch' and insole_type == 'simple':
+        total_posts = (passed_codes['B41'] + passed_codes['B56'] +
+                       passed_codes['B43'] + passed_codes['BNS45'])
 
-    if content_dict.get('insole pair', '') == 'selected':
-        codes_to_double_insole = [
-            'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
-            'B55A', 'B55B', 'B55C', 'B54B', 'TARIFF TCI\'S', 'TARIFF SIMPLE INSOLE', 'TARIFF POLYPROPS'
-        ]
-        for code in codes_to_double_insole:
-            if code in passed_codes:
-                passed_codes[code] *= 2
+        # Decide tariff
+        if total_posts <= 4:
+            chosen_tariff = 'TARIFF INSOLE>4 POST'
+        else:
+            chosen_tariff = 'TARIFF INSOLE<5 POST'
 
-    if is_pair:
-        if 'MEDBNS71' in passed_codes:
-            passed_codes['MEDBNS71'] *= 2
-        if 'MEDBNS72' in passed_codes:
-            passed_codes['MEDBNS72'] *= 2
+        passed_codes[chosen_tariff] += 1
 
-    # Filtering Step
-    insole_filter_codes = {
-        'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
-        'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
-        'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41', 'B54B'
-    }
-    modular_filter_codes = {
-        '6MM', 'PATTERN', 'BNS62', 'MODULAR SHOES', 'MODULAR BOOTS',
-        'MODULAR SPORTS', 'TWIST FASTEN', 'VELCRO', 'B34', 'B33', 'B8',
-        'B30', 'B31', 'B25', 'B17', 'B18', 'B19'
-    }
+        # Remove all non-tariff codes (all except chosen_tariff)
+        for code in list(passed_codes.keys()):
+            if code != chosen_tariff:
+                del passed_codes[code]
 
-    if insole_tariff_added:
-        for c in insole_filter_codes:
-            if c in passed_codes:
-                del passed_codes[c]
-    if modular_tariff_added:
-        for c in modular_filter_codes:
-            if c in passed_codes:
-                del passed_codes[c]
+        # Now handle pairs including chosen_tariff
+        if is_pair:
+            # Double the chosen tariff code if it's still present
+            if chosen_tariff in passed_codes:
+                passed_codes[chosen_tariff] *= 2
+    else:
+        # Normal pair handling if not CLCH simple
+        if is_pair:
+            codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B']
+            for code in codes_to_double_insole:
+                if code in passed_codes:
+                    passed_codes[code] *= 2
 
-    # Format the passed codes with counts, excluding 'PATTERN'
+    # Format output
     formatted_passed_codes = []
     for code, count in passed_codes.items():
-        if code != 'PATTERN':
-            if count > 1:
-                formatted_passed_codes.append(f"{code} x{count}")
-            else:
-                formatted_passed_codes.append(code)
+        if count > 1:
+            formatted_passed_codes.append(f"{code} x{count}")
+        else:
+            formatted_passed_codes.append(code)
 
     if formatted_passed_codes:
-        return ', '.join(formatted_passed_codes)
+        return ', '.join(f"{code} x{count}" if count > 1 else code for code, count in passed_codes.items())
     else:
         return None
     
