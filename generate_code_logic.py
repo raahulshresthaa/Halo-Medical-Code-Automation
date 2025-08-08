@@ -1348,13 +1348,13 @@ def generate_modular_codes(self, content):
                 f"• Entered style: '{style}' may be spelled incorrectly.\n"
                 f"• Falling back to tick-box selections: {', '.join(fallback_styles_used)}"
             )
-            self.root.after(0, messagebox.showinfo, "Warning", warning_message)
+            self.root.after(0, self.append_and_show_info, "Warning", warning_message)
         else:
             warning_message = (
                 f"Footwear style '{style}' not recognized, and no tick boxes selected. "
                 f"Please verify the footwear style."
             )
-            self.root.after(0, messagebox.showinfo, "Warning", warning_message)
+            self.root.after(0, self.append_and_show_info, "Warning", warning_message)
 
     # Check boa/velcro 
     if content_dict.get('boa', '') == 'selected':
@@ -1401,7 +1401,7 @@ def generate_modular_codes(self, content):
             if 'heel' in key:
                 passed_codes['B25'] += 1
             elif 'sole' in key:
-                passed_codes['B18'] += 1
+                passed_codes['B17'] += 1
 
     # Floated
     floated_keys = [
@@ -1414,7 +1414,7 @@ def generate_modular_codes(self, content):
             if 'heel' in key:
                 passed_codes['B25'] += 1
             elif 'sole' in key:
-                passed_codes['B19'] += 1
+                passed_codes['B26'] += 1
 
     # Insole logic
     shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
