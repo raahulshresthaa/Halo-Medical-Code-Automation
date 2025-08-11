@@ -472,43 +472,36 @@ class PdfButtonHandler:
             result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
             if not os.path.exists(result_logs_folder):
                 os.makedirs(result_logs_folder)
-
             current_datetime = datetime.datetime.now()
-            formatted_date = current_datetime.strftime('%Y-%m-%d')  # Format: YYYY-MM-DD
-
+            formatted_date = current_datetime.strftime('%Y-%m-%d') # Format: YYYY-MM-DD
             # Create a new folder inside 'result_logs' with the day's date
             date_folder_path = os.path.join(result_logs_folder, formatted_date)
             if not os.path.exists(date_folder_path):
                 os.makedirs(date_folder_path)
-
             # Sanitize the auto_doc_ref to create a valid filename
             sanitized_auto_doc_ref = ''.join(c for c in auto_doc_ref if c.isalnum() or c in ('_', '-')).strip()
             if not sanitized_auto_doc_ref:
                 sanitized_auto_doc_ref = 'log'
-
             # Use the auto_doc_ref as the filename
             log_file_name = f"results_log_{sanitized_auto_doc_ref}_{form_type}.txt"
             log_file_path = os.path.join(date_folder_path, log_file_name)
-
             with open(log_file_path, 'w', encoding='utf-8') as log_file:
                 formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
-
+                log_file.write(f"Version: {VERSION}\n")
                 log_file.write(f"Date and Time: {formatted_datetime}\n")
                 log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
                 log_file.write(f"Clinic: {clinic}\n\n")
-                log_file.write(f"AZURE EXTRACTED DATA:\n\n{azure_data}\n\n")  # Azure log data
-
+                log_file.write(f"AZURE EXTRACTED DATA:\n\n{azure_data}\n\n") # Azure log data
                 # Include any messages (query or warning) if they exist
                 if messages:
                     log_file.write(f"MESSAGES:\n{messages}\n\n")
-
                 log_file.write(f"PRICE CODES:\n\n{price_codes}\n")
-                log_file.write("-" * 50 + "\n")  # Separator between entries
+                log_file.write("-" * 50 + "\n") # Separator between entries
             print(f"Successfully wrote to log file at {log_file_path}")
-            return log_file_path  # Return the path for later appending
+            return log_file_path # Return the path for later appending
         except Exception as e:
             messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
-        return None  # Return None if there's an error (though this shouldn't happen often)
+        return None # Return None if there's an error (though this shouldn't happen often)
 
     def parse_extracted_data(self, data_dict):
         """Convert extracted data into a string format suitable for processing."""
