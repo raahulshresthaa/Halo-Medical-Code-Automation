@@ -181,7 +181,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             "No": next_no,
             "Sell_to_Customer_No": sell_to_customer_no,
             "Original_Order_Date": original_order_date,
-            "Order_Date": today,
+            "Order_Date": original_order_date,
             "Document_Date": today,
             "Order_Category_Code": order_category_code,
             "Prescriber": prescriber,
