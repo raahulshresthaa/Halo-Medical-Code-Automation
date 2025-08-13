@@ -841,12 +841,12 @@ class PdfButtonHandler:
         content_lower = content.lower()
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
-def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, 
-                      auto_doc_ref, order_category_code, form_type, log_file_path=None, 
+def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date,
+                      auto_doc_ref, order_category_code, form_type, log_file_path=None,
                       final_codes=None, patient_name=None, gender_full=None, pre_app_date=None):
     """
     Attempts to create a sales order in NAV using the provided parameters with enhanced error handling.
-    
+   
     Args:
         customer_no (str): The customer number.
         prescriber (str): The prescriber number (e.g., 'GB-CONT0001').
@@ -860,7 +860,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         patient_name (str, optional): The patient's name.
         gender_full (str, optional): The patient's gender ("Male", "Female", or "Unknown").
         pre_app_date (str, optional): The pre-appointed date in 'YYYY-MM-DD' format.
-    
+   
     Returns:
         tuple: (success (bool), sales_order_no (str or None), messages (list of (text, tag)))
     """
@@ -876,19 +876,39 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             final_codes=final_codes if final_codes else [],
             patient_name=patient_name if patient_name else "",
             gender=gender_full,
-            pre_app_date=pre_app_date  # Pass pre_app_date to create_sales_order
+            pre_app_date=pre_app_date # Pass pre_app_date to create_sales_order
         )
-        
+       
         success = result.get('success', False)
         sales_order_no = result.get('sales_order_no', None)
         error_messages = result.get('error_messages', [])
-        
+       
         ui_messages = []
         log_messages = []
-        
+       
         if sales_order_no:
             ui_messages.append((f"✅ Created Sales Order: {sales_order_no}", 'success'))
             log_messages.append(f"[SUCCESS] Created Sales Order: {sales_order_no}")
+            today_str = datetime.date.today().strftime("%Y-%m-%d")
+            external_doc_no = f"DNI/{auto_doc_ref}"
+            order_data_log = {
+                "No": sales_order_no,
+                "Sell_to_Customer_No": customer_no,
+                "Original_Order_Date": original_order_date,
+                "Order_Date": today_str,
+                "Document_Date": today_str,
+                "Order_Category_Code": order_category_code,
+                "Prescriber": prescriber,
+                "Send_For": "Send for Finish",
+                "Requested_Delivery_Date": request_delivery_date,
+                "Pad_No": auto_doc_ref,
+                "Patient_Name": patient_name if patient_name else "Unknown",
+                "Patient_Gender": gender_full,
+                "External_Document_No": external_doc_no
+            }
+            if pre_app_date:
+                order_data_log["Pre_appointed_Date"] = pre_app_date
+            log_messages.append("\nUploaded Order Data:\n" + json.dumps(order_data_log, indent=4))
             if error_messages:
                 for error in error_messages:
                     if "Internal_InvalidTableRelation" in error:
@@ -937,14 +957,14 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                     ui_msg = "❌ Error uploading to NAV. Please check order details."
                 ui_messages.append((ui_msg, 'error'))
                 log_messages.append(f"[ERROR] {error}")
-        
+       
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
                 for log_msg in log_messages:
                     f.write(f"{log_msg}\n")
-        
+       
         return success, sales_order_no, ui_messages
-    
+   
     except Exception as e:
         ui_error_message = "❌ Error uploading to NAV. Please check order details."
         log_error_message = f"[ERROR] Unexpected error: {str(e)}"
