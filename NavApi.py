@@ -115,7 +115,7 @@ def parse_pre_app_date(date_str):
             continue
     return None
 
-def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None, log_file_path=None):
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
     error_messages = []
@@ -196,11 +196,6 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             print(f"Pre App Date (Formatted): {pre_app_date}")
             order_data["Pre_appointed_Date"] = pre_app_date
 
-        # Log order_data if log_file_path provided
-        if log_file_path:
-            with open(log_file_path, 'a', encoding='utf-8') as f:
-                f.write(f"Creating sales order with data:\n{json.dumps(order_data, indent=2)}\n\n")
-
         post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
         
         max_attempts = 5
@@ -273,10 +268,6 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
                 "Operation": target_operation,
                 "Medical_Detail_Text": target_text
             }
-            # Log medical payload if log_file_path provided
-            if log_file_path:
-                with open(log_file_path, 'a', encoding='utf-8') as f:
-                    f.write(f"Adding medical details with payload:\n{json.dumps(payload, indent=2)}\n\n")
             response = requests.post(medical_url, headers=headers, data=json.dumps(payload), auth=auth)
             if response.status_code != 201:
                 error_msg = f"Failed to add medical detail: {response.status_code} - {response.text}"
@@ -312,10 +303,6 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
                 "Quantity": quantity,
                 "Location_Code": "WAREHOUSE",
             }
-            # Log line_data if log_file_path provided
-            if log_file_path:
-                with open(log_file_path, 'a', encoding='utf-8') as f:
-                    f.write(f"Adding sales order line with data:\n{json.dumps(line_data, indent=2)}\n\n")
             response = requests.post(lines_url, headers=headers, data=json.dumps(line_data), auth=auth)
             if response.status_code != 201:
                 error_msg = f"Failed to add line {item_no}: {response.status_code} - {response.text}"
