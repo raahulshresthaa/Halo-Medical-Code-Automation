@@ -626,24 +626,20 @@ def generate_bespoke_codes(self, content):
         passed_codes['B55A'] += 1
         print(f"x == 1, incrementing B55A: {passed_codes['B55A']}")
 
-    # CLCH Simple Logic
+# CLCH Simple Logic
     if clinic_name == 'clch' and insole_type == 'simple':
         total_posts = (passed_codes['B41'] + passed_codes['B56'] +
                        passed_codes['B43'] + passed_codes['BNS45'])
-
         # Decide tariff
         if total_posts <= 4:
             chosen_tariff = 'TARIFF INSOLE>4 POST'
         else:
             chosen_tariff = 'TARIFF INSOLE<5 POST'
-
         passed_codes[chosen_tariff] += 1
-
         # Remove all non-tariff codes (all except chosen_tariff)
         for code in list(passed_codes.keys()):
             if code != chosen_tariff:
                 del passed_codes[code]
-
         # Now handle pairs including chosen_tariff
         if is_pair:
             # Double the chosen tariff code if it's still present
@@ -663,6 +659,9 @@ def generate_bespoke_codes(self, content):
         'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
         'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41'
     }
+    # Define Wales-specific insole filter (same as insole_filter_codes but without 'B20')
+    wales_insole_filter_codes = insole_filter_codes.copy()
+    wales_insole_filter_codes.discard('B20')
 
     bespoke_filter_codes = {
         'A1B', 'A1A', 'A1K', 'A22', 'A23', 'A24', 'A25',
@@ -670,13 +669,13 @@ def generate_bespoke_codes(self, content):
         'A37B', 'A31', 'A19', 'A26', 'A8', 'A13A', 'A12A',
         'A39', 'A38', 'A40', 'B54B'
     }
-    
     # If insole tariff selected, remove insole_filter_codes
     if insole_tariff_added:
-        for c in insole_filter_codes:
+        # Use Wales-specific filter if applicable, else standard
+        filter_set = wales_insole_filter_codes if customer_no in tariff_wales_customer_nos else insole_filter_codes
+        for c in filter_set:
             if c in passed_codes:
                 del passed_codes[c]
-
     # If bespoke tariff selected, remove bespoke_filter_codes
     if bespoke_tariff_added:
         for c in bespoke_filter_codes:
@@ -1632,24 +1631,20 @@ def generate_modular_codes(self, content):
         passed_codes['B55A'] += 1
         print(f"x == 1, incrementing B55A: {passed_codes['B55A']}")
 
-    # CLCH Simple Logic
+# CLCH Simple Logic
     if clinic_name == 'clch' and insole_type == 'simple':
         total_posts = (passed_codes['B41'] + passed_codes['B56'] +
                        passed_codes['B43'] + passed_codes['BNS45'])
-
         # Decide tariff
         if total_posts <= 4:
             chosen_tariff = 'TARIFF INSOLE>4 POST'
         else:
             chosen_tariff = 'TARIFF INSOLE<5 POST'
-
         passed_codes[chosen_tariff] += 1
-
         # Remove all non-tariff codes (all except chosen_tariff)
         for code in list(passed_codes.keys()):
             if code != chosen_tariff:
                 del passed_codes[code]
-
         # Now handle pairs including chosen_tariff
         if is_pair:
             # Double the chosen tariff code if it's still present
@@ -1669,16 +1664,22 @@ def generate_modular_codes(self, content):
         'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
         'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41', 'B54B'
     }
+    # Define Wales-specific insole filter (same as insole_filter_codes but without 'B20')
+    wales_insole_filter_codes = insole_filter_codes.copy()
+    wales_insole_filter_codes.discard('B20')
+
     modular_filter_codes = {
         '6MM', 'PATTERN', 'BNS62', 'MODULAR SHOES', 'MODULAR BOOTS',
         'MODULAR SPORTS', 'TWIST FASTEN', 'VELCRO', 'B34', 'B33', 'B8',
         'B30', 'B31', 'B25', 'B17', 'B18', 'B19'
     }
-
     if insole_tariff_added:
-        for c in insole_filter_codes:
+        # Use Wales-specific filter if applicable, else standard
+        filter_set = wales_insole_filter_codes if customer_no in tariff_wales_customer_nos else insole_filter_codes
+        for c in filter_set:
             if c in passed_codes:
                 del passed_codes[c]
+          
     if modular_tariff_added:
         for c in modular_filter_codes:
             if c in passed_codes:
