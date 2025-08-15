@@ -5,6 +5,7 @@ from tkinter import messagebox
 import re
 import sqlite3
 import os
+import sys
 
 # Define the tariff customer number sets outside the functions
 tariff_tci_customer_nos = {
@@ -28,9 +29,19 @@ tariff_afo_customer_nos = {
 tariff_modular_customer_nos = {
     'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554'
 }
+tariff_wales_customer_nos = {
+    'GB-CUST02743', 'GB-CUST02756', 'GB-CUST02766', 'GB-CUST02781',
+    'GB-CUST02805', 'GB-CUST02830', 'GB-CUST02916', 'GB-CUST02917',
+    'GB-CUST02918'
+}
 
 # Database path
-db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'databases', 'clinic_nav_sell_to.db')
+if getattr(sys, 'frozen', False):
+    base_path = os.path.dirname(sys.executable)
+else:
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
+db_path = os.path.join(base_path, 'databases', 'clinic_nav_sell_to.db')
 
 def get_customer_no(clinic_name):
     """Retrieve the Sell_to_Customer_No for a given clinic name."""
@@ -69,6 +80,26 @@ def generate_bespoke_codes(self, content):
     bespoke_tariff_added = False
     insole_tariff_added = False
 
+    # --- Medway Tariffs for Bespoke ---
+    if clinic_name == 'medway':
+        if insole_type == 'simple':
+            passed_codes['MEDBNS71'] += 1
+        else:
+            passed_codes['MEDBNS72'] += 1
+        passed_codes['MEDFOOTWEAR'] += 1
+        bespoke_tariff_added = True
+        insole_tariff_added = True
+
+    # Wales Tariff Check for Bespoke
+    if customer_no in tariff_wales_customer_nos:
+        passed_codes['WALES-BESPOKE'] += 1
+        bespoke_tariff_added = True
+
+    # Bespoke Tariff Check
+    if customer_no in tariff_bespoke_customer_nos:
+        passed_codes['TARIFF BESPOKE'] += 1
+        bespoke_tariff_added = True
+
     # Determine insole type
     insole_type = None
     if content_dict.get('insole type tci', '') == 'selected':
@@ -80,20 +111,23 @@ def generate_bespoke_codes(self, content):
     elif content_dict.get('insole type handmould', '') == 'selected':
         insole_type = 'handmould'
 
-    # --- Medway Tariffs for Bespoke ---
-    if clinic_name == 'medway':
-        if insole_type == 'simple':
-            passed_codes['MEDBNS71'] += 1
-        else:
-            passed_codes['MEDBNS72'] += 1
-        passed_codes['MEDFOOTWEAR'] += 1
-        bespoke_tariff_added = True
-        insole_tariff_added = True
-
-    # Bespoke Tariff Check
-    if customer_no in tariff_bespoke_customer_nos:
-        passed_codes['TARIFF BESPOKE'] += 1
-        bespoke_tariff_added = True
+    # Wales Insole Tariff Checks
+    if customer_no in tariff_wales_customer_nos:
+        if insole_type in ('tci', 'cradle'):
+            passed_codes['WALES-TCI'] += 1
+            if is_pair:
+                passed_codes['WALES-TCI'] *= 2
+            insole_tariff_added = True
+        elif insole_type == 'simple':
+            passed_codes['WALES-SIMPLE'] += 1
+            if is_pair:
+                passed_codes['WALES-SIMPLE'] *= 2
+            insole_tariff_added = True
+        elif insole_type == 'handmould':
+            passed_codes['WALES-POLYPROP'] += 1
+            if is_pair:
+                passed_codes['WALES-POLYPROP'] *= 2
+            insole_tariff_added = True
 
     # Insole Tariff Checks - Updated to consider both insole_type and customer_no
     if insole_type in ('tci', 'cradle') and customer_no in tariff_tci_customer_nos:
@@ -442,19 +476,13 @@ def generate_bespoke_codes(self, content):
     # Straps
     for side in ['left', 'right']:
         strap_type_key = f'{side} strap type'
-        strap_double_decker_key = f'{side} double decker'
-
         strap_type = content_dict.get(strap_type_key, '')
-        strap_double_decker = content_dict.get(strap_double_decker_key, '')
-
-        if strap_double_decker == 'selected':
-            if strap_type in ('t strap', 'y strap'):
+        if strap_type in ('t strap', 'y strap'):
+            if content_dict.get(f'{side} double decker', '') == 'selected':
                 passed_codes['A39'] += 1
-        else:
-            if strap_type in ('t strap', 'y strap'):
+            else:
                 passed_codes['A38'] += 1
-
-        if strap_type in ('spur retaining strap', 'heel retaining strap'):
+        elif strap_type in ('spur retaining strap', 'heel retaining strap'):
             passed_codes['A40'] += 1
 
     # Insole coding section - MATHS!
@@ -580,7 +608,6 @@ def generate_bespoke_codes(self, content):
         x += 1
     if content_dict.get('lining full', '') == 'selected':
         x += 1
-
     if content_dict.get('insole top cover material', '') == 'spenco (green)':
         x += 1
         print(f"After spenco check: x = {x}")
@@ -629,6 +656,32 @@ def generate_bespoke_codes(self, content):
             for code in codes_to_double_insole:
                 if code in passed_codes:
                     passed_codes[code] *= 2
+
+    # --- Final Filtering Step ---
+    insole_filter_codes = {
+        'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
+        'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
+        'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41'
+    }
+
+    bespoke_filter_codes = {
+        'A1B', 'A1A', 'A1K', 'A22', 'A23', 'A24', 'A25',
+        'TWIST FASTEN', 'A18A', 'A6', 'A15', 'A16', 'A37A',
+        'A37B', 'A31', 'A19', 'A26', 'A8', 'A13A', 'A12A',
+        'A39', 'A38', 'A40', 'B54B'
+    }
+    
+    # If insole tariff selected, remove insole_filter_codes
+    if insole_tariff_added:
+        for c in insole_filter_codes:
+            if c in passed_codes:
+                del passed_codes[c]
+
+    # If bespoke tariff selected, remove bespoke_filter_codes
+    if bespoke_tariff_added:
+        for c in bespoke_filter_codes:
+            if c in passed_codes:
+                del passed_codes[c]
 
     # Format output
     formatted_passed_codes = []
@@ -685,6 +738,25 @@ def generate_insole_codes(self, content):
             if is_pair:
                 passed_codes['MEDBNS72'] *= 2
             return 'MEDBNS72' if passed_codes['MEDBNS72'] == 1 else f'MEDBNS72 x{passed_codes["MEDBNS72"]}'
+
+    # Wales Tariff Logic for Insoles
+    base = content_dict.get('base', '').strip().lower()
+    if customer_no in tariff_wales_customer_nos:
+        if base == 'polypropylene':
+            passed_codes['WALES-POLYPROP'] += 1
+            if is_pair:
+                passed_codes['WALES-POLYPROP'] *= 2
+            return 'WALES-POLYPROP' if passed_codes['WALES-POLYPROP'] == 1 else f'WALES-POLYPROP x{passed_codes["WALES-POLYPROP"]}'
+        elif insole_type == 'simple':
+            passed_codes['WALES-SIMPLE'] += 1
+            if is_pair:
+                passed_codes['WALES-SIMPLE'] *= 2
+            return 'WALES-SIMPLE' if passed_codes['WALES-SIMPLE'] == 1 else f'WALES-SIMPLE x{passed_codes["WALES-SIMPLE"]}'
+        elif insole_type in ('tci', 'cradle'):
+            passed_codes['WALES-TCI'] += 1
+            if is_pair:
+                passed_codes['WALES-TCI'] *= 2
+            return 'WALES-TCI' if passed_codes['WALES-TCI'] == 1 else f'WALES-TCI x{passed_codes["WALES-TCI"]}'
 
     # Now unify the three tariff checks in a single block:
     base = content_dict.get('base', '').strip().lower()
@@ -939,6 +1011,13 @@ def generate_afo_codes(self, content):
         if is_pair:
             passed_codes['MEDDNS2'] *= 2
         return 'MEDDNS2' if passed_codes['MEDDNS2'] == 1 else f'MEDDNS2 x{passed_codes["MEDDNS2"]}'
+
+    # Wales Tariff for AFO
+    if customer_no in tariff_wales_customer_nos:
+        passed_codes['WALES-AFO'] += 1
+        if is_pair:
+            passed_codes['WALES-AFO'] *= 2
+        return 'WALES-AFO' if passed_codes['WALES-AFO'] == 1 else f'WALES-AFO x{passed_codes["WALES-AFO"]}'
 
     # --- Tariff AFO Check ---
     if customer_no in tariff_afo_customer_nos:
@@ -1250,6 +1329,29 @@ def generate_modular_codes(self, content):
         modular_tariff_added = True
         insole_tariff_added = True
 
+    # Wales Tariff Check for Modular
+    if customer_no in tariff_wales_customer_nos:
+        passed_codes['WALES-MODULAR'] += 1
+        modular_tariff_added = True
+
+    # Wales Insole Tariff Checks
+    if customer_no in tariff_wales_customer_nos:
+        if insole_type in ('tci', 'cradle'):
+            passed_codes['WALES-TCI'] += 1
+            if is_pair:
+                passed_codes['WALES-TCI'] *= 2
+            insole_tariff_added = True
+        elif insole_type == 'simple':
+            passed_codes['WALES-SIMPLE'] += 1
+            if is_pair:
+                passed_codes['WALES-SIMPLE'] *= 2
+            insole_tariff_added = True
+        elif insole_type == 'handmould':
+            passed_codes['WALES-POLYPROP'] += 1
+            if is_pair:
+                passed_codes['WALES-POLYPROP'] *= 2
+            insole_tariff_added = True
+
     # Modular Tariff Check (other clinics)
     if customer_no in tariff_modular_customer_nos:
         passed_codes['TARIFF MODULAR'] += 1
@@ -1384,7 +1486,7 @@ def generate_modular_codes(self, content):
         if content_dict.get(key, '') in ('full', 'half'):
             passed_codes['B25'] += 1
 
-    # Rocker Type (B17)
+    # Rocker
     rocker_keys = ['left rocker type', 'right rocker type']
     for key in rocker_keys:
         if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
@@ -1560,6 +1662,27 @@ def generate_modular_codes(self, content):
             for code in codes_to_double_insole:
                 if code in passed_codes:
                     passed_codes[code] *= 2
+
+    # --- Final Filtering Step ---
+    insole_filter_codes = {
+        'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
+        'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
+        'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41', 'B54B'
+    }
+    modular_filter_codes = {
+        '6MM', 'PATTERN', 'BNS62', 'MODULAR SHOES', 'MODULAR BOOTS',
+        'MODULAR SPORTS', 'TWIST FASTEN', 'VELCRO', 'B34', 'B33', 'B8',
+        'B30', 'B31', 'B25', 'B17', 'B18', 'B19'
+    }
+
+    if insole_tariff_added:
+        for c in insole_filter_codes:
+            if c in passed_codes:
+                del passed_codes[c]
+    if modular_tariff_added:
+        for c in modular_filter_codes:
+            if c in passed_codes:
+                del passed_codes[c]
 
     # Format output
     formatted_passed_codes = []
