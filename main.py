@@ -30,7 +30,8 @@ from generate_code_logic import (
     generate_afo_codes,
     generate_modular_codes,
     generate_a_and_r_codes,
-    generate_kafo_codes
+    generate_kafo_codes,
+    tariff_wales_customer_nos
 )
 from NavApi import create_sales_order, parse_pre_app_date
 from tkinter import messagebox
@@ -408,6 +409,9 @@ class PdfButtonHandler:
                 self.root.after(0, self.append_and_show_info, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
                 add_missing_contact('clinic', clinic)
                 return
+            # Check if Wales clinic and show popup
+            if customer_no in tariff_wales_customer_nos:
+                self.root.after(0, self.append_and_show_warning, "Wales Clinic", "Wales clinic: kick to code checker")
             if not os.path.exists(clinician_db_path):
                 error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
                 print(error_msg)
