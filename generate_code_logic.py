@@ -34,6 +34,7 @@ tariff_wales_customer_nos = {
     'GB-CUST02805', 'GB-CUST02830', 'GB-CUST02916', 'GB-CUST02917',
     'GB-CUST02918'
 }
+tariff_medway_customer_nos = {'GB-CUST02158'}
 
 # Database path
 if getattr(sys, 'frozen', False):
@@ -81,7 +82,7 @@ def generate_bespoke_codes(self, content):
     insole_tariff_added = False
 
     # --- Medway Tariffs for Bespoke ---
-    if clinic_name == 'medway':
+    if customer_no in tariff_medway_customer_nos:
         if insole_type == 'simple':
             passed_codes['MEDBNS71'] += 1
         else:
@@ -726,7 +727,7 @@ def generate_insole_codes(self, content):
         insole_type = 'handmould'
 
     # --- Medway Tariff Logic ---
-    if clinic_name == 'medway':
+    if customer_no in tariff_medway_customer_nos:
         if insole_type == 'simple':
             passed_codes['MEDBNS71'] += 1
             if is_pair:
@@ -1005,7 +1006,7 @@ def generate_afo_codes(self, content):
     is_pair = content_dict.get('pair', '') == 'selected' or content_dict.get('afo pair', '') == 'selected'
 
     # --- New Medway Tariff ---
-    if clinic_name == 'medway':
+    if customer_no in tariff_medway_customer_nos:
         passed_codes['MEDDNS2'] += 1
         if is_pair:
             passed_codes['MEDDNS2'] *= 2
@@ -1319,7 +1320,7 @@ def generate_modular_codes(self, content):
     insole_tariff_added = False
 
     # --- Medway Tariffs for Modular ---
-    if clinic_name == 'medway':
+    if customer_no in tariff_medway_customer_nos:
         if insole_type == 'simple':
             passed_codes['MEDBNS71'] += 1
         else:
