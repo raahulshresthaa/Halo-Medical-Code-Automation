@@ -912,16 +912,12 @@ def generate_insole_codes(self, content):
     if insole_type == 'simple':
         x -= 1
         print(f"After insole_type 'simple' check: x = {x}")
-    if content_dict.get('insole top cover length', '') == 'not required':
+    if content_dict.get(('no lining', ''), '') == 'selected':
         x -= 1
-    if content_dict.get('lining to shell', '') == 'selected':
-        x += 1
-    if content_dict.get('lining to sulcus', '') == 'selected':
-        x += 1
-    if content_dict.get('lining full', '') == 'selected':
+    else:
         x += 1
 
-    if content_dict.get('insole top cover material', '') == 'spenco (green)':
+    if content_dict.get(('spenco 1.5mm', ''), '') == 'selected' or content_dict.get(('spenco 3mm', ''), '') == 'selected':
         x += 1
         print(f"After spenco check: x = {x}")
 
@@ -938,7 +934,6 @@ def generate_insole_codes(self, content):
     elif x == 1:
         passed_codes['B55A'] += 1
         print(f"x == 1, incrementing B55A: {passed_codes['B55A']}")
-
     # CLCH Simple Logic
     if clinic_name == 'clch' and insole_type == 'simple':
         total_posts = (passed_codes['B41'] + passed_codes['B56'] +
