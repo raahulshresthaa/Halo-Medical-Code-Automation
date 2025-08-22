@@ -28,18 +28,28 @@ from generate_code_logic import (
     generate_bespoke_codes,
     generate_insole_codes,
     generate_afo_codes,
-    generate_modular_codes
+    generate_modular_codes,
+    generate_a_and_r_codes,
+    generate_kafo_codes,
+    tariff_wales_customer_nos
 )
-from NavApi import create_sales_order
+from NavApi import create_sales_order, parse_pre_app_date
 from tkinter import messagebox
 import concurrent.futures
 import requests.exceptions
 
 # Version number
-VERSION = "6.0.1-alpha"
+VERSION = "6.3.4-alpha"
 
-import os
-import sys
+# Centralized dictionary for model IDs
+MODEL_IDS = {
+    'Insoles': 'InsoleFullReaderV8',
+    'AFOs': 'AfoReaderV10',
+    'Bespoke': 'BespokeReaderFullV7',
+    'Modular': 'ModularReaderFullV5',
+    'A&R': 'AdaptsAndRepairsReader3',
+    'Kafo': 'KafoFormReaderV2' 
+}
 
 if getattr(sys, 'frozen', False):
     base_path = os.path.dirname(sys.executable)
@@ -51,6 +61,55 @@ customers_db_path = os.path.join(base_path, 'databases', 'clinic_nav_sell_to.db'
 customers_db_path = os.path.join(base_path, 'databases', 'clinic_nav_sell_to.db')
 clinician_db_path = os.path.join(base_path, 'databases', 'clinician_nav_contacts.db')
 missing_db_path = os.path.join(base_path, 'databases', 'missing_contacts.db')
+release_times_db_path = os.path.join(base_path, 'databases', 'clinic_release_times.db')
+
+def determine_order_category_code(model_id, fields_data):
+    if model_id == MODEL_IDS['Insoles']:
+        # Existing Insoles logic remains unchanged
+        insole_type = None
+        if fields_data.get('insole type tci', '').lower() == 'selected':
+            insole_type = 'tci'
+        elif fields_data.get('insole type cradle', '').lower() == 'selected':
+            insole_type = 'cradle'
+        elif fields_data.get('insole type simple', '').lower() == 'selected':
+            insole_type = 'simple'
+        elif fields_data.get('insole type hand mould', '').lower() == 'selected':
+            insole_type = 'handmould'
+        
+        base = fields_data.get('base', '').strip().lower()
+        if base in ('polypropylene', 'carbon fibre'):
+            return 'MOULDED INSOLE'
+        elif insole_type == 'simple':
+            return 'SIMPLE INSOLE'
+        elif insole_type in ('tci', 'cradle'):
+            return 'MILLED INSOLES'
+        else:
+            return 'MILLED INSOLES'
+    
+    elif model_id == MODEL_IDS['AFOs']:
+        return 'PLASTICS'
+    
+    elif model_id == MODEL_IDS['Bespoke']:
+        if fields_data.get('insole type tci', '').lower() == 'selected':
+            return 'BESPOKE/TCI'
+        return 'BESPOKE'
+    
+    elif model_id == MODEL_IDS['Modular']:
+        if fields_data.get('insole type tci', '').lower() == 'selected':
+            return 'MODULAR/TCI'
+        return 'MODULAR'
+    
+    elif model_id == MODEL_IDS['A&R']:
+        if fields_data.get('form type afo', '').lower() == 'selected' or fields_data.get('form type kafo', '').lower() == 'selected':
+            return 'REPAIRS PLASTIC'
+        else:
+            return 'ADAPTION'
+    
+    elif model_id == MODEL_IDS['Kafo']:  # New condition for Kafo
+        return 'REPAIRS PLASTIC'  # Matches A&R behavior when KAFO is relevant
+    
+    else:
+        return 'UNKNOWN'
 
 # Functions to get all clinics and clinicians
 def get_all_clinics():
@@ -106,16 +165,11 @@ from azure.ai.formrecognizer import DocumentAnalysisClient
  
 def get_form_type_from_model_id(model_id):
     """
-    Returns a friendly string for naming files, 
-    based on the provided model_id.
+    Returns a friendly string for naming files based on the provided model_id.
     """
-    mapping = {
-        'InsoleFullReaderV7': 'insole',
-        'AfoReaderV7': 'afo',
-        'BespokeReaderFullV4': 'bespoke',
-        'ModularReaderFullV3': 'modular'
-    }
-    return mapping.get(model_id, 'unknown')
+    # Reverse the MODEL_IDS dictionary to map model IDs back to form types
+    id_to_type = {v: k.lower() for k, v in MODEL_IDS.items()}
+    return id_to_type.get(model_id, 'unknown')
 
 def ensure_customers_table():
     """Ensure the customers table exists in the database."""
@@ -243,9 +297,9 @@ class PdfButtonHandler:
         try:
             # Send the content, logic, and file context to the assistant
             response = openai.ChatCompletion.create(
-                model="gpt-4o-2024-08-06",  # Use the appropriate model
+                model="gpt-4.1-2025-04-14",  # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nWrite your full working out and then write **Final Codes:** and output the final codes each on a new line, including the passed codes."},
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nFirst, write your full working out. Then, write **Final Codes:** followed by the final codes each on a new line, including the passed codes. Do not include any additional text or summary after the final codes."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}"}
                 ],
                 max_tokens=1000,  # Adjust as necessary
@@ -257,130 +311,159 @@ class PdfButtonHandler:
             return assistant_response
         except Exception as e:
             return f"Error: {str(e)}"
+        
+    def get_required_by_days(self, customer_no, model_id):
+        """Retrieve the appropriate required_by_days from the release_times database based on Sell_to_Customer_No and model_id."""
+        try:
+            if model_id == MODEL_IDS['Insoles']:
+                column = 'Insoles_required_by'
+                default_days = 14
+            elif model_id in (MODEL_IDS['Bespoke'], MODEL_IDS['Modular']):
+                column = 'footware_required_by'
+                default_days = 28
+            else:  # AFOs, A&R, Kafo
+                column = 'Adaptions_required_by'
+                default_days = 14
 
-    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full):
+            conn = sqlite3.connect(release_times_db_path)
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT {column} FROM release_times WHERE Sell_to_Customer_No = ?", (customer_no,))
+            result = cursor.fetchone()
+            conn.close()
+            if result:
+                return int(result[0])
+            else:
+                return default_days  # Default based on column if no record is found
+        except Exception as e:
+            print(f"Error retrieving required_by_days: {e}")
+            return 14  # Default to 14 days on error
+
+    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code, pre_app_date):
         try:
             price_codes = self.get_price_codes_from_content(content, logic_content)
             print(f"Price codes received: {price_codes}")
-
-            if '**Final Codes:**' in price_codes:
-                final_codes_section = price_codes.split('**Final Codes:**')[1].strip()
-                final_codes = [line.strip() for line in final_codes_section.split('\n') if line.strip()]
+            # Extract codes from the last occurrence of "**Final Codes:**"
+            sections = price_codes.split('**Final Codes:**')
+            if len(sections) > 1:
+                last_section = sections[-1].strip()
+                lines = last_section.split('\n')
+                final_codes = []
+                for line in lines:
+                    stripped = line.strip()
+                    if stripped and not all(c == '-' for c in stripped):
+                        final_codes.append(stripped)
+                    else:
+                        break # Stop at separator line
             else:
                 final_codes = []
                 print("No final codes found in the response.")
                 self.root.after(0, lambda: self.append_to_result_text("No final codes found in the response.", 'error'))
-
             model_id = self.model_id_var.get()
             form_type_for_filename = get_form_type_from_model_id(model_id)
-
             current_datetime = datetime.datetime.now()
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
-
-            if model_id == 'InsoleFullReaderV7':
+            if model_id == MODEL_IDS['Insoles']:
                 query_message = self.check_for_base(content)
             else:
                 query_message = None
-
             messages = [query_message] if query_message else []
             combined_messages = '\n'.join(messages) if messages else None
-
             self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes, combined_messages)
-
             log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
-
-            if model_id == 'InsoleFullReaderV7':
-                if AutoDocRef == 'N/A':
-                    message = "No AutoDocRef found in the extracted data. Please kick to query."
-                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                    if log_file_path:
-                        with open(log_file_path, 'a', encoding='utf-8') as f:
-                            f.write(f"\n[ERROR] {message}\n")
-                    self.root.after(0, messagebox.showinfo, "AutoDocRef Not Found", message)
-                    return
-
-                clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
-                clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
-
-                db_path = customers_db_path
-                if not os.path.exists(db_path):
-                    error_msg = f"Error: Customers database file not found at {db_path}"
-                    print(error_msg)
-                    raise FileNotFoundError(error_msg)
-                conn = sqlite3.connect(db_path)
-                cursor = conn.cursor()
-                print(f"Querying for clinic: '{clinic}'")
-                cursor.execute("SELECT Sell_to_Customer_No FROM customers WHERE TRIM(LOWER(Docuware_Clinic_Name)) = TRIM(LOWER(?))", (clinic,))
-                clinic_result = cursor.fetchone()
-                if clinic_result:
-                    print(f"Found customer_no: {clinic_result[0]}")
-                else:
-                    print("No match found for the clinic.")
-                conn.close()
-
-                customer_no = clinic_result[0] if clinic_result else None
-                if not customer_no:
-                    message = f"Customer not found for clinic: {clinic}"
-                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                    if log_file_path:
-                        with open(log_file_path, 'a', encoding='utf-8') as f:
-                            f.write(f"\n[ERROR] {message}\n")
-                    self.root.after(0, messagebox.showinfo, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
-                    add_missing_contact('clinic', clinic)
-                    return
-
-                if clinician:
-                    if not os.path.exists(clinician_db_path):
-                        error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
-                        print(error_msg)
-                        raise FileNotFoundError(error_msg)
-                    conn = sqlite3.connect(clinician_db_path)
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
-                    clinician_result = cursor.fetchone()
-                    conn.close()
-
-                    prescriber = clinician_result[0] if clinician_result else None
-                    if not prescriber:
-                        message = f"Prescriber not found for clinician: {clinician}"
-                        self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                        if log_file_path:
-                            with open(log_file_path, 'a', encoding='utf-8') as f:
-                                f.write(f"\n[ERROR] {message}\n")
-                        self.root.after(0, messagebox.showinfo, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
-                        add_missing_contact('clinician', clinician)
-                        return
-                else:
-                    message = "Clinician field not found in the extracted data."
-                    self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                    if log_file_path:
-                        with open(log_file_path, 'a', encoding='utf-8') as f:
-                            f.write(f"\n[ERROR] {message}\n")
-                    self.root.after(0, messagebox.showinfo, "Clinician Not Found", "Clinician field not found in the extracted data.")
-                    return
-
-                if customer_no and prescriber:
-                    today = datetime.date.today()
-                    request_delivery_date = (today + datetime.timedelta(days=14)).strftime('%Y-%m-%d')
-                    print(f"Calculated request_delivery_date: {request_delivery_date}")
-                    success, sales_order_no, messages = attempt_nav_upload(
-                        customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, log_file_path, final_codes, patient_name, gender_full
-                    )
-                    for text, tag in messages:
-                        self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
-            else:
-                message = "Sales order posting not applicable for this form type."
-                tag = 'info'
-                self.root.after(0, lambda: self.append_to_result_text(message, tag))
+            if AutoDocRef == 'N/A':
+                message = "No AutoDocRef found in the extracted data. Please kick to query."
+                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
                 if log_file_path:
                     with open(log_file_path, 'a', encoding='utf-8') as f:
-                        f.write(f"\n[INFO] {message}\n")
-
+                        f.write(f"\n[ERROR] {message}\n")
+                self.root.after(0, self.append_and_show_info, "AutoDocRef Not Found", message)
+                return
+            clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
+            clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
+            if not clinician:
+                message = "Clinician field not found in the extracted data."
+                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                if log_file_path:
+                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"\n[ERROR] {message}\n")
+                self.root.after(0, self.append_and_show_info, "Clinician Not Found", message)
+                return
+            db_path = customers_db_path
+            if not os.path.exists(db_path):
+                error_msg = f"Error: Customers database file not found at {db_path}"
+                print(error_msg)
+                raise FileNotFoundError(error_msg)
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            print(f"Querying for clinic: '{clinic}'")
+            cursor.execute("SELECT Sell_to_Customer_No FROM customers WHERE TRIM(LOWER(Docuware_Clinic_Name)) = TRIM(LOWER(?))", (clinic,))
+            clinic_result = cursor.fetchone()
+            conn.close()
+            customer_no = clinic_result[0] if clinic_result else None
+            if not customer_no:
+                message = f"Customer not found for clinic: {clinic}"
+                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                if log_file_path:
+                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"\n[ERROR] {message}\n")
+                self.root.after(0, self.append_and_show_info, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
+                add_missing_contact('clinic', clinic)
+                return
+            # Check if Wales clinic and show popup
+            if customer_no in tariff_wales_customer_nos:
+                self.root.after(0, self.append_and_show_warning, "Wales Clinic", "Wales clinic: kick to code checker")
+            if not os.path.exists(clinician_db_path):
+                error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
+                print(error_msg)
+                raise FileNotFoundError(error_msg)
+            conn = sqlite3.connect(clinician_db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
+            clinician_result = cursor.fetchone()
+            conn.close()
+            prescriber = clinician_result[0] if clinician_result else None
+            if not prescriber:
+                message = f"Prescriber not found for clinician: {clinician}"
+                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
+                if log_file_path:
+                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"\n[ERROR] {message}\n")
+                self.root.after(0, self.append_and_show_info, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
+                add_missing_contact('clinician', clinician)
+                return
+            # Calculate request_delivery_date dynamically
+            pre_app_dt = None
+            if pre_app_date:
+                pre_app_dt = datetime.datetime.strptime(pre_app_date, '%Y-%m-%d').date()
+            if pre_app_dt:
+                delivery_dt = pre_app_dt - datetime.timedelta(days=3)
+            else:
+                creation_dt = datetime.datetime.strptime(creation_date, '%Y-%m-%d').date()
+                required_by_days = self.get_required_by_days(customer_no, model_id)
+                delivery_dt = creation_dt + datetime.timedelta(days=required_by_days)
+            request_delivery_date = delivery_dt.strftime('%Y-%m-%d')
+            # Pass order_category_code and pre_app_date to attempt_nav_upload
+            success, sales_order_no, messages = attempt_nav_upload(
+                customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
+                form_type_for_filename, log_file_path, final_codes, patient_name, gender_full, pre_app_date
+            )
+            for text, tag in messages:
+                self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
         finally:
             self.root.after(0, self.close_loading_popup)
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+
+    def append_and_show_info(self, title, message):
+        """Append info message to result_text and show pop-up."""
+        self.append_to_result_text(f"{title}: {message}", 'info')
+        messagebox.showinfo(title, message)
+
+    def append_and_show_warning(self, title, message):
+        """Append warning message to result_text and show pop-up."""
+        self.append_to_result_text(f"{title}: {message}", 'warning')
+        messagebox.showwarning(title, message)
 
     def append_to_result_text(self, message, tag='success'):
         self.result_text.config(state=tk.NORMAL)
@@ -393,43 +476,36 @@ class PdfButtonHandler:
             result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
             if not os.path.exists(result_logs_folder):
                 os.makedirs(result_logs_folder)
-
             current_datetime = datetime.datetime.now()
-            formatted_date = current_datetime.strftime('%Y-%m-%d')  # Format: YYYY-MM-DD
-
+            formatted_date = current_datetime.strftime('%Y-%m-%d') # Format: YYYY-MM-DD
             # Create a new folder inside 'result_logs' with the day's date
             date_folder_path = os.path.join(result_logs_folder, formatted_date)
             if not os.path.exists(date_folder_path):
                 os.makedirs(date_folder_path)
-
             # Sanitize the auto_doc_ref to create a valid filename
             sanitized_auto_doc_ref = ''.join(c for c in auto_doc_ref if c.isalnum() or c in ('_', '-')).strip()
             if not sanitized_auto_doc_ref:
                 sanitized_auto_doc_ref = 'log'
-
             # Use the auto_doc_ref as the filename
             log_file_name = f"results_log_{sanitized_auto_doc_ref}_{form_type}.txt"
             log_file_path = os.path.join(date_folder_path, log_file_name)
-
             with open(log_file_path, 'w', encoding='utf-8') as log_file:
                 formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
-
+                log_file.write(f"Version: {VERSION}\n")
                 log_file.write(f"Date and Time: {formatted_datetime}\n")
                 log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
                 log_file.write(f"Clinic: {clinic}\n\n")
-                log_file.write(f"AZURE EXTRACTED DATA:\n\n{azure_data}\n\n")  # Azure log data
-
+                log_file.write(f"AZURE EXTRACTED DATA:\n\n{azure_data}\n\n") # Azure log data
                 # Include any messages (query or warning) if they exist
                 if messages:
                     log_file.write(f"MESSAGES:\n{messages}\n\n")
-
                 log_file.write(f"PRICE CODES:\n\n{price_codes}\n")
-                log_file.write("-" * 50 + "\n")  # Separator between entries
+                log_file.write("-" * 50 + "\n") # Separator between entries
             print(f"Successfully wrote to log file at {log_file_path}")
-            return log_file_path  # Return the path for later appending
+            return log_file_path # Return the path for later appending
         except Exception as e:
             messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
-        return None  # Return None if there's an error (though this shouldn't happen often)
+        return None # Return None if there's an error (though this shouldn't happen often)
 
     def parse_extracted_data(self, data_dict):
         """Convert extracted data into a string format suitable for processing."""
@@ -460,73 +536,100 @@ class PdfButtonHandler:
         else:
             messagebox.showinfo("No PDF File Selected", "Please select a PDF file to process.")
 
-    def process_pdf_and_call_api(self, pdf_file_path):
+    def process_pdf_and_call_api(self, pdf_file_path, attempt=1):
         def azure_api_call():
             with open(pdf_file_path, "rb") as pdf_file:
                 poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
                 result = poller.result()
             return result
-
         try:
             model_id = self.model_id_var.get()
             print(f"Using model ID: {model_id}")
             form_type_for_filename = get_form_type_from_model_id(model_id)
-
             # Set timeout and retry parameters
-            timeout_seconds = 30  # Adjust as needed
+            timeout_seconds = 30
             max_retries = 2
-            for attempt in range(max_retries + 1):
+            for attempt_num in range(max_retries + 1):
                 try:
                     with concurrent.futures.ThreadPoolExecutor() as executor:
                         future = executor.submit(azure_api_call)
                         result = future.result(timeout=timeout_seconds)
-                    break  # Success, exit retry loop
+                    break
                 except concurrent.futures.TimeoutError:
-                    if attempt < max_retries:
-                        print(f"Azure API call timed out. Retrying... (Attempt {attempt + 1}/{max_retries})")
-                        self.root.after(0, lambda: self.update_loading_message(f"Retrying Azure API call... (Attempt {attempt + 1})"))
+                    if attempt_num < max_retries:
+                        print(f"Azure API call timed out. Retrying... (Attempt {attempt_num + 1}/{max_retries})")
+                        self.root.after(0, lambda: self.update_loading_message(f"Retrying Azure API call... (Attempt {attempt_num + 1})"))
                     else:
                         raise TimeoutError("Azure API call timed out after maximum retries.")
                 except requests.exceptions.RequestException as e:
                     raise RuntimeError(f"Network error during Azure API call: {str(e)}")
-
             self.root.after(0, self.update_loading_message, "Please wait, calculating the codes")
-
             fields_data = self.extract_fields_from_result(result)
+            order_category_code = determine_order_category_code(model_id, fields_data)
             if not fields_data:
                 raise ValueError("No data extracted from the PDF.")
-
+            # Check form confirmation
+            form_confirmation = fields_data.get('form confirmation', '').strip()
+            if not form_confirmation:
+                error_msg = "No form confirmation found in the extracted data."
+                self.root.after(0, messagebox.showerror, "Error", error_msg)
+                self.root.after(0, self.close_loading_popup)
+                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                return
+            # Mapping of form confirmation values to model IDs
+            form_to_model = {
+                'Insole Prescription Form': MODEL_IDS['Insoles'],
+                '(Internal Digitised) Insole Prescription Form': MODEL_IDS['Insoles'],
+                '(Repeat) Insole Prescription Form': MODEL_IDS['Insoles'],
+                'AFO Prescription Form': MODEL_IDS['AFOs'],
+                'Bespoke Footwear Prescription Form': MODEL_IDS['Bespoke'],
+                'Modular Footwear Prescription Form': MODEL_IDS['Modular'],
+                'Adapts, Repairs & Modifications': MODEL_IDS['A&R'],
+                'KAFO Prescription Form': MODEL_IDS['Kafo']
+            }
+            correct_model_id = form_to_model.get(form_confirmation, None)
+            if correct_model_id is None:
+                error_msg = f"Unknown form confirmation: {form_confirmation}"
+                self.root.after(0, messagebox.showerror, "Error", error_msg)
+                self.root.after(0, self.close_loading_popup)
+                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                return
+            if correct_model_id != model_id:
+                if attempt >= 2:
+                    error_msg = f"Form confirmation '{form_confirmation}' does not match the selected model after switching."
+                    self.root.after(0, messagebox.showerror, "Error", error_msg)
+                    self.root.after(0, self.close_loading_popup)
+                    self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+                    return
+                else:
+                    self.model_id_var.set(correct_model_id)
+                    self.root.after(0, self.update_loading_message, f"Switching to model {correct_model_id}")
+                    self.process_pdf_and_call_api(pdf_file_path, attempt + 1)
+                    return
+            # Proceed with normal processing if form confirmation matches
             content = self.parse_extracted_data(fields_data)
             print(f"Extracted content:\n{content}")
-
-            if model_id == 'InsoleFullReaderV7':
+            if model_id == MODEL_IDS['Insoles']:
                 if "insole type other" in fields_data:
-                    self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
+                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
                 if self.is_carbon_selected(content):
-                    self.root.after(0, messagebox.showwarning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
-
+                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
             AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
             clinic = fields_data.get('Clinic', 'N/A')
-
             # Extract and clean patient name
             patient_raw = fields_data.get('patient', '').strip()
-            print(f"Raw patient field: '{patient_raw}'")  # Debugging
-            # Check if the string starts with "Name" (case-insensitive) and remove it
+            print(f"Raw patient field: '{patient_raw}'")
             if patient_raw.lower().startswith('name'):
-                # If it starts with "Name:", remove the first 5 characters
                 if patient_raw.lower().startswith('name:'):
                     patient_name = patient_raw[5:].strip()
-                # If it starts with "Name" (no colon), remove the first 4 characters
                 else:
                     patient_name = patient_raw[4:].strip()
             else:
                 patient_name = patient_raw
-            # If the resulting name is empty or None, default to "Unknown"
             if not patient_name:
                 patient_name = 'Unknown'
-            print(f"Cleaned patient_name: '{patient_name}'")  # Debugging
-
-            # Extract creation date from fields_data
+            print(f"Cleaned patient_name: '{patient_name}'")
+            # Extract creation date
             creation_date_str = fields_data.get('creation date', '28/04/2025')
             try:
                 day, month, year = creation_date_str.split('/')
@@ -541,7 +644,6 @@ class PdfButtonHandler:
             except (ValueError, AttributeError):
                 creation_date = datetime.date.today().strftime('%Y-%m-%d')
                 print(f"Failed to parse creation_date, using today's date: {creation_date}")
-
             # Extract and convert gender
             gender = fields_data.get('gender', 'N/A').strip().upper()
             if gender == 'M':
@@ -550,15 +652,21 @@ class PdfButtonHandler:
                 gender_full = 'Female'
             else:
                 gender_full = 'Unknown'
-
+            # Extract and parse pre_app_date
+            pre_app_date_str = fields_data.get('pre app date', '').strip()
+            if pre_app_date_str:
+                pre_app_date = parse_pre_app_date(pre_app_date_str)
+                if pre_app_date is None:
+                    print(f"Failed to parse pre_app_date: '{pre_app_date_str}'")
+            else:
+                pre_app_date = None
+            print(f"Parsed pre_app_date: {pre_app_date}")
             logic_file_name = None
-            logic_file_name = None
-
-            if model_id == 'InsoleFullReaderV7':
+            if model_id == MODEL_IDS['Insoles']:
                 form_type = self.determine_form_type(fields_data)
                 if not form_type:
                     query_message = "No form type found in the extracted data. Please raise a query."
-                    self.root.after(0, messagebox.showinfo, "Query", query_message)
+                    self.root.after(0, self.append_and_show_info, "Query", query_message)
                     form_type = 'tci'
                 elif form_type == 'other':
                     form_type = 'tci'
@@ -580,8 +688,7 @@ class PdfButtonHandler:
                     print(f"Passed codes added to content: {passed_codes}")
                 else:
                     print("No passed codes generated.")
-
-            elif model_id == 'AfoReaderV7':
+            elif model_id == MODEL_IDS['AFOs']:
                 logic_file_name = 'afo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
                 passed_codes = generate_afo_codes(self, content)
@@ -590,8 +697,7 @@ class PdfButtonHandler:
                     print(f"Passed codes added to content: {passed_codes}")
                 else:
                     print("No passed codes generated.")
-
-            elif model_id == 'BespokeReaderFullV4':
+            elif model_id == MODEL_IDS['Bespoke']:
                 logic_file_name = 'bespoke_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
                 passed_codes = generate_bespoke_codes(self, content)
@@ -600,8 +706,7 @@ class PdfButtonHandler:
                     print(f"Passed codes added to content: {passed_codes}")
                 else:
                     print("No passed codes generated.")
-
-            elif model_id == 'ModularReaderFullV3':
+            elif model_id == MODEL_IDS['Modular']:
                 logic_file_name = 'modular_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
                 passed_codes = generate_modular_codes(self, content)
@@ -610,20 +715,33 @@ class PdfButtonHandler:
                     print(f"Passed codes added to content: {passed_codes}")
                 else:
                     print("No passed codes generated.")
-
+            elif model_id == MODEL_IDS['A&R']:
+                logic_file_name = 'a_and_r_logic.txt'
+                print(f"Logic file name: {logic_file_name}")
+                passed_codes = generate_a_and_r_codes(self, content)
+                if passed_codes:
+                    content += f"\n\nPassed code:\n{passed_codes}"
+                    print(f"Passed codes added to content: {passed_codes}")
+                else:
+                    print("No passed codes generated.")
+            elif model_id == MODEL_IDS['Kafo']:
+                logic_file_name = 'kafo_logic.txt'
+                print(f"Logic file name: {logic_file_name}")
+                passed_codes = generate_kafo_codes(self, content)
+                if passed_codes:
+                    content += f"\n\nPassed code:\n{passed_codes}"
+                    print(f"Passed codes added to content: {passed_codes}")
+                else:
+                    print("No passed codes generated.")
             else:
                 raise ValueError(f"Unknown model ID '{model_id}'.")
-
             logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
             print(f"Logic file path: {logic_file_path}")
-
             logic_content = self.read_logic_file(logic_file_path)
             if "Error" in logic_content:
                 raise ValueError(logic_content)
-
-            # Pass patient_name to process_api_call
-            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full)
-
+            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date,
+                                patient_name, gender_full, order_category_code, pre_app_date)
         except TimeoutError as e:
             error_msg = f"Timeout error: {str(e)}"
             self.root.after(0, messagebox.showerror, "Timeout Error", error_msg)
@@ -637,8 +755,9 @@ class PdfButtonHandler:
             self.root.after(0, messagebox.showerror, "Error", error_msg)
             print(error_msg)
         finally:
-            self.root.after(0, self.close_loading_popup)
-            self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+            if attempt == 1:
+                self.root.after(0, self.close_loading_popup)
+                self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
     def extract_fields_from_result(self, result):
         """Extract relevant fields from Azure analysis result."""
@@ -674,9 +793,6 @@ class PdfButtonHandler:
                 break
             elif key_lower == 'afo' and value_lower == 'selected':
                 form_type = 'afo'
-                break
-            elif key_lower == 'kafo' and value_lower == 'selected':
-                form_type = 'kafo'
                 break
 
         # -- New: If we found nothing, check if 'insole type other' has a value
@@ -720,7 +836,7 @@ class PdfButtonHandler:
         data_lower = data.lower()
         if not any(keyword in data_lower for keyword in ['base:', 'carbon fibre:', 'poron:']):
             query_message = "No base, Carbon Fibre, or Poron found in the form. Please raise a query."
-            self.root.after(0, messagebox.showinfo, "Query", query_message)
+            self.root.after(0, self.append_and_show_info, "Query", query_message)
             return query_message
         else:
             return None  # No query needed
@@ -729,21 +845,26 @@ class PdfButtonHandler:
         content_lower = content.lower()
         return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
 
-def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, log_file_path=None, final_codes=None, patient_name=None, gender_full=None):
+def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date,
+                      auto_doc_ref, order_category_code, form_type, log_file_path=None,
+                      final_codes=None, patient_name=None, gender_full=None, pre_app_date=None):
     """
     Attempts to create a sales order in NAV using the provided parameters with enhanced error handling.
-    
+   
     Args:
         customer_no (str): The customer number.
         prescriber (str): The prescriber number (e.g., 'GB-CONT0001').
         original_order_date (str): The original order date in 'YYYY-MM-DD' format.
         request_delivery_date (str): The requested delivery date in 'YYYY-MM-DD' format.
         auto_doc_ref (str): The auto document reference.
+        order_category_code (str): The dynamic order category code.
+        form_type (str): The type of form ('insoles', 'afos', 'bespoke', 'modular', or 'unknown').
         log_file_path (str, optional): Path to the log file for recording outcomes.
         final_codes (list, optional): List of final codes to include in the sales order lines.
         patient_name (str, optional): The patient's name.
         gender_full (str, optional): The patient's gender ("Male", "Female", or "Unknown").
-    
+        pre_app_date (str, optional): The pre-appointed date in 'YYYY-MM-DD' format.
+   
     Returns:
         tuple: (success (bool), sales_order_no (str or None), messages (list of (text, tag)))
     """
@@ -754,18 +875,44 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             original_order_date=original_order_date,
             request_delivery_date=request_delivery_date,
             auto_doc_ref=auto_doc_ref,
+            order_category_code=order_category_code,
+            form_type=form_type,
             final_codes=final_codes if final_codes else [],
             patient_name=patient_name if patient_name else "",
-            gender=gender_full
+            gender=gender_full,
+            pre_app_date=pre_app_date # Pass pre_app_date to create_sales_order
         )
-        
+       
         success = result.get('success', False)
         sales_order_no = result.get('sales_order_no', None)
         error_messages = result.get('error_messages', [])
-        
-        messages = []
+       
+        ui_messages = []
+        log_messages = []
+       
         if sales_order_no:
-            messages.append((f"✅ Created Sales Order: {sales_order_no}", 'success'))
+            ui_messages.append((f"✅ Created Sales Order: {sales_order_no}", 'success'))
+            log_messages.append(f"[SUCCESS] Created Sales Order: {sales_order_no}")
+            today_str = datetime.date.today().strftime("%Y-%m-%d")
+            external_doc_no = f"DNI/{auto_doc_ref}"
+            order_data_log = {
+                "No": sales_order_no,
+                "Sell_to_Customer_No": customer_no,
+                "Original_Order_Date": original_order_date,
+                "Order_Date": today_str,
+                "Document_Date": today_str,
+                "Order_Category_Code": order_category_code,
+                "Prescriber": prescriber,
+                "Send_For": "Send for Finish",
+                "Requested_Delivery_Date": request_delivery_date,
+                "Pad_No": auto_doc_ref,
+                "Patient_Name": patient_name if patient_name else "Unknown",
+                "Patient_Gender": gender_full,
+                "External_Document_No": external_doc_no
+            }
+            if pre_app_date:
+                order_data_log["Pre_appointed_Date"] = pre_app_date
+            log_messages.append("\nUploaded Order Data:\n" + json.dumps(order_data_log, indent=4))
             if error_messages:
                 for error in error_messages:
                     if "Internal_InvalidTableRelation" in error:
@@ -773,22 +920,23 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                             prescriber_no = prescriber
                             clinician_name = get_clinician_name(prescriber_no)
                             if clinician_name != "Unknown":
-                                formatted_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' exists in the app database but not in NAV. Please check if the prescriber number is correct."
+                                ui_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' exists in the app database but not in NAV."
                             else:
-                                formatted_msg = f"❌ Prescriber number '{prescriber_no}' not found in the app database or NAV. Please ensure the clinician is added to both systems."
+                                ui_msg = f"❌ Prescriber number '{prescriber_no}' not found in the app database or NAV."
                         elif "Sell-to Customer No." in error:
                             match = re.search(r"\((\w+)\)", error)
                             customer_no_from_error = match.group(1) if match else customer_no
                             clinic_name = get_clinic_name(customer_no_from_error)
                             if clinic_name != "Unknown":
-                                formatted_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' exists in the app database but not in NAV. Please check if the sell to number is correct."
+                                ui_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' exists in the app database but not in NAV."
                             else:
-                                formatted_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in the app database or NAV. Please ensure the clinic is added to both systems."
+                                ui_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in the app database or NAV."
                         else:
-                            formatted_msg = f"❌ {error}"
+                            ui_msg = "❌ Error uploading to NAV. Please check order details."
                     else:
-                        formatted_msg = f"❌ {error}"
-                    messages.append((formatted_msg, 'error'))
+                        ui_msg = "❌ Error uploading to NAV. Please check order details."
+                    ui_messages.append((ui_msg, 'error'))
+                    log_messages.append(f"[ERROR] {error}")
         else:
             for error in error_messages:
                 if "Internal_InvalidTableRelation" in error:
@@ -796,208 +944,237 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                         prescriber_no = prescriber
                         clinician_name = get_clinician_name(prescriber_no)
                         if clinician_name != "Unknown":
-                            formatted_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' not found in NAV."
+                            ui_msg = f"❌ Clinician '{clinician_name}' with prescriber number '{prescriber_no}' not found in NAV."
                         else:
-                            formatted_msg = f"❌ Prescriber number '{prescriber_no}' not found in NAV or app database."
+                            ui_msg = f"❌ Prescriber number '{prescriber_no}' not found in NAV or app database."
                     elif "Sell-to Customer No." in error:
                         match = re.search(r"\((\w+)\)", error)
                         customer_no_from_error = match.group(1) if match else customer_no
                         clinic_name = get_clinic_name(customer_no_from_error)
                         if clinic_name != "Unknown":
-                            formatted_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' not found in NAV."
+                            ui_msg = f"❌ Clinic '{clinic_name}' with sell-to number '{customer_no_from_error}' not found in NAV."
                         else:
-                            formatted_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in NAV or app database."
+                            ui_msg = f"❌ Sell-to customer number '{customer_no_from_error}' not found in NAV or app database."
                     else:
-                        formatted_msg = f"❌ {error}"
+                        ui_msg = "❌ Error uploading to NAV. Please check order details."
                 else:
-                    formatted_msg = f"❌ {error}"
-                messages.append((formatted_msg, 'error'))
-        
+                    ui_msg = "❌ Error uploading to NAV. Please check order details."
+                ui_messages.append((ui_msg, 'error'))
+                log_messages.append(f"[ERROR] {error}")
+       
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
-                if sales_order_no:
-                    f.write(f"\n[SUCCESS] Created Sales Order: {sales_order_no}\n")
-                    if error_messages:
-                        f.write("[ERROR] Encountered errors while adding details:\n")
-                        for msg, _ in messages[1:]:
-                            f.write(f"  {msg}\n")
-                else:
-                    f.write("[ERROR] Failed to create sales order:\n")
-                    for msg, _ in messages:
-                        f.write(f"  {msg}\n")
-        
-        return success, sales_order_no, messages
-    
+                for log_msg in log_messages:
+                    f.write(f"{log_msg}\n")
+       
+        return success, sales_order_no, ui_messages
+   
     except Exception as e:
-        error_message = f"❌ Failed to post to NAV due to an unexpected error: {str(e)}"
+        ui_error_message = "❌ Error uploading to NAV. Please check order details."
+        log_error_message = f"[ERROR] Unexpected error: {str(e)}"
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
-                f.write(f"\n[ERROR] {error_message}\n")
-        return False, None, [(error_message, 'error')]
+                f.write(f"{log_error_message}\n")
+        return False, None, [(ui_error_message, 'error')]
     
 # --- Main Application Setup ---
-def create_search_tab(notebook):
-    """
-    Creates a new tab in the provided ttk.Notebook for searching
-    through the 'work_orders' folder by AutoDocRef (case-insensitive),
-    with smaller scrollable listbox and text box,
-    automatic searching with debouncing on each keystroke,
-    and double-click to open files.
-    """
-    import tkinter as tk
-    from tkinter import ttk, messagebox
-    import os
+class EntryDialog(Toplevel):
+    def __init__(self, parent, title, initial_values=None):
+        Toplevel.__init__(self, parent)
+        self.transient(parent)
+        self.title(title)
+        self.result = None
+        # Create a frame for the form
+        form_frame = ttk.Frame(self)
+        form_frame.pack(padx=10, pady=10)
+        # Labels and entries using grid
+        self.customer_no_label = ttk.Label(form_frame, text="Sell to Customer No:")
+        self.customer_no_entry = ttk.Entry(form_frame)
+        self.customer_no_label.grid(row=0, column=0, sticky='e', padx=5, pady=5)
+        self.customer_no_entry.grid(row=0, column=1, padx=5, pady=5)
+        self.default_name_label = ttk.Label(form_frame, text="Default Name:")
+        self.default_name_entry = ttk.Entry(form_frame)
+        self.default_name_label.grid(row=1, column=0, sticky='e', padx=5, pady=5)
+        self.default_name_entry.grid(row=1, column=1, padx=5, pady=5)
+        self.insoles_required_by_label = ttk.Label(form_frame, text="Insoles Required By:")
+        self.insoles_required_by_entry = ttk.Entry(form_frame)
+        self.insoles_required_by_label.grid(row=2, column=0, sticky='e', padx=5, pady=5)
+        self.insoles_required_by_entry.grid(row=2, column=1, padx=5, pady=5)
+        self.footware_required_by_label = ttk.Label(form_frame, text="Footware Required By:")
+        self.footware_required_by_entry = ttk.Entry(form_frame)
+        self.footware_required_by_label.grid(row=3, column=0, sticky='e', padx=5, pady=5)
+        self.footware_required_by_entry.grid(row=3, column=1, padx=5, pady=5)
+        self.adaptions_required_by_label = ttk.Label(form_frame, text="Adaptions Required By:")
+        self.adaptions_required_by_entry = ttk.Entry(form_frame)
+        self.adaptions_required_by_label.grid(row=4, column=0, sticky='e', padx=5, pady=5)
+        self.adaptions_required_by_entry.grid(row=4, column=1, padx=5, pady=5)
+        if initial_values:
+            self.customer_no_entry.insert(0, initial_values[0])
+            self.default_name_entry.insert(0, initial_values[1])
+            self.insoles_required_by_entry.insert(0, initial_values[2])
+            self.footware_required_by_entry.insert(0, initial_values[3])
+            self.adaptions_required_by_entry.insert(0, initial_values[4])
+        # Button frame
+        button_frame = ttk.Frame(self)
+        button_frame.pack(side='bottom', fill='x', padx=10, pady=10)
+        self.ok_button = ttk.Button(button_frame, text="OK", command=self.on_ok)
+        self.ok_button.pack(side='left')
+        self.cancel_button = ttk.Button(button_frame, text="Cancel", command=self.on_cancel)
+        self.cancel_button.pack(side='right')
+        # Center the dialog
+        self.update_idletasks()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        dialog_width = self.winfo_width()
+        dialog_height = self.winfo_height()
+        x = (screen_width - dialog_width) // 2
+        y = (screen_height - dialog_height) // 2
+        self.geometry(f"+{x}+{y}")
+        # Grab focus
+        self.grab_set()
+        self.focus_set()
+    def on_ok(self):
+        self.result = (
+            self.customer_no_entry.get(),
+            self.default_name_entry.get(),
+            self.insoles_required_by_entry.get(),
+            self.footware_required_by_entry.get(),
+            self.adaptions_required_by_entry.get()
+        )
+        self.destroy()
+    def on_cancel(self):
+        self.result = None
+        self.destroy()
 
-    # Create a frame for the 'Search Work Orders' tab
-    search_tab = ttk.Frame(notebook)
-    notebook.add(search_tab, text="Search Work Orders")
+def create_required_by_data_tab(notebook):
+    required_by_tab = ttk.Frame(notebook)
+    notebook.add(required_by_tab, text="Required By Data")
 
-    # Label + Entry
-    search_label = ttk.Label(search_tab, text="Enter AutoDocRef (live search):")
-    search_label.pack(pady=5)
+    # Title label
+    title_label = ttk.Label(required_by_tab, text="Required By Data", font=("Calibri", 16, "bold"))
+    title_label.pack(pady=5)
 
-    search_entry = ttk.Entry(search_tab, width=30)
-    search_entry.pack(pady=5)
+    # Description label with information symbol
+    description_label = ttk.Label(required_by_tab, text="\u2139 You can change the reqired by date for different clinics here.", font=("Calibri", 12))
+    description_label.pack(pady=5)
 
-    # Frame to hold the listbox + scrollbar
-    listbox_frame = ttk.Frame(search_tab)
-    listbox_frame.pack(pady=5, fill='both', expand=True)
+    # Frame for Treeview and scrollbars
+    tree_frame = ttk.Frame(required_by_tab)
+    tree_frame.pack(fill='both', expand=True)
 
-    listbox_scrollbar = ttk.Scrollbar(listbox_frame, orient='vertical')
-    listbox_scrollbar.pack(side='right', fill='y')
+    tree = ttk.Treeview(tree_frame, columns=('Sell_to_Customer_No', 'default_name', 'Insoles_required_by', 'footware_required_by', 'Adaptions_required_by'), show='headings')
+    tree.heading('Sell_to_Customer_No', text='Sell to Customer No')
+    tree.heading('default_name', text='Default Name')
+    tree.heading('Insoles_required_by', text='Insoles Required By')
+    tree.heading('footware_required_by', text='Footware Required By')
+    tree.heading('Adaptions_required_by', text='Adaptions Required By')
+    tree.column('Sell_to_Customer_No', width=150, anchor='center')
+    tree.column('default_name', width=200, anchor='w')
+    tree.column('Insoles_required_by', width=100, anchor='center')
+    tree.column('footware_required_by', width=100, anchor='center')
+    tree.column('Adaptions_required_by', width=100, anchor='center')
 
-    # Make the listbox smaller: width=60, height=15
-    results_listbox = tk.Listbox(
-        listbox_frame, 
-        width=60, height=15, 
-        yscrollcommand=listbox_scrollbar.set
-    )
-    results_listbox.pack(side='left', fill='both', expand=True)
+    # Scrollbars
+    vertical_scrollbar = ttk.Scrollbar(tree_frame, orient='vertical', command=tree.yview)
+    horizontal_scrollbar = ttk.Scrollbar(tree_frame, orient='horizontal', command=tree.xview)
+    tree.configure(yscrollcommand=vertical_scrollbar.set, xscrollcommand=horizontal_scrollbar.set)
 
-    listbox_scrollbar.config(command=results_listbox.yview)
+    # Grid layout for Treeview and scrollbars
+    tree.grid(row=0, column=0, sticky='nsew')
+    vertical_scrollbar.grid(row=0, column=1, sticky='ns')
+    horizontal_scrollbar.grid(row=1, column=0, sticky='ew')
+    tree_frame.grid_rowconfigure(0, weight=1)
+    tree_frame.grid_columnconfigure(0, weight=1)
 
-    # Frame to hold the text widget + scrollbar
-    text_frame = ttk.Frame(search_tab)
-    text_frame.pack(pady=5, fill='both', expand=True)
+    def populate_tree():
+        for item in tree.get_children():
+            tree.delete(item)
+        conn = sqlite3.connect(release_times_db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT Sell_to_Customer_No, default_name, Insoles_required_by, footware_required_by, Adaptions_required_by FROM release_times")
+        rows = cursor.fetchall()
+        for row in rows:
+            tree.insert('', 'end', values=row)
+        conn.close()
 
-    text_scrollbar = ttk.Scrollbar(text_frame, orient='vertical')
-    text_scrollbar.pack(side='right', fill='y')
+    populate_tree()
 
-    # Make the text box smaller: width=60, height=15
-    file_content_text = tk.Text(
-        text_frame,
-        wrap='word', width=60, height=15,
-        yscrollcommand=text_scrollbar.set
-    )
-    file_content_text.pack(side='left', fill='both', expand=True)
-    file_content_text.config(state='disabled')
+    # Bind double-click to edit
+    tree.bind('<Double-1>', lambda event: edit_entry())
 
-    text_scrollbar.config(command=file_content_text.yview)
+    # Define functions before creating buttons
+    def add_entry():
+        dialog = EntryDialog(root, "Add New Entry")
+        root.wait_window(dialog)
+        if dialog.result:
+            conn = sqlite3.connect(release_times_db_path)
+            cursor = conn.cursor()
+            try:
+                cursor.execute("INSERT INTO release_times (Sell_to_Customer_No, default_name, Insoles_required_by, footware_required_by, Adaptions_required_by) VALUES (?, ?, ?, ?, ?)", dialog.result)
+                conn.commit()
+            except sqlite3.IntegrityError:
+                messagebox.showerror("Error", "Duplicate Sell to Customer No.")
+            conn.close()
+            populate_tree()
 
-    # ------------- Functions -------------
-    search_after_id = None
-
-    def live_search():
-        """Handle keystrokes with debouncing for live search."""
-        nonlocal search_after_id
-        query = search_entry.get().strip()
-        if not query:
-            # Immediately clear the listbox if the query is empty
-            results_listbox.delete(0, tk.END)
-            file_content_text.config(state='normal')
-            file_content_text.delete('1.0', tk.END)
-            file_content_text.config(state='disabled')
-            if search_after_id:
-                root.after_cancel(search_after_id)
-            search_after_id = None
-        else:
-            # Cancel any pending search and schedule a new one
-            if search_after_id:
-                root.after_cancel(search_after_id)
-            search_after_id = root.after(300, perform_search)
-
-    def perform_search():
-        """Perform the case-insensitive search after the debounce delay."""
-        results_listbox.delete(0, tk.END)
-        file_content_text.config(state='normal')
-        file_content_text.delete('1.0', tk.END)
-        file_content_text.config(state='disabled')
-
-        query = search_entry.get().strip().lower()
-        work_orders_folder = os.path.join(os.getcwd(), 'work_orders')
-        if not os.path.exists(work_orders_folder):
+    def edit_entry():
+        selected = tree.selection()
+        if not selected:
+            messagebox.showinfo("No Selection", "Please select an entry to edit.")
             return
+        item = tree.item(selected[0])
+        values = item['values']
+        dialog = EntryDialog(root, "Edit Entry", initial_values=values)
+        root.wait_window(dialog)
+        if dialog.result:
+            conn = sqlite3.connect(release_times_db_path)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE release_times SET default_name = ?, Insoles_required_by = ?, footware_required_by = ?, Adaptions_required_by = ? WHERE Sell_to_Customer_No = ?", (dialog.result[1], dialog.result[2], dialog.result[3], dialog.result[4], dialog.result[0]))
+            conn.commit()
+            conn.close()
+            populate_tree()
 
-        for date_folder in os.listdir(work_orders_folder):
-            date_path = os.path.join(work_orders_folder, date_folder)
-            if os.path.isdir(date_path):
-                for filename in os.listdir(date_path):
-                    if query in filename.lower():
-                        full_path = os.path.join(date_path, filename)
-                        results_listbox.insert(tk.END, full_path)
-
-    def open_file():
-        """Open the selected file from the listbox and display its contents."""
-        selection = results_listbox.curselection()
-        if not selection:
-            messagebox.showinfo("No File Selected", "Please select a file from the list.")
+    def delete_entry():
+        selected = tree.selection()
+        if not selected:
+            messagebox.showinfo("No Selection", "Please select an entry to delete.")
             return
+        confirm = messagebox.askyesno("Confirm Deletion", "Are you sure you want to delete the selected entry?")
+        if confirm:
+            item = tree.item(selected[0])
+            customer_no = item['values'][0]
+            conn = sqlite3.connect(release_times_db_path)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM release_times WHERE Sell_to_Customer_No = ?", (customer_no,))
+            conn.commit()
+            conn.close()
+            populate_tree()
 
-        selected_file = results_listbox.get(selection[0])
-
-        if not os.path.isfile(selected_file):
-            messagebox.showerror("Error", f"File does not exist: {selected_file}")
-            return
-
-        try:
-            with open(selected_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-            file_content_text.config(state='normal')
-            file_content_text.delete('1.0', tk.END)
-            file_content_text.insert(tk.END, content)
-            file_content_text.config(state='disabled')
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not open file:\n{str(e)}")
-
-    def copy_to_clipboard():
-        """Copy the displayed file text to the clipboard."""
-        file_content_text.config(state='normal')
-        contents = file_content_text.get('1.0', tk.END).strip()
-        file_content_text.config(state='disabled')
-
-        if contents:
-            search_tab.clipboard_clear()
-            search_tab.clipboard_append(contents)
-            messagebox.showinfo("Copied", "File contents copied to clipboard.")
-        else:
-            messagebox.showinfo("No Contents", "There is no file text to copy.")
-
-    def on_listbox_double_click(event):
-        """Double-click in the listbox -> open the file."""
-        open_file()
-
-    # Bind the live search to each key release in the entry
-    search_entry.bind("<KeyRelease>", lambda event: live_search())
-    # Bind double-click to open file
-    results_listbox.bind("<Double-Button-1>", on_listbox_double_click)
-
-    # ------------- Buttons Frame (only Copy for now) -------------
-    button_frame = ttk.Frame(search_tab)
+    # Create buttons after defining functions
+    button_frame = ttk.Frame(required_by_tab)
     button_frame.pack(pady=5)
 
-    copy_button = ttk.Button(button_frame, text="Copy to Clipboard", command=copy_to_clipboard)
-    copy_button.pack(side=tk.LEFT, padx=5)
+    add_button = ttk.Button(button_frame, text="Add", command=add_entry)
+    edit_button = ttk.Button(button_frame, text="Edit", command=edit_entry)
+    delete_button = ttk.Button(button_frame, text="Delete", command=delete_entry)
 
-    return search_tab
+    add_button.pack(side='left', padx=5)
+    edit_button.pack(side='left', padx=5)
+    delete_button.pack(side='left', padx=5)
+
+    return required_by_tab, populate_tree
 
 def create_missing_contacts_tab(notebook):
-    """Create a tab to view and update missing clinics and clinicians."""
     missing_tab = ttk.Frame(notebook)
     notebook.add(missing_tab, text="Missing Contacts")
 
-    # Label with larger font
+    # Existing title label
     label = ttk.Label(missing_tab, text="Missing Clinics and Clinicians", font=("Calibri", 16, "bold"))
     label.pack(pady=5)
+
+    # Add description label with information symbol
+    description_label = ttk.Label(missing_tab, text="\u2139 Unrecognised Clinics or Clinicians appear here, where you can edit and update the Contact number.", font=("Calibri", 12))
+    description_label.pack(pady=5)
 
     # Define a custom style for the Treeview with larger font and increased row height
     style = ttk.Style()
@@ -1009,7 +1186,7 @@ def create_missing_contacts_tab(notebook):
     tree_frame.pack(fill='both', expand=True)
 
     # Treeview to display missing entries with custom style and centered data
-    tree = ttk.Treeview(tree_frame, columns=('Type', 'Name'), show='headings', style="Custom.Treeview")
+    tree = ttk.Treeview(tree_frame, columns=('Type', 'Name'), show='headings', style="Custom.Treeview", selectmode='extended')
     tree.heading('Type', text='Type')
     tree.heading('Name', text='Name')
     tree.column('Type', width=150, minwidth=150, anchor='center')  # Width for 'Type'
@@ -1028,39 +1205,36 @@ def create_missing_contacts_tab(notebook):
     tree_frame.grid_columnconfigure(0, weight=1)
 
     def populate_tree():
-        """Populate the Treeview with data from missing_contacts.db."""
         ensure_missing_contacts_table()  # Ensure the table exists before querying
         tree.delete(*tree.get_children())
         conn = sqlite3.connect(missing_db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT type, name FROM missing_entries")
+        cursor.execute("SELECT id, type, name FROM missing_entries")
         for row in cursor.fetchall():
-            tree.insert('', 'end', values=row)
+            tree.insert('', 'end', values=(row[1], row[2]), tags=(row[0],))
         conn.close()
 
     populate_tree()
 
-    # Refresh button
-    refresh_button = ttk.Button(missing_tab, text="Refresh", command=populate_tree)
-    refresh_button.pack(pady=5)
-
     def update_contact():
-        """Update the selected missing contact with a user-provided code."""
         selection = tree.selection()
         if not selection:
             messagebox.showinfo("No Selection", "Please select a missing contact to update.")
             return
-
+        if len(selection) > 1:
+            messagebox.showinfo("Multiple Selection", "Please select only one contact to update.")
+            return
         item = tree.item(selection[0])
+        id = item['tags'][0]
         type, name = item['values']
         code = simpledialog.askstring("Input Code", f"Enter the code for {type} '{name}':")
         if code:
             if type == 'clinic':
-                    conn = sqlite3.connect(customers_db_path)
-                    cursor = conn.cursor()
-                    cursor.execute("INSERT OR REPLACE INTO customers (Docuware_Clinic_Name, Sell_to_Customer_No) VALUES (?, ?)", (name, code))
-                    conn.commit()
-                    conn.close()
+                conn = sqlite3.connect(customers_db_path)
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR REPLACE INTO customers (Docuware_Clinic_Name, Sell_to_Customer_No) VALUES (?, ?)", (name, code))
+                conn.commit()
+                conn.close()
             elif type == 'clinician':
                 conn = sqlite3.connect(clinician_db_path)
                 cursor = conn.cursor()
@@ -1068,29 +1242,59 @@ def create_missing_contacts_tab(notebook):
                 conn.commit()
                 conn.close()
 
-            # Remove from missing_entries
+            # Remove from missing_entries using id
             conn = sqlite3.connect(missing_db_path)
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM missing_entries WHERE type = ? AND name = ?", (type, name))
+            cursor.execute("DELETE FROM missing_entries WHERE id = ?", (id,))
             conn.commit()
             conn.close()
 
             populate_tree()
             messagebox.showinfo("Success", f"Updated {type} '{name}' with code '{code}'.")
 
-    # Update button
+    def delete_contact():
+        selection = tree.selection()
+        if not selection:
+            messagebox.showinfo("No Selection", "Please select one or more missing contacts to delete.")
+            return
+        confirm = messagebox.askyesno("Confirm Deletion", "Are you sure you want to delete the selected contacts? This action cannot be undone.")
+        if confirm:
+            try:
+                conn = sqlite3.connect(missing_db_path)
+                cursor = conn.cursor()
+                for item_id in selection:
+                    id = tree.item(item_id)['tags'][0]
+                    cursor.execute("DELETE FROM missing_entries WHERE id = ?", (id,))
+                conn.commit()
+                conn.close()
+                populate_tree()
+                messagebox.showinfo("Success", "Deleted selected contacts.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to delete contacts: {str(e)}")
+
+    # Buttons
+    refresh_button = ttk.Button(missing_tab, text="Refresh", command=populate_tree)
+    refresh_button.pack(pady=5)
+
     update_button = ttk.Button(missing_tab, text="Update Selected", command=update_contact)
     update_button.pack(pady=5)
 
-    return missing_tab, populate_tree  # Return both the tab and the populate function
+    delete_button = ttk.Button(missing_tab, text="Delete Selected", command=delete_contact)
+    delete_button.pack(pady=5)
+
+    return missing_tab, populate_tree
 
 def create_clinics_tab(notebook):
     clinics_tab = ttk.Frame(notebook)
     notebook.add(clinics_tab, text="Clinics")
 
-    # Label
+    # Existing title label
     label = ttk.Label(clinics_tab, text="Clinics Database", font=("Calibri", 16, "bold"))
     label.pack(pady=5)
+
+    # Add description label with information symbol
+    description_label = ttk.Label(clinics_tab, text="\u2139 This is the Clinics database, the clinic names come from Docuware. You can edit the Clinic Number here.", font=("Calibri", 12))
+    description_label.pack(pady=5)
 
     # Create Treeview
     tree = ttk.Treeview(clinics_tab, columns=('Clinic Name', 'Sell To Number'), show='headings')
@@ -1148,9 +1352,13 @@ def create_clinicians_tab(notebook):
     clinicians_tab = ttk.Frame(notebook)
     notebook.add(clinicians_tab, text="Clinicians")
 
-    # Label
+    # Existing title label
     label = ttk.Label(clinicians_tab, text="Clinicians Database", font=("Calibri", 16, "bold"))
     label.pack(pady=5)
+
+    # Add description label with information symbol
+    description_label = ttk.Label(clinicians_tab, text="\u2139 This is the Clinicians database, the clinic names come from Docuware. You can edit the Customer Number here.", font=("Calibri", 12))
+    description_label.pack(pady=5)
 
     # Create Treeview
     tree = ttk.Treeview(clinicians_tab, columns=('Clinician Name', 'Prescriber Number'), show='headings')
@@ -1417,7 +1625,7 @@ result_frame = ttk.Frame(main_tab)
 result_frame.pack(pady=10, anchor='center')
 
 # Create a text widget inside result_frame
-result_text = tk.Text(result_frame, wrap='word', height=25, width=80)
+result_text = tk.Text(result_frame, wrap='word', height=24, width=80)
 result_text.grid(row=0, column=0)
 
 # Vertical scrollbar for result_text
@@ -1448,29 +1656,23 @@ def handle_drop(event):
 
 result_text.dnd_bind('<<Drop>>', handle_drop)
 
-# Model IDs
-model_ids = {
-    'Insoles': 'InsoleFullReaderV7',
-    'AFOs': 'AfoReaderV7',
-    'Bespoke': 'BespokeReaderFullV4',
-    'Modular': 'ModularReaderFullV3'
-}
-model_id_var = tk.StringVar(value='InsoleFullReaderV7')
+# Model IDs (using the centralized dictionary)
+model_id_var = tk.StringVar(value=MODEL_IDS['Insoles'])  # Default to Insoles
 
 model_frame = ttk.Frame(main_tab)
 model_frame.pack(pady=10)
 
 model_label = ttk.Label(model_frame, text='Select Form Type:', font=label_font)
-model_label.pack(side='left', padx=(0, 5))
+model_label.pack(side='left', padx=(0, 2))
 
-for model_name, model_id_value in model_ids.items():
+for model_name, model_id_value in MODEL_IDS.items():
     radio_button = ttk.Radiobutton(
         model_frame,
         text=model_name,
         variable=model_id_var,
         value=model_id_value
     )
-    radio_button.pack(side='left', padx=5)
+    radio_button.pack(side='left', padx=2)
 
 # The loading popup and associated functions
 def show_loading_popup():
@@ -1566,34 +1768,32 @@ def copy_final_codes():
     and flashes the button instead of showing a popup.
     """
     full_text = result_text.get("1.0", tk.END)
-
-    # Find the last occurrence of "Final Codes"
     last_index = full_text.rfind("Final Codes")
     if last_index == -1:
-        # No flash or popup – optionally you could flash in a different color or show a brief label
         return
-
-    # Everything from 'Final Codes' to the end of the text
     final_codes_text = full_text[last_index:]
-
-    # Copy to clipboard
     root.clipboard_clear()
     root.clipboard_append(final_codes_text)
-
-    # Flash the button: create a temporary style with “inverted” colors
     original_style = copy_codes_button.cget("style")
-    style.configure(
-        "Flash.TButton",
-        background=style.colors.fg,     # or any color you like
-        foreground=style.colors.bg      # or any color you like
-    )
+    style.configure("Flash.TButton", background=style.colors.fg, foreground=style.colors.bg)
     copy_codes_button.configure(style="Flash.TButton")
-
-    # Revert after 300ms
     def revert_style():
         copy_codes_button.configure(style=original_style)
-
     root.after(300, revert_style)
+
+def copy_sales_order_number():
+    full_text = result_text.get("1.0", tk.END)
+    lines = full_text.split('\n')
+    for line in lines:
+        if "Created Sales Order: " in line:
+            match = re.search(r'GB-SOA\d+', line)
+            if match:
+                order_number = match.group(0)
+                root.clipboard_clear()
+                root.clipboard_append(order_number)
+                messagebox.showinfo("Copied", f"Sales Order Number {order_number} copied to clipboard.")
+                return
+    messagebox.showinfo("No SO Number", "No sales order number found in the results.")
 
 # Instantiate PdfButtonHandler
 pdf_handler = PdfButtonHandler(
@@ -1683,15 +1883,18 @@ auto_watch_check = ttk.Checkbutton(
 auto_watch_check.pack(pady=5)
 
 copy_codes_button = ttk.Button(main_tab, text="Copy to Clipboard", command=copy_final_codes)
-copy_codes_button.pack(pady=5)
+copy_codes_button.pack(pady=2)
+
+copy_so_button = ttk.Button(main_tab, text="Copy SO Number", command=copy_sales_order_number)
+copy_so_button.pack(pady=2)
 
 upload_pdf_button = ttk.Button(main_tab, text="Upload PDF", command=pdf_handler.upload_pdf_file)
-upload_pdf_button.pack(pady=5)
+upload_pdf_button.pack(pady=2)
 
 pdf_handler.set_upload_pdf_button(upload_pdf_button)
 
 exit_button = ttk.Button(main_tab, text="Exit", command=root.quit)
-exit_button.pack(pady=5)
+exit_button.pack(pady=2)
 
 # Make 'X' button trigger the same action as the "Exit" button
 root.protocol("WM_DELETE_WINDOW", on_closing)
@@ -1728,11 +1931,13 @@ def on_tab_selected(event):
     if selected_tab_text == "Results Analysis":
         analysis_handles["refresh_chart"]()
     elif selected_tab_text == "Missing Contacts":
-        populate_tree()  # Automatically refresh the Treeview
+        populate_tree()
     elif selected_tab_text == "Clinics":
         populate_clinics_tree()
     elif selected_tab_text == "Clinicians":
         populate_clinicians_tree()
+    elif selected_tab_text == "Required By Data":
+        populate_required_by_tree()
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 
@@ -1741,10 +1946,10 @@ ensure_customers_table()
 
 # Create tabs
 missing_tab, populate_tree = create_missing_contacts_tab(notebook)
-analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
-
 clinics_tab, populate_clinics_tree = create_clinics_tab(notebook)
 clinicians_tab, populate_clinicians_tree = create_clinicians_tab(notebook)
+required_by_tab, populate_required_by_tree = create_required_by_data_tab(notebook)
+analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 
 # Start watching the Downloads folder in the background
 watch_downloads_folder()

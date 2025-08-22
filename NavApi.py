@@ -27,7 +27,7 @@ def parse_code_string(code_str):
                 print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ❌ Failed to parse quantity in '{code_str}'")
     else:
         print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ⚠️ No 'x' found in '{code_str}', assuming quantity 1")
-    return code_str, 1  # Default quantity is 1 if no 'x' or parsing fails
+    return code_str, 1
 
 def read_nav_config_file(filename, config_name):
     file_path = os.path.join(os.getcwd(), filename)
@@ -43,12 +43,10 @@ def read_nav_config_file(filename, config_name):
             messagebox.showerror("Error", f"Error reading {config_name}: {str(e)}")
             sys.exit()
     else:
-        # Prompt the user to enter the config value
         value = simpledialog.askstring(f"{config_name} Required", f"Please enter your {config_name}:")
         if not value:
             messagebox.showerror("Error", f"No {config_name} entered. The application will exit.")
             sys.exit()
-        # Write the new config value to the file
         write_nav_config_file(filename, value.strip())
         return value.strip()
 
@@ -59,7 +57,6 @@ def write_nav_config_file(filename, value):
         f.write(encoded_data)
     print(f"{filename} saved to {file_path}")
 
-# Read NAV configuration from files
 nav_url = read_nav_config_file('nav_url.txt', 'NAV URL')
 company = read_nav_config_file('nav_company.txt', 'NAV Company')
 username = read_nav_config_file('nav_username.txt', 'NAV Username')
@@ -72,21 +69,53 @@ headers = {
 }
 auth = HttpNtlmAuth(username, password)
 
-import requests
-from requests_ntlm import HttpNtlmAuth
-import json
-import urllib.parse
-import re
-import datetime
-import os
-import base64
-import tkinter as tk
-from tkinter import simpledialog, messagebox
-import sys
+# Define specific work order functions
+def work_order_insole(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
 
-# ... (Previous imports and functions like parse_code_string, read_nav_config_file, etc., remain unchanged)
+def work_order_bespoke(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
 
-def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, final_codes=None, patient_name=None, gender=None):
+def work_order_modular(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
+
+def work_order_afo(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
+
+def work_order_a_and_r(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
+
+def work_order_kafo(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
+
+def parse_pre_app_date(date_str):
+    """Parse 'pre app date' from formats 'dd.mm.yy' or 'd/m/yyyy'. Returns None if invalid."""
+    if not date_str:
+        return None
+    # Remove "Date:" prefix if present
+    date_str = re.sub(r'^Date:\s*', '', date_str).strip()
+    formats = ["%d.%m.%y", "%d.%m.%Y", "%d/%m/%y", "%d/%m/%Y"]
+    for fmt in formats:
+        try:
+            dt = datetime.datetime.strptime(date_str, fmt)
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+    return None
+
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
     error_messages = []
@@ -100,101 +129,140 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     if check_response.status_code == 200 and check_response.json()['value']:
         existing_order = check_response.json()['value'][0]
         sales_order_no = existing_order['No']
-        print(f"Order {sales_order_no} already exists for auto_doc_ref {auto_doc_ref}. Proceeding to clean up duplicates.")
+        message = f"Auto doc reference {auto_doc_ref} has already been uploaded to nav"
+        messagebox.showinfo("Information", message)
+        return {'success': True, 'sales_order_no': sales_order_no, 'error_messages': [message]}
     else:
-        # Get the last SOA order number
-        filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=1" # removed 0 for live nav
+        filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=2"
         get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"
         response = requests.get(get_url, headers=headers, auth=auth)
         
         if response.status_code != 200:
-            error_msg = f"Failed to get last SOA order: {response.status_code} - {response.text}"
+            error_msg = f"Failed to get top SOA orders: {response.status_code} - {response.text}"
             print(f"❌ {error_msg}")
             error_messages.append(error_msg)
             return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
         
         orders = response.json()['value']
-        if orders:
+        if len(orders) >= 2:
             last_soa = orders[0]['No']
-            print(f"Last SOA order: {last_soa}")
+            second_last_soa = orders[1]['No']
+            print(f"Top two SOA orders: {last_soa} and {second_last_soa}")
+            
+            match_last = re.match(r"(GB-SOA)(\d+)", last_soa)
+            match_second = re.match(r"(GB-SOA)(\d+)", second_last_soa)
+            
+            if match_last and match_second:
+                last_num = int(match_last.groups()[1])
+                second_num = int(match_second.groups()[1])
+                
+                if last_num - second_num == 1:
+                    next_num = last_num + 1
+                else:
+                    next_num = max(last_num, second_num) + 1
+            else:
+                error_msg = "Could not parse top SOA numbers."
+                error_messages.append(error_msg)
+                return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+        elif len(orders) == 1:
+            last_soa = orders[0]['No']
+            match = re.match(r"(GB-SOA)(\d+)", last_soa)
+            if match:
+                next_num = int(match.groups()[1]) + 1
+            else:
+                error_msg = f"Could not parse SOA number: {last_soa}"
+                error_messages.append(error_msg)
+                return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
         else:
-            last_soa = "GB-SOA00000"
-            print("No SOA orders found. Starting from GB-SOA00000")
-
-        match = re.match(r"(GB-SOA)(\d+)", last_soa)
-        if not match:
-            error_msg = f"Could not parse SOA number: {last_soa}"
-            print(f"❌ {error_msg}")
-            error_messages.append(error_msg)
-            return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+            next_num = 1
         
-        prefix, number = match.groups()
-        next_no = f"{prefix}{int(number)+1:05d}"
-        print(f"Generated next order number: {next_no}")
-
+        next_no = f"GB-SOA{next_num:05d}"
         external_doc_no = f"RS-AI-ORDER-{next_no[-4:]}"
         today = datetime.date.today().strftime("%Y-%m-%d")
         order_data = {
             "No": next_no,
             "Sell_to_Customer_No": sell_to_customer_no,
             "Original_Order_Date": original_order_date,
-            "Order_Date": today,
+            "Order_Date": original_order_date,
             "Document_Date": today,
-            "Order_Category_Code": "MILLED INSOLES",
+            "Order_Category_Code": order_category_code,
             "Prescriber": prescriber,
             "Send_For": "Send for Finish",
             "Requested_Delivery_Date": request_delivery_date,
             "Pad_No": auto_doc_ref,
             "Patient_Name": patient_name if patient_name else "Unknown",
-            "Patient_Gender": gender
+            "Patient_Gender": gender,
+            "External_Document_No": f"DNI/{auto_doc_ref}" # DNI Calculation
         }
+        if pre_app_date:
+            print(f"Pre App Date (Formatted): {pre_app_date}")
+            order_data["Pre_appointed_Date"] = pre_app_date
 
         post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
-        create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
         
-        if create_response.status_code != 201:
-            error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
-            print(f"❌ {error_msg}")
+        max_attempts = 5
+        attempt = 0
+        while attempt < max_attempts:
+            order_data["No"] = next_no
+            create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
+            if create_response.status_code == 201:
+                sales_order_no = next_no
+                break
+            elif create_response.status_code == 400:
+                try:
+                    error_data = create_response.json()
+                    if error_data.get("error", {}).get("code") == "Internal_EntityWithSameKeyExists":
+                        next_no = increment_order_no(next_no)
+                        attempt += 1
+                    else:
+                        error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
+                        error_messages.append(error_msg)
+                        return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+                except json.JSONDecodeError:
+                    error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
+                    error_messages.append(error_msg)
+                    return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+            else:
+                error_msg = f"Failed to create sales order: {create_response.status_code} - {create_response.text}"
+                error_messages.append(error_msg)
+                return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
+        else:
+            error_msg = f"Failed to create sales order after {max_attempts} attempts."
             error_messages.append(error_msg)
             return {'success': False, 'sales_order_no': None, 'error_messages': error_messages}
-        
-        print(f"✅ Created Sales Order: {next_no}")
-        sales_order_no = next_no
 
-    # Retrieve and clean up medical details
     filter_medical = f"$filter=Document_No eq '{sales_order_no}'"
     medical_get_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails?{filter_medical}"
     medical_response = requests.get(medical_get_url, headers=headers, auth=auth)
     
-    target_operation = "Special Instructions"
-    target_text = "Refer to Prescription form " + auto_doc_ref
+    work_order_funcs = {
+        'insoles': work_order_insole,
+        'bespoke': work_order_bespoke,
+        'modular': work_order_modular,
+        'afos': work_order_afo,
+        'a&r': work_order_a_and_r,
+        'kafo': work_order_a_and_r
+    }
+    work_order_func = work_order_funcs.get(form_type.lower())
+    target_operation, target_text = work_order_func(auto_doc_ref)
     
     if medical_response.status_code == 200:
         existing_details = medical_response.json()['value']
-        print(f"Existing medical details retrieved: {existing_details}")
-        
-        # Find matching medical details
         matching_details = [
             detail for detail in existing_details
             if detail['Operation'].strip().lower() == target_operation.lower() and
                detail['Medical_Detail_Text'].strip().lower() == target_text.lower()
         ]
         
-        # Clean up duplicates
         if len(matching_details) > 1:
-            print(f"Found {len(matching_details)} duplicate medical details. Keeping first, deleting others.")
-            for detail in matching_details[1:]:  # Keep the first, delete the rest
+            for detail in matching_details[1:]:
                 delete_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails(Document_No='{sales_order_no}',Line_No={detail['Line_No']})"
                 delete_response = requests.delete(delete_url, headers=headers, auth=auth)
-                if delete_response.status_code == 204:
-                    print(f"✅ Deleted duplicate medical detail with Line_No: {detail['Line_No']}")
-                else:
+                if delete_response.status_code != 204:
                     error_msg = f"Failed to delete duplicate: {delete_response.status_code} - {delete_response.text}"
-                    print(f"❌ {error_msg}")
                     error_messages.append(error_msg)
         elif len(matching_details) == 0:
-            # Add the medical detail if it doesn’t exist
-            next_line_no = 20000 if not existing_details else max(detail['Line_No'] for detail in existing_details) + 10000
+            next_line_no = 100000 if not existing_details else max(detail['Line_No'] for detail in existing_details) + 10000
             medical_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails"
             payload = {
                 "Document_No": sales_order_no,
@@ -203,46 +271,53 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
                 "Medical_Detail_Text": target_text
             }
             response = requests.post(medical_url, headers=headers, data=json.dumps(payload), auth=auth)
-            if response.status_code == 201:
-                print(f"✅ Added medical detail with Line_No: {next_line_no}")
-            else:
+            if response.status_code != 201:
                 error_msg = f"Failed to add medical detail: {response.status_code} - {response.text}"
-                print(f"❌ {error_msg}")
                 error_messages.append(error_msg)
-        else:
-            print("Exactly one matching medical detail found. No action needed.")
     else:
         error_msg = f"Failed to retrieve medical details: {medical_response.status_code} - {medical_response.text}"
-        print(f"❌ {error_msg}")
         error_messages.append(error_msg)
 
-    # Add sales order lines
     lines_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderLineService"
     if final_codes and len(final_codes) > 0:
-        print(f"Adding {len(final_codes)} sales order lines")
-        item_lines = [parse_code_string(code_str) for code_str in final_codes]
-        base_line_no = 100000
-        for i, (item_no, quantity) in enumerate(item_lines):
+        valid_codes = [code for code in final_codes if code.strip() != "```"]
+        item_lines = [parse_code_string(code_str) for code_str in valid_codes]
+
+        for item_no, quantity in item_lines:
+            filter_lines = f"$filter=Document_No eq '{sales_order_no}' and Document_Type eq 'Order'"
+            existing_lines_url = f"{lines_url}?{filter_lines}"
+            lines_response = requests.get(existing_lines_url, headers=headers, auth=auth)
+
+            if lines_response.status_code == 200:
+                existing_lines = lines_response.json()['value']
+                next_line_no = 10000 if not existing_lines else max(line['Line_No'] for line in existing_lines) + 10000
+            else:
+                error_msg = f"Failed to retrieve existing lines: {lines_response.status_code} - {lines_response.text}"
+                error_messages.append(error_msg)
+                next_line_no = 10000
+
             line_data = {
                 "Document_Type": "Order",
                 "Document_No": sales_order_no,
-                "Line_No": base_line_no + i * 30000,
+                "Line_No": next_line_no,
                 "Type": "Item",
                 "No": item_no,
                 "Quantity": quantity,
                 "Location_Code": "WAREHOUSE",
-                "Unit_of_Measure_Code": "EACH"
             }
             response = requests.post(lines_url, headers=headers, data=json.dumps(line_data), auth=auth)
             if response.status_code != 201:
                 error_msg = f"Failed to add line {item_no}: {response.status_code} - {response.text}"
-                print(f"❌ {error_msg}")
                 error_messages.append(error_msg)
-            else:
-                print(f"✅ Added sales order line: {item_no} x{quantity}")
-    else:
-        print("No final codes provided")
 
     success = len(error_messages) == 0
-    print(f"Finished create_sales_order. Success: {success}")
     return {'success': success, 'sales_order_no': sales_order_no, 'error_messages': error_messages}
+
+def increment_order_no(order_no):
+    match = re.match(r"(GB-SOA)(\d+)", order_no)
+    if match:
+        prefix, number = match.groups()
+        next_number = int(number) + 1
+        return f"{prefix}{next_number:05d}"
+    else:
+        raise ValueError(f"Invalid order number format: {order_no}")

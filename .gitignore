@@ -19,3 +19,12 @@ nav_url.txt
 nav_username.txt
 /databases
 get.py
+test.py
+test_clinic_release_times.py
+create_clinic_release_times.py
+pullData.py
+pullSalesOrderData.py
+create_clinic_database.py
+createNewDatabase.py
+database_query_test.py
+testnewDatabase.py
