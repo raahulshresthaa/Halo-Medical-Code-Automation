@@ -824,7 +824,7 @@ def generate_insole_codes(self, content):
 
     # Foot modifications -> BNS45
     foot_modifications = [
-        'cut out and additions', '1st met head', '1st met ray', '5th met ray',
+        'hole and plug', '1st met head', '1st met ray', '5th met ray', '5th met head', 'all mets',
         'navicular sweet spot', 'fascial accommodation', 'lateral heel flange', 'medial heel flange'
     ]
 
