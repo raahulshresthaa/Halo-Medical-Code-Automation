@@ -39,7 +39,7 @@ import concurrent.futures
 import requests.exceptions
 
 # Version number
-VERSION = "6.3.4-alpha"
+VERSION = "7.0.0-alpha"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
