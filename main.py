@@ -297,15 +297,14 @@ class PdfButtonHandler:
         try:
             # Send the content, logic, and file context to the assistant
             response = openai.ChatCompletion.create(
-                model="gpt-4.1-2025-04-14",  # Use the appropriate model
+                model="gpt-4.1-2025-04-14", # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nFirst, write your full working out. Then, write **Final Codes:** followed by the final codes each on a new line, including the passed codes. Do not include any additional text or summary after the final codes."},
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nAlways analyze if 'make x2' or similar (e.g., 'make pair', 'duplicate', 'x2') appears in the cradle details or additional information sections. If it does, double all quantities in the passed codes (e.g., 'B55B x2' becomes 'B55B x4'). Otherwise, repeat the passed codes exactly as they are.\n\nFirst, write your full working out, explaining step-by-step if doubling is needed and why. Then, always write **Final Codes:** followed by the final codes each on a new line. Do not include any additional text or summary after the final codes. Ensure the **Final Codes:** section is always present, even if no changes are made."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}"}
                 ],
-                max_tokens=1000,  # Adjust as necessary
-                temperature=0.1  # Adjust as needed
+                max_tokens=1000, # Adjust as necessary
+                temperature=0 # Set to 0 for more deterministic output to reduce intermittency
             )
-
             # Extract the assistant's response (price codes)
             assistant_response = response['choices'][0]['message']['content']
             return assistant_response
@@ -431,16 +430,20 @@ class PdfButtonHandler:
                 self.root.after(0, self.append_and_show_info, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
                 add_missing_contact('clinician', clinician)
                 return
-            # Calculate request_delivery_date dynamically
+            # Calculate both possible delivery dates
+            creation_dt = datetime.datetime.strptime(creation_date, '%Y-%m-%d').date()
+            required_by_days = self.get_required_by_days(customer_no, model_id)
+            default_dt = creation_dt + datetime.timedelta(days=required_by_days)
+
             pre_app_dt = None
             if pre_app_date:
-                pre_app_dt = datetime.datetime.strptime(pre_app_date, '%Y-%m-%d').date()
-            if pre_app_dt:
-                delivery_dt = pre_app_dt - datetime.timedelta(days=3)
+                pre_app_dt = datetime.datetime.strptime(pre_app_date, '%Y-%m-%d').date() - datetime.timedelta(days=3)
+
+            if pre_app_dt and pre_app_dt < default_dt:
+                delivery_dt = pre_app_dt
             else:
-                creation_dt = datetime.datetime.strptime(creation_date, '%Y-%m-%d').date()
-                required_by_days = self.get_required_by_days(customer_no, model_id)
-                delivery_dt = creation_dt + datetime.timedelta(days=required_by_days)
+                delivery_dt = default_dt
+
             request_delivery_date = delivery_dt.strftime('%Y-%m-%d')
             # Pass order_category_code and pre_app_date to attempt_nav_upload
             success, sales_order_no, messages = attempt_nav_upload(

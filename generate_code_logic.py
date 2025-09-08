@@ -686,13 +686,16 @@ def generate_bespoke_codes(self, content):
     # Format output
     formatted_passed_codes = []
     for code, count in passed_codes.items():
-        if count > 1:
-            formatted_passed_codes.append(f"{code} x{count}")
+        if count.is_integer():
+            display_count = int(count)
+        else:
+            display_count = count
+        if display_count > 1:
+            formatted_passed_codes.append(f"{code} x{display_count}")
         else:
             formatted_passed_codes.append(code)
-
     if formatted_passed_codes:
-        return ', '.join(f"{code} x{count}" if count > 1 else code for code, count in passed_codes.items())
+        return ', '.join(formatted_passed_codes)
     else:
         return None
     
