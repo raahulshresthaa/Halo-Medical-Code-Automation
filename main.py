@@ -431,16 +431,20 @@ class PdfButtonHandler:
                 self.root.after(0, self.append_and_show_info, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
                 add_missing_contact('clinician', clinician)
                 return
-            # Calculate request_delivery_date dynamically
+            # Calculate both possible delivery dates
+            creation_dt = datetime.datetime.strptime(creation_date, '%Y-%m-%d').date()
+            required_by_days = self.get_required_by_days(customer_no, model_id)
+            default_dt = creation_dt + datetime.timedelta(days=required_by_days)
+
             pre_app_dt = None
             if pre_app_date:
-                pre_app_dt = datetime.datetime.strptime(pre_app_date, '%Y-%m-%d').date()
-            if pre_app_dt:
-                delivery_dt = pre_app_dt - datetime.timedelta(days=3)
+                pre_app_dt = datetime.datetime.strptime(pre_app_date, '%Y-%m-%d').date() - datetime.timedelta(days=3)
+
+            if pre_app_dt and pre_app_dt < default_dt:
+                delivery_dt = pre_app_dt
             else:
-                creation_dt = datetime.datetime.strptime(creation_date, '%Y-%m-%d').date()
-                required_by_days = self.get_required_by_days(customer_no, model_id)
-                delivery_dt = creation_dt + datetime.timedelta(days=required_by_days)
+                delivery_dt = default_dt
+
             request_delivery_date = delivery_dt.strftime('%Y-%m-%d')
             # Pass order_category_code and pre_app_date to attempt_nav_upload
             success, sales_order_no, messages = attempt_nav_upload(
