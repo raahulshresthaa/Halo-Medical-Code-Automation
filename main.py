@@ -297,15 +297,14 @@ class PdfButtonHandler:
         try:
             # Send the content, logic, and file context to the assistant
             response = openai.ChatCompletion.create(
-                model="gpt-4.1-2025-04-14",  # Use the appropriate model
+                model="gpt-4.1-2025-04-14", # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nFirst, write your full working out. Then, write **Final Codes:** followed by the final codes each on a new line, including the passed codes. Do not include any additional text or summary after the final codes."},
+                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nAlways analyze if 'make x2' or similar (e.g., 'make pair', 'duplicate', 'x2') appears in the cradle details or additional information sections. If it does, double all quantities in the passed codes (e.g., 'B55B x2' becomes 'B55B x4'). Otherwise, repeat the passed codes exactly as they are.\n\nFirst, write your full working out, explaining step-by-step if doubling is needed and why. Then, always write **Final Codes:** followed by the final codes each on a new line. Do not include any additional text or summary after the final codes. Ensure the **Final Codes:** section is always present, even if no changes are made."},
                     {"role": "user", "content": f"Here is the content to process:\n{content}"}
                 ],
-                max_tokens=1000,  # Adjust as necessary
-                temperature=0.1  # Adjust as needed
+                max_tokens=1000, # Adjust as necessary
+                temperature=0 # Set to 0 for more deterministic output to reduce intermittency
             )
-
             # Extract the assistant's response (price codes)
             assistant_response = response['choices'][0]['message']['content']
             return assistant_response
