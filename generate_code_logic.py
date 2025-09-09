@@ -713,6 +713,15 @@ def generate_insole_codes(self, content):
             key, value = line.split(':', 1)
             content_dict[key.strip().lower()] = value.strip().lower()
 
+    # Determine the selected base
+    selected_base = None
+    for key, value in content_dict.items():
+        if key.startswith('base ') and value == 'selected':
+            selected_base = key[5:].strip().lower()
+            break
+
+    print(f"Selected base: '{selected_base}'")  # For debugging
+
     clinic_name = content_dict.get('clinic', '').lower()
     customer_no = get_customer_no(clinic_name)
 
@@ -743,9 +752,8 @@ def generate_insole_codes(self, content):
             return 'MEDBNS72' if passed_codes['MEDBNS72'] == 1 else f'MEDBNS72 x{passed_codes["MEDBNS72"]}'
 
     # Wales Tariff Logic for Insoles
-    base = content_dict.get('base', '').strip().lower()
     if customer_no in tariff_wales_customer_nos:
-        if base == 'polypropylene':
+        if selected_base == 'poly':
             passed_codes['WALES-POLYPROP'] += 1
             if is_pair:
                 passed_codes['WALES-POLYPROP'] *= 2
@@ -762,10 +770,9 @@ def generate_insole_codes(self, content):
             return 'WALES-TCI' if passed_codes['WALES-TCI'] == 1 else f'WALES-TCI x{passed_codes["WALES-TCI"]}'
 
     # Now unify the three tariff checks in a single block:
-    base = content_dict.get('base', '').strip().lower()
 
-    # 1) If the customer_no allows polyprop & base == 'polypropylene'
-    if customer_no in tariff_polyprop_customer_nos and base == 'polypropylene':
+    # 1) If the customer_no allows polyprop & selected_base == 'poly'
+    if customer_no in tariff_polyprop_customer_nos and selected_base == 'poly':
         passed_codes['TARIFF POLYPROPS'] += 1
         if is_pair:
             passed_codes['TARIFF POLYPROPS'] *= 2
@@ -803,26 +810,22 @@ def generate_insole_codes(self, content):
     # Normal logic if no immediate tariff matched
     passed_codes = defaultdict(int)
 
-    base = content_dict.get('base', '').strip().lower()
-    print(f"Base value: '{base}'")  # For debugging
+    # Base logic using selected_base
+    if selected_base:
+        normalized_base = selected_base.replace(' ', '').lower()
 
-    if content_dict.get('base poron', '').lower() == 'selected':
-        passed_codes['B40B'] += 1
-
-    # 2) Otherwise, use the base logic
-    else:
-        normalized_base = base.replace(' ', '').lower()
-        shore_bases = {'40shore', '50shore', '65shore'}
-
-        # Base codes
-        if normalized_base == 'polypropylene':
-            passed_codes['B54B'] += 1
-        elif insole_type == 'simple' and normalized_base in shore_bases:
+        if 'greyporon' in normalized_base:
             passed_codes['B40B'] += 1
-        elif normalized_base in ['carbonfibre', 'carbonfiber']:
+        elif normalized_base == 'poly':
+            passed_codes['B54B'] += 1
+        elif normalized_base in ['a65high', 'a50med', 'a40low']:
+            if insole_type == 'simple':
+                passed_codes['B40B'] += 1
+            else:
+                passed_codes['B54C'] += 1  # Default if not simple
+        elif 'carbon' in normalized_base:
             passed_codes['B54A'] += 1
         else:
-            # If none match, default to B54C
             passed_codes['B54C'] += 1
 
     # Foot modifications -> BNS45
@@ -924,7 +927,7 @@ def generate_insole_codes(self, content):
         x += 1
         print(f"After spenco check: x = {x}")
 
-    if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
+    if selected_base in ['a40/25/80', 'a30/20/80']:
         x += 1
         print(f"After base check: x = {x}")
 

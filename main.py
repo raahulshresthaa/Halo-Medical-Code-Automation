@@ -835,10 +835,16 @@ class PdfButtonHandler:
         else:
             messagebox.showinfo("No PDF Files", "Please drop PDF files only.")
 
-    def check_for_base(self, data):
-        data_lower = data.lower()
-        if not any(keyword in data_lower for keyword in ['base:', 'carbon fibre:', 'poron:']):
-            query_message = "No base, Carbon Fibre, or Poron found in the form. Please raise a query."
+    def check_for_base(self, content):
+        content_lower = content.lower()
+        lines = content_lower.split('\n')
+        has_base = False
+        for line in lines:
+            if line.startswith('base ') and 'selected' in line:
+                has_base = True
+                break
+        if not has_base:
+            query_message = "No base selected in the form. Please raise a query."
             self.root.after(0, self.append_and_show_info, "Query", query_message)
             return query_message
         else:
@@ -846,7 +852,11 @@ class PdfButtonHandler:
 
     def is_carbon_selected(self, content):
         content_lower = content.lower()
-        return "base: carbon fibre" in content_lower or "base carbon fibre: selected" in content_lower
+        lines = content_lower.split('\n')
+        for line in lines:
+            if line.startswith('base carbon') and 'selected' in line:
+                return True
+        return False
 
 def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date,
                       auto_doc_ref, order_category_code, form_type, log_file_path=None,
