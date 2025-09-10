@@ -923,12 +923,14 @@ def generate_insole_codes(self, content):
     if insole_type == 'simple':
         x -= 1
         print(f"After insole_type 'simple' check: x = {x}")
-    if content_dict.get(('no lining', ''), '') == 'selected':
-        x -= 1
+    if content_dict.get('no lining', '') == 'selected':
+        x -= 0
+        print(f"After no lining check: x = {x}")
     else:
         x += 1
+        print(f"After no lining check (else): x = {x}")
 
-    if content_dict.get(('spenco 1.5mm', ''), '') == 'selected' or content_dict.get(('spenco 3mm', ''), '') == 'selected':
+    if content_dict.get('spenco 1.5mm', '') == 'selected' or content_dict.get('spenco 3mm', '') == 'selected':
         x += 1
         print(f"After spenco check: x = {x}")
 
