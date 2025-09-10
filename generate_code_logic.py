@@ -830,7 +830,7 @@ def generate_insole_codes(self, content):
 
     # Foot modifications -> BNS45
     foot_modifications = [
-        'hole and plug', '1st met head', '1st met ray', '5th met ray', '5th met head', 'all mets',
+        'hole and plug', 'custom hole and plug', '1st met head', '1st met ray', '5th met ray', '5th met head', 'all mets',
         'navicular sweet spot', 'fascial accommodation', 'lateral heel flange', 'medial heel flange'
     ]
 
@@ -884,32 +884,34 @@ def generate_insole_codes(self, content):
 
 
     # Additions
-    addition_positions = [
-        'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
-        'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition'
+    addition_keys = [
+        'left valgus pad 3mm', 'left valgus pad 6mm', 'right valgus pad 3mm',
+        'left heel pad 3mm', 'left heel pad 6mm', 'right heel pad 3mm', 'right heel pad 6mm',
+        'left mortons extension', 'right mortons extension',
+        'left reverse mortons extension', 'right reverse mortons extension',
+        'left met bar', 'right met bar',
+        'left met dome', 'right met dome',
     ]
 
-    addition_code_mapping = {
-        'B41': {'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
-                'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad', 'sulcus crest', 'arch fill'},
-        'B56': {"morton's extension", "reverse morton's extension", 'poron forefoot'},
-        'B43': {'kinetic wedge', 'heel raise'},
-        'D8A': {'neurological footplate'},
-        'BNS45': {'recess', 'hole & plug'},
-        'B20': {'rigid 1st extension'},
-        'B50': {'partial toe block'},
-        'B51': {'full toe block'}
-    }
-
-    for key in addition_positions:
-        addition_value = content_dict.get(key, '')
-        if addition_value:
-            for code, additions in addition_code_mapping.items():
-                if addition_value in additions:
-                    passed_codes[code] += 1
-                    break
+    for key in addition_keys:
+        value = content_dict.get(key, '').strip().lower()
+        if value and 'unselected' not in value:
+            addition_type_parts = key.split()[1:]  # skip left/right
+            addition_str = ' '.join(addition_type_parts).replace(' 3mm', '').replace(' 6mm', '')  # remove thickness
+            if addition_str == 'valgus pad':
+                passed_codes['B41'] += 1
+            elif addition_str == 'heel pad':
+                passed_codes['B41'] += 1
+            elif addition_str == "mortons extension":
+                passed_codes['B56'] += 1
+            elif addition_str == "reverse mortons extension":
+                passed_codes['B56'] += 1
+            elif addition_str == 'met bar':
+                passed_codes['B41'] += 1
+            elif addition_str == 'met dome':
+                passed_codes['B41'] += 1
             else:
-                print(f"Warning: Unrecognized addition value '{addition_value}' for '{key}'")
+                print(f"Warning: Unrecognized addition '{addition_str}' for '{key}'")
 
     # Insole coding - MATHS
     x = 1
