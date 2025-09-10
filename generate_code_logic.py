@@ -891,6 +891,7 @@ def generate_insole_codes(self, content):
         'left reverse mortons extension', 'right reverse mortons extension',
         'left met bar', 'right met bar',
         'left met dome', 'right met dome',
+        'left heel raise', 'right heel raise',
     ]
 
     for key in addition_keys:
@@ -910,6 +911,8 @@ def generate_insole_codes(self, content):
                 passed_codes['B41'] += 1
             elif addition_str == 'met dome':
                 passed_codes['B41'] += 1
+            elif addition_str == 'heel raise':
+                passed_codes['B43'] += 1
             else:
                 print(f"Warning: Unrecognized addition '{addition_str}' for '{key}'")
 
