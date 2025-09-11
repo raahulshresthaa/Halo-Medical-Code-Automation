@@ -617,6 +617,21 @@ class PdfButtonHandler:
                     self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
                 if self.is_carbon_selected(content):
                     self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
+                # Check for additional info sections
+                additional_info_keys = [
+                    'additional info modeling',
+                    'additional info cut outs',
+                    'additional info additions',
+                    'additional info top cover'
+                ]
+                filled_sections = []
+                for key in additional_info_keys:
+                    value = fields_data.get(key, '').strip().lower()
+                    if value and value != 'unselected':
+                        filled_sections.append(key)
+                if filled_sections:
+                    sections_str = ', '.join(filled_sections)
+                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", f"Additional info has value in: {sections_str}. Please Kick to Code Checker.")
             AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
             clinic = fields_data.get('Clinic', 'N/A')
             # Extract and clean patient name
