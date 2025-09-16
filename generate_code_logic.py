@@ -317,11 +317,11 @@ def generate_bespoke_codes(self, content):
     if content_dict.get('fastening', '') == 'boa':
         passed_codes['TWIST FASTEN'] += 2
 
-    if content_dict.get('lining material', '') == 'white sheepskin':
+    if content_dict.get('lining sheepskin', '') == 'selected':
         passed_codes['A18A'] += 2
 
-    # A6 handling: 1.0 for pairs, 0.5 for singles
-    if content_dict.get('sole material', '') == 'commando':
+    # A6 handling: 1.0 for pairs, 0.5 for singles - change for soling commando is seleceted
+    if content_dict.get('soling commando', '') == 'selected':
         passed_codes['A6'] += 1.0
 
     stiffeners_materials = {
