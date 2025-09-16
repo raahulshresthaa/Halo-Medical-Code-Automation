@@ -458,14 +458,12 @@ def generate_bespoke_codes(self, content):
 
     # Straps
     for side in ['left', 'right']:
-        strap_type_key = f'{side} strap type'
-        strap_type = content_dict.get(strap_type_key, '')
-        if strap_type in ('t strap', 'y strap'):
+        if content_dict.get(f'{side} t strap', '') == 'selected' or content_dict.get(f'{side} y strap', '') == 'selected':
             if content_dict.get(f'{side} double decker', '') == 'selected':
                 passed_codes['A39'] += 2
             else:
                 passed_codes['A38'] += 2
-        elif strap_type in ('spur retaining strap', 'heel retaining strap'):
+        elif content_dict.get(f'{side} spur retaining strap', '') == 'selected' or content_dict.get(f'{side} heel retaining strap', '') == 'selected':
             passed_codes['A40'] += 2
 
     # Insole coding section - MATHS!
