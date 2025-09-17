@@ -148,22 +148,13 @@ def generate_bespoke_codes(self, content):
     # Get style
     style = content_dict.get('style', '').lower()
 
-    # Type-based logic (trumps style)
-    a1a_types = ['type boots', 'type bootee']
-    a1b_types = ['type shoes', 'type sports']
-
-    if any(content_dict.get(key, '') == 'selected' for key in a1a_types):
+    # Determine based on style
+    if style in a1a_styles:
         passed_codes['A1A'] += 2
-    elif any(content_dict.get(key, '') == 'selected' for key in a1b_types):
+    elif style in a1b_styles:
         passed_codes['A1B'] += 2
     else:
-        # No type selected, check style
-        if style in a1a_styles:
-            passed_codes['A1A'] += 2
-        elif style in a1b_styles:
-            passed_codes['A1B'] += 2
-        else:
-            passed_codes['A1A'] += 2  # Default to A1A if no type or style matches
+        passed_codes['A1A'] += 2  # Default to A1A if no style matches
 
     # Add logic for 'pop cast'
     if content_dict.get('pop cast', '') == 'selected':
