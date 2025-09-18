@@ -306,24 +306,15 @@ def generate_bespoke_codes(self, content):
             # If conversion fails, skip
             pass
 
-    if content_dict.get('fastening', '') == 'boa':
+    if content_dict.get('fastening', '') == 'boa': # changed to easy grip boa == selected
         passed_codes['TWIST FASTEN'] += 2
 
     if content_dict.get('lining sheepskin', '') == 'selected':
         passed_codes['A18A'] += 2
 
-    # A6 handling: 1.0 for pairs, 0.5 for singles - change for soling commando is seleceted
+    # A6 handling: 1.0 for pairs, 0.5 for singles
     if content_dict.get('soling commando', '') == 'selected':
         passed_codes['A6'] += 1.0
-
-    stiffeners_materials = {
-        'stiffeners left materials': 'A15',
-        'stiffeners right materials': 'A15'
-    }
-
-    for key, code in stiffeners_materials.items():
-        if content_dict.get(key, '') in ('grey poron', 'pink poron', 'foam'):
-            passed_codes[code] += 2
 
     # Stiffeners Checks
     # Left side
@@ -352,25 +343,18 @@ def generate_bespoke_codes(self, content):
     if right_a16_count > 0:
         passed_codes['A16'] += right_a16_count * 2
 
-    sockets_type_a = {
-        'left socket type': 'A37A',
-        'right socket type': 'A37A'
-    }
+    # Sockets
+    for side in ['left', 'right']:
+        type_a_sockets = ['5/16 round', '1/4 round', '1/16x9/16', 'rizzoli']
+        type_b_sockets = ['5/16 backstop', '1/4 backstop']
 
-    for key, code in sockets_type_a.items():
-        if content_dict.get(key, '') in (
-            '5/16 round socket', '1/4inc round socket', 'small rectangular', 'large rectangular', 'rizzoli'
-        ):
-            passed_codes[code] += 2
+        has_type_a = any(content_dict.get(f'{side} {socket}', '') == 'selected' for socket in type_a_sockets)
+        has_type_b = any(content_dict.get(f'{side} {socket}', '') == 'selected' for socket in type_b_sockets)
 
-    sockets_type_b = {
-        'left socket type': 'A37B',
-        'right socket type': 'A37B'
-    }
-
-    for key, code in sockets_type_b.items():
-        if content_dict.get(key, '') in ('5/16 with backstop', '1/4 with backstop'):
-            passed_codes[code] += 2
+        if has_type_a:
+            passed_codes['A37A'] += 1
+        if has_type_b:
+            passed_codes['A37B'] += 1
 
     # Wedges
     wedges_heel_keys = [
