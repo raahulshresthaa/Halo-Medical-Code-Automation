@@ -420,13 +420,13 @@ def generate_bespoke_codes(self, content):
             elif raise_material in ('lightweight p/zote (non-covered)', 'lightweight p/zote (covered)'):
                 passed_codes['A12A'] += 2
 
-    # Elongations - need to be updated
+    # Elongations - need to be updated - right/left elongation full, elongation half, elongation med, elongation lat
     elongations_keys = ['left elongations type', 'right elongations type']
     for key in elongations_keys:
         if content_dict.get(key, '') in ('full', 'half'):
             passed_codes['A31'] += 2
 
-    # Rocker - need to be updated
+    # Rocker - need to be updated - right standard rocker, plr rocker, two point rocker
     rocker_keys = ['left rocker type', 'right rocker type']
     for key in rocker_keys:
         if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
