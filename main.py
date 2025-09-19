@@ -44,11 +44,11 @@ VERSION = "7.0.0-alpha"
 # Centralized dictionary for model IDs
 MODEL_IDS = {
     'Insoles': 'InsoleFullReaderV13',
-    'AFOs': 'AfoReaderV10',
-    'Bespoke': 'BespokeReaderFullV13',
-    'Modular': 'ModularReaderFullV5',
+    'AFOs': 'AfoReaderV11',
+    'Bespoke': 'BespokeReaderFullV14',
+    'Modular': 'ModularReaderFullV6',
     'A&R': 'AdaptsAndRepairsReader3',
-    'Kafo': 'KafoFormReaderV2' 
+    'Kafo': 'KafoFormReaderV3' 
 }
 
 if getattr(sys, 'frozen', False):

@@ -402,7 +402,7 @@ def generate_bespoke_codes(self, content):
         if content_dict.get(key, '') == 'selected':
             passed_codes['A26'] += 2
 
-    # Raises - to do the 25mm+ codes 
+    # Raises - to do the 25mm+ codes - need to be updated
     for side in ['left', 'right']:
         raise_inside_key = f'raise {side} inside'
         raise_outside_key = f'raise {side} outside'
@@ -420,13 +420,13 @@ def generate_bespoke_codes(self, content):
             elif raise_material in ('lightweight p/zote (non-covered)', 'lightweight p/zote (covered)'):
                 passed_codes['A12A'] += 2
 
-    # Elongations
+    # Elongations - need to be updated
     elongations_keys = ['left elongations type', 'right elongations type']
     for key in elongations_keys:
         if content_dict.get(key, '') in ('full', 'half'):
             passed_codes['A31'] += 2
 
-    # Rocker
+    # Rocker - need to be updated
     rocker_keys = ['left rocker type', 'right rocker type']
     for key in rocker_keys:
         if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
