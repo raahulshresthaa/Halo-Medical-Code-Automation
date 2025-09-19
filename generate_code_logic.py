@@ -902,6 +902,7 @@ def generate_insole_codes(self, content):
             
 def generate_afo_codes(self, content):
     """Generates codes based on the content for the AFO model, counting duplicates."""
+    """
     from collections import defaultdict
     passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
@@ -1195,10 +1196,12 @@ def generate_afo_codes(self, content):
     if formatted_passed_codes:
         return ', '.join(formatted_passed_codes)
     else:
-        return None  # Return None if no codes were added
+    """
+    return None  # Return None if no codes were added
     
 def generate_modular_codes(self, content):
     """Generates codes based on the content for the Modular model, with tariff logic."""
+    """
     passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
     # Split the content into lines
@@ -1614,7 +1617,8 @@ def generate_modular_codes(self, content):
     if formatted_passed_codes:
         return ', '.join(f"{code} x{count}" if count > 1 else code for code, count in passed_codes.items())
     else:
-        return None
+    """    
+    return None
     
 def generate_a_and_r_codes(self, content):
     """
