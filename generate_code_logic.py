@@ -426,10 +426,10 @@ def generate_bespoke_codes(self, content):
         if content_dict.get(key, '') in ('full', 'half'):
             passed_codes['A31'] += 2
 
-    # Rocker - need to be updated - right standard rocker, plr rocker, two point rocker
-    rocker_keys = ['left rocker type', 'right rocker type']
-    for key in rocker_keys:
-        if content_dict.get(key, '') in ('plr', 'standard', 'two point'):
+    # Rocker
+    for side in ['left', 'right']:
+        rocker_types = ['standard rocker', 'plr rocker', 'two point rocker']
+        if any(content_dict.get(f'{side} {rocker_type}', '') == 'selected' for rocker_type in rocker_types):
             passed_codes['A19'] += 2
 
     # Straps
