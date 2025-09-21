@@ -76,17 +76,11 @@ def generate_bespoke_codes(self, content):
 
     # Track if tariffs were added
     bespoke_tariff_added = False
-    insole_tariff_added = False
 
     # --- Medway Tariffs for Bespoke ---
     if customer_no in tariff_medway_customer_nos:
-        if insole_type == 'simple':
-            passed_codes['MEDBNS71'] += 2
-        else:
-            passed_codes['MEDBNS72'] += 2
         passed_codes['MEDFOOTWEAR'] += 2
         bespoke_tariff_added = True
-        insole_tariff_added = True
 
     # Wales Tariff Check for Bespoke
     if customer_no in tariff_wales_customer_nos:
@@ -97,40 +91,6 @@ def generate_bespoke_codes(self, content):
     if customer_no in tariff_bespoke_customer_nos:
         passed_codes['TARIFF BESPOKE'] += 2
         bespoke_tariff_added = True
-
-    # Determine insole type
-    insole_type = None
-    if content_dict.get('insole type tci', '') == 'selected':
-        insole_type = 'tci'
-    elif content_dict.get('insole type cradle', '') == 'selected':
-        insole_type = 'cradle'
-    elif content_dict.get('insole type simple', '') == 'selected':
-        insole_type = 'simple'
-    elif content_dict.get('insole type handmould', '') == 'selected':
-        insole_type = 'handmould'
-
-    # Wales Insole Tariff Checks
-    if customer_no in tariff_wales_customer_nos:
-        if insole_type in ('tci', 'cradle'):
-            passed_codes['WALES-TCI'] += 2
-            insole_tariff_added = True
-        elif insole_type == 'simple':
-            passed_codes['WALES-SIMPLE'] += 2
-            insole_tariff_added = True
-        elif insole_type == 'handmould':
-            passed_codes['WALES-POLYPROP'] += 2
-            insole_tariff_added = True
-
-    # Insole Tariff Checks - Updated to consider both insole_type and customer_no
-    if insole_type in ('tci', 'cradle') and customer_no in tariff_tci_customer_nos:
-        passed_codes['TARIFF TCI\'S'] += 2
-        insole_tariff_added = True
-    elif insole_type == 'simple' and customer_no in tariff_simple_customer_nos:
-        passed_codes['TARIFF SIMPLE INSOLE'] += 2
-        insole_tariff_added = True
-    elif insole_type == 'handmould' and customer_no in tariff_polyprop_customer_nos:
-        passed_codes['TARIFF POLYPROPS'] += 2
-        insole_tariff_added = True
 
     # Define style sets
     a1b_styles = {
@@ -160,106 +120,6 @@ def generate_bespoke_codes(self, content):
     if content_dict.get('pop cast', '') == 'selected':
         passed_codes['A1K'] += 2
 
-    base = content_dict.get('base', '').strip().lower() # insole related
-    normalized_base = base.replace(' ', '').lower()
-
-    addition_positions = [
-        'left 1st addition', 'left 2nd addition', 'left 3rd addition', 'left 4th addition',
-        'right 1st addition', 'right 2nd addition', 'right 3rd addition', 'right 4th addition' # insole related
-    ]
-
-    addition_code_mapping = { # insole related
-        'A45_B41': {
-            'valgus pad', 'metatarsal pad', 'metatarsal bar', 'balance pad',
-            'heel pad', 'cuboid pad', 'cobra pad', 'neuroma pad',
-            'sulcus crest', 'arch fill'
-        },
-        'A45_B56': {
-            "morton's extension", "reverse morton's extension", 'poron forefoot'
-        },
-        'A45_B43': {'kinetic wedge', 'heel raise'},
-        'D8A': {'neurological footplate'},
-        'BNS45': {'recess', 'hole & plug'},
-        'A20_B20': {'rigid 1st extension'},
-        'A46_B50': {'partial toe block'},
-        'A47_B51': {'full toe block'}
-    }
-
-    # Additions with special handling for heel raise in cradle
-    for key in addition_positions:
-        addition_value = content_dict.get(key, '')
-        if addition_value:
-            if insole_type == 'cradle' and addition_value == 'heel raise':
-                # Special logic for heel raise in cradle
-                thickness_key = f"{key} thickness"
-                thickness_str = content_dict.get(thickness_key, '')
-                thickness_match = re.search(r'\d+\.?\d*', thickness_str) # insole related
-                if thickness_match:
-                    thickness = float(thickness_match.group())
-                    if thickness > 0:
-                        passed_codes['A10'] += 2
-                        if thickness > 25:
-                            excess = thickness - 25
-                            a9_count = math.ceil(excess / 25)
-                            passed_codes['A9'] += a9_count * 2
-            else:
-                # Existing mapping logic
-                if addition_value in addition_code_mapping['A45_B41']: # insole related
-                    code = 'A45' if insole_type == 'cradle' else 'B41'
-                    passed_codes[code] += 2
-                elif addition_value in addition_code_mapping['A45_B56']:
-                    code = 'A45' if insole_type == 'cradle' else 'B56'
-                    passed_codes[code] += 2
-                elif addition_value in addition_code_mapping['A45_B43']:
-                    code = 'A45' if insole_type == 'cradle' else 'B43'
-                    passed_codes[code] += 2
-                elif addition_value in addition_code_mapping['D8A']:
-                    passed_codes['D8A'] += 2
-                elif addition_value in addition_code_mapping['BNS45']:
-                    passed_codes['BNS45'] += 2
-                elif addition_value in addition_code_mapping['A20_B20']:
-                    code = 'A20' if insole_type == 'cradle' else 'B20'
-                    passed_codes[code] += 2
-                elif addition_value in addition_code_mapping['A46_B50']:
-                    code = 'A46' if insole_type == 'cradle' else 'B50'
-                    passed_codes[code] += 2
-                elif addition_value in addition_code_mapping['A47_B51']:
-                    code = 'A47' if insole_type == 'cradle' else 'B51'
-                    passed_codes[code] += 2
-
-    # Foot modifications
-    foot_modifications = [ # insole related
-        'cut out and additions',
-        '1st met head',
-        '1st met ray',
-        '5th met ray',
-        'navicular sweet spot',
-        'fascial accommodation',
-        'heel flange'
-    ]
-
-    for side in ['left', 'right']:
-        for mod in foot_modifications: # insole related
-            key = f"{side} {mod}"
-            if content_dict.get(key, '') == 'selected':
-                passed_codes['BNS45'] += 2
-
-    posting_keys = [
-        'left medial rearfoot posting', # insole related
-        'left lateral rearfoot posting',
-        'right medial rearfoot posting',
-        'right lateral rearfoot posting',
-        'left medial forefoot posting',
-        'left lateral forefoot posting',
-        'right medial forefoot posting',
-        'right lateral forefoot posting'
-    ]
-
-    for key in posting_keys: # insole related
-        if content_dict.get(key, '') == 'selected':
-            code = 'A45' if insole_type == 'cradle' else 'B56'
-            passed_codes[code] += 2
-
     # Stiffeners Checks
     for side in ['left', 'right']:
         a20_count = 0
@@ -271,7 +131,7 @@ def generate_bespoke_codes(self, content):
             a20_count = 1
         passed_codes['A20'] += a20_count
 
-        if content_dict.get(f'stiffener padded {side}', '') == 'selected': # a15 is mentioned later so need to check that
+        if content_dict.get(f'stiffener padded {side}', '') == 'selected':
             passed_codes['A15'] += 1
 
     # Sole Additions
@@ -306,42 +166,14 @@ def generate_bespoke_codes(self, content):
             # If conversion fails, skip
             pass
 
-    if content_dict.get('fastening', '') == 'boa': # changed to easy grip boa == selected
+    if content_dict.get('easy grip boa', '') == 'selected':
         passed_codes['TWIST FASTEN'] += 2
 
     if content_dict.get('lining sheepskin', '') == 'selected':
         passed_codes['A18A'] += 2
 
-    # A6 handling: 1.0 for pairs, 0.5 for singles
     if content_dict.get('soling commando', '') == 'selected':
         passed_codes['A6'] += 1.0
-
-    # Stiffeners Checks
-    # Left side
-    left_a16_count = 0
-    if content_dict.get('stiffeners left medial', '') == 'selected':
-        left_a16_count += 1
-    if content_dict.get('stiffeners left lateral', '') == 'selected':
-        left_a16_count += 1
-
-    if content_dict.get('stiffeners left type', '') in ('elongated', 'high'):
-        if left_a16_count > 1:
-            left_a16_count = 1
-    if left_a16_count > 0:
-        passed_codes['A16'] += left_a16_count * 2
-
-    # Right side
-    right_a16_count = 0
-    if content_dict.get('stiffeners right medial', '') == 'selected':
-        right_a16_count += 1
-    if content_dict.get('stiffeners right lateral', '') == 'selected':
-        right_a16_count += 1
-
-    if content_dict.get('stiffeners right type', '') in ('elongated', 'high'):
-        if right_a16_count > 1:
-            right_a16_count = 1
-    if right_a16_count > 0:
-        passed_codes['A16'] += right_a16_count * 2
 
     # Sockets
     for side in ['left', 'right']:
@@ -442,171 +274,37 @@ def generate_bespoke_codes(self, content):
         elif content_dict.get(f'{side} spur retaining strap', '') == 'selected' or content_dict.get(f'{side} heel retaining strap', '') == 'selected':
             passed_codes['A40'] += 2
 
-    # Insole coding section - MATHS!
-    x = 1
-    if insole_type == 'simple':
-        x -= 1
-    if content_dict.get('insole top cover length', '') == 'not required':
-        x -= 1
-    if content_dict.get('lining to shell', '') == 'selected':
-        x += 1
-    if content_dict.get('lining to sulcus', '') == 'selected':
-        x += 1
-    if content_dict.get('lining full', '') == 'selected':
-        x += 1
-    if content_dict.get('insole top cover material', '') == 'spenco (green)':
-        x += 1
-    if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
-        x += 1
-
-    if x >= 3:
-        code = 'A44C' if insole_type == 'cradle' else 'B55C'
-        passed_codes[code] += 2
-    elif x == 2:
-        code = 'A44B' if insole_type == 'cradle' else 'B55B'
-        passed_codes[code] += 2
-    elif x == 1:
-        code = 'A44A' if insole_type == 'cradle' else 'B55A'
-        passed_codes[code] += 2
-
-    normalized_base = base.replace(' ', '').lower()
-    shore_bases = {'40shore', '50shore', '65shore', '35/20/80sh', '45/30/80sh'}
-
-    if insole_type == 'cradle':
-        if normalized_base in shore_bases:
-            passed_codes['A10'] += 2
-        elif normalized_base == 'polypropylene':
-            passed_codes['A10'] += 2
-    elif insole_type in ('tci', 'simple', 'handmould'):
-        if normalized_base == 'polypropylene':
-            passed_codes['B54B'] += 2
-        else:
-            passed_codes['B54C'] += 2
-
-    if content_dict.get('base poron', '') == 'selected':
-        passed_codes['B40B'] += 2
-    if content_dict.get('base carbon fibre', '') == 'selected':
-        passed_codes['B54A'] += 2
-
-    foot_modifications = [
-        'cut out and additions', '1st met head', '1st met ray', '5th met ray',
-        'navicular sweet spot', 'fascial accommodation', 'heel flange'
-    ]
-    for side in ['left', 'right']:
-        for mod in foot_modifications:
-            key = f"{side} {mod}"
-            if content_dict.get(key, '') == 'selected':
-                passed_codes['BNS45'] += 2
-
-    posting_keys = [
-        'left medial rearfoot posting', 'left lateral rearfoot posting',
-        'right medial rearfoot posting', 'right lateral rearfoot posting',
-        'left medial forefoot posting', 'left lateral forefoot posting',
-        'right medial forefoot posting', 'right lateral forefoot posting'
-    ]
-    for key in posting_keys:
-        if content_dict.get(key, '') == 'selected':
-            code = 'A45' if insole_type == 'cradle' else 'B56'
-            passed_codes[code] += 2
-
-    # Insole coding section - MATHS!
-    x = 1
-    print(f"Initial value: x = {x}")
-
-    if insole_type == 'simple':
-        x -= 1
-        print(f"After insole_type 'simple' check: x = {x}")
-    if content_dict.get('insole top cover length', '') == 'not required':
-        x -= 1
-    if content_dict.get('lining to shell', '') == 'selected':
-        x += 1
-    if content_dict.get('lining to sulcus', '') == 'selected':
-        x += 1
-    if content_dict.get('lining full', '') == 'selected':
-        x += 1
-    if content_dict.get('insole top cover material', '') == 'spenco (green)':
-        x += 1
-        print(f"After spenco check: x = {x}")
-
-    if content_dict.get('base', '') in ('35/20/80 sh', '45/30/80 sh'):
-        x += 1
-        print(f"After base check: x = {x}")
-
-    if x >= 3:
-        passed_codes['B55C'] += 2
-        print(f"x >= 3, incrementing B55C: {passed_codes['B55C']}")
-    elif x == 2:
-        passed_codes['B55B'] += 2
-        print(f"x == 2, incrementing B55B: {passed_codes['B55B']}")
-    elif x == 1:
-        passed_codes['B55A'] += 2
-        print(f"x == 1, incrementing B55A: {passed_codes['B55A']}")
-
-# CLCH Simple Logic
-    if clinic_name == 'clch' and insole_type == 'simple':
-        total_posts = (passed_codes['B41'] + passed_codes['B56'] +
-                       passed_codes['B43'] + passed_codes['BNS45'])
-        # Decide tariff
-        if total_posts <= 4:
-            chosen_tariff = 'TARIFF INSOLE>4 POST'
-        else:
-            chosen_tariff = 'TARIFF INSOLE<5 POST'
-        passed_codes[chosen_tariff] += 2
-        # Remove all non-tariff codes (all except chosen_tariff)
-        for code in list(passed_codes.keys()):
-            if code != chosen_tariff:
-                del passed_codes[code]
-    else:
-        # Normal pair handling if not CLCH simple
-        codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B']
-        for code in codes_to_double_insole:
-            if code in passed_codes:
-                passed_codes[code] *= 2
-
     # --- Final Filtering Step ---
-    insole_filter_codes = {
-        'A10', 'B54C', 'B40B', 'B54A', 'A44A', 'A44B', 'A44C',
-        'B55A', 'B55B', 'B55C', 'B56', 'A45', 'BNS45', 'A47',
-        'B51', 'B50', 'A46', 'A20', 'B20', 'D8A', 'B43', 'B41'
-    }
-    # Define Wales-specific insole filter (same as insole_filter_codes but without 'B20')
-    wales_insole_filter_codes = insole_filter_codes.copy()
-    wales_insole_filter_codes.discard('B20')
-
     bespoke_filter_codes = {
         'A1B', 'A1A', 'A1K', 'A22', 'A23', 'A24', 'A25',
         'TWIST FASTEN', 'A18A', 'A6', 'A15', 'A16', 'A37A',
         'A37B', 'A31', 'A19', 'A26', 'A8', 'A13A', 'A12A',
         'A39', 'A38', 'A40', 'B54B'
     }
-    # If insole tariff selected, remove insole_filter_codes
-    if insole_tariff_added:
-        # Use Wales-specific filter if applicable, else standard
-        filter_set = wales_insole_filter_codes if customer_no in tariff_wales_customer_nos else insole_filter_codes
-        for c in filter_set:
-            if c in passed_codes:
-                del passed_codes[c]
     # If bespoke tariff selected, remove bespoke_filter_codes
     if bespoke_tariff_added:
         for c in bespoke_filter_codes:
             if c in passed_codes:
                 del passed_codes[c]
 
-    # Format output
-    formatted_passed_codes = []
+    # Call insole logic and combine results
+    insole_string = generate_insole_codes(self, content)
+    bespoke_formatted = []
     for code, count in passed_codes.items():
         if count.is_integer():
             display_count = int(count)
         else:
             display_count = count
         if display_count > 1:
-            formatted_passed_codes.append(f"{code} x{display_count}")
+            bespoke_formatted.append(f"{code} x{display_count}")
         else:
-            formatted_passed_codes.append(code)
-    if formatted_passed_codes:
-        return ', '.join(formatted_passed_codes)
+            bespoke_formatted.append(code)
+    bespoke_string = ', '.join(bespoke_formatted) if bespoke_formatted else ''
+    if insole_string:
+        final_string = bespoke_string + (', ' if bespoke_string else '') + insole_string
     else:
-        return None
+        final_string = bespoke_string
+    return final_string if final_string else None
     
 def generate_insole_codes(self, content):
     """Generates insole codes based on the content."""
