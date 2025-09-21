@@ -45,7 +45,7 @@ VERSION = "7.0.0-alpha"
 MODEL_IDS = {
     'Insoles': 'InsoleFullReaderV13',
     'AFOs': 'AfoReaderV11',
-    'Bespoke': 'BespokeReaderFullV15',
+    'Bespoke': 'BespokeReaderFullV16',
     'Modular': 'ModularReaderFullV6',
     'A&R': 'AdaptsAndRepairsReader3',
     'Kafo': 'KafoFormReaderV3' 
