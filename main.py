@@ -664,12 +664,12 @@ class PdfButtonHandler:
                 print(f"Failed to parse creation_date, using today's date: {creation_date}")
             # Extract and convert gender
             gender = fields_data.get('gender', 'N/A').strip().upper()
-            if gender == 'M':
+            if gender in ['M', 'MALE']:
                 gender_full = 'Male'
-            elif gender == 'F':
+            elif gender in ['F', 'FEMALE']:
                 gender_full = 'Female'
             else:
-                gender_full = 'Unknown'
+                gender_full = ''  # Use blank as fallback to match NAV options
             # Extract and parse pre_app_date
             pre_app_date_str = fields_data.get('pre app date', '').strip()
             if pre_app_date_str:
