@@ -893,9 +893,41 @@ def generate_afo_codes(self, content):
     return None  # Return None if no codes were added
     
 def generate_modular_codes(self, content):
+    """Generates codes based on the content for the Modular model, with tariff logic."""
+    passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
-# needs style checks something like this code:
-    """     # Style Checks
+    # Split the content into lines
+    lines = content.split('\n')
+
+    # Convert lines to a dictionary
+    content_dict = {}
+    for line in lines:
+        if ':' in line:
+            key, value = line.split(':', 1)
+            content_dict[key.strip().lower()] = value.strip().lower()
+
+    clinic_name = content_dict.get('clinic', '').lower()
+    customer_no = get_customer_no(clinic_name)
+
+    # Track if tariffs were added
+    modular_tariff_added = False
+
+    # --- Medway Tariffs for Modular ---
+    if customer_no in tariff_medway_customer_nos:
+        passed_codes['MEDFOOTWEAR'] += 2
+        modular_tariff_added = True
+
+    # Wales Tariff Check for Modular
+    if customer_no in tariff_wales_customer_nos:
+        passed_codes['WALES-MODULAR'] += 2
+        modular_tariff_added = True
+
+    # Modular Tariff Check (other clinics)
+    if customer_no in tariff_modular_customer_nos:
+        passed_codes['TARIFF MODULAR'] += 2
+        modular_tariff_added = True
+
+    # Style Checks
     style_value = content_dict.get('styles', '')
 
     style = content_dict.get('styles', '').lower()
@@ -908,60 +940,74 @@ def generate_modular_codes(self, content):
                    'dundee', 'brigg', 'elgin', 'highland'}
 
     if style in sport_styles:
-        passed_codes['MODULAR SPORTS'] += 1
+        passed_codes['MODULAR SPORTS'] += 2
     elif style in shoe_styles:
-        passed_codes['MODULAR SHOES'] += 1
+        passed_codes['MODULAR SHOES'] += 2
     elif style in boot_styles:
-        passed_codes['MODULAR BOOTS'] += 1
+        passed_codes['MODULAR BOOTS'] += 2
 
-        if fallback_styles_used:
-            warning_message = (
-                f"Footwear style not detected!\n"
-                f"• Entered style: '{style}' may be spelled incorrectly.\n"
-                f"• Falling back to tick-box selections: {', '.join(fallback_styles_used)}"
-            )
-            self.root.after(0, self.append_and_show_info, "Warning", warning_message)
+    # need to add velcro codes if r/pull velcro or lay on velcro == selected
+
+    # sheepskin == selected add B14
+
+    # commando == seleced add BNS62
+
+    # (side) t strap == sellected add B33
+
+    # (side) double decker == selected add B34
+
+    # (side) heel retaining or (side) spur retaining == selected add B8 
+
+    # (side) standard rocker == selected add B17 AND ADD B5
+
+    # (side) plr rocker == selected add B17 AND ADD B5
+
+    # (side) two point rocker == selected add B17
+
+    # (side) toe protector rocker == selected add B24
+
+    # (side) welt protector rocker == selected add B23
+
+    # sOCKETS  all = B30 but if b/stop selected then they equal B31
+
+    # Elongations are all B25
+
+    # floated heel is B25, floated sole is B19
+
+    # Wedge heel is B25, wedge sole is B18
+
+    # raise is B3 up to 25mm (or 25) more than that and it is B4
+
+    # Needs to run the insole logic the same way bespoke does 
+
+    # --- Final Filtering Step ---
+    modular_filter_codes = {
+        '6MM', 'PATTERN', 'BNS62', 'MODULAR SHOES', 'MODULAR BOOTS',
+        'MODULAR SPORTS', 'TWIST FASTEN', 'VELCRO', 'B34', 'B33', 'B8',
+        'B30', 'B31', 'B25', 'B17', 'B18', 'B19'
+    }
+    if modular_tariff_added:
+        for c in modular_filter_codes:
+            if c in passed_codes:
+                del passed_codes[c]
+
+    # Call insole logic and update passed_codes
+    insole_passed = generate_insole_codes(self, content, return_dict=True)
+    for code, count in insole_passed.items():
+        passed_codes[code] += count
+
+    # Format output
+    formatted_passed_codes = []
+    for code, count in passed_codes.items():
+        if count > 1:
+            formatted_passed_codes.append(f"{code} x{count}")
         else:
-            warning_message = (
-                f"Footwear style '{style}' not recognized. "
-                f"Please verify the footwear style."
-            )
-            self.root.after(0, self.append_and_show_info, "Warning", warning_message)"""
+            formatted_passed_codes.append(code)
 
-# need to add velcro codes if r/pull velcro or lay on velcro == selected
-
-# sheepskin == selected add B14
-
-# commando == seleced add BNS62
-
-# (side) t strap == sellected add B33
-
-# (side) double decker == selected add B34
-
-# (side) heel retaining or (side) spur retaining == selected add B8 
-
-# (side) standard rocker == selected add B17 AND ADD B5
-
-# (side) plr rocker == selected add B17 AND ADD B5
-
-# (side) two point rocker == selected add B17
-
-# (side) toe protector rocker == selected add B24
-
-# (side) welt protector rocker == selected add B23
-
-# sOCKETS  all = B30 but if b/stop selected then they equal B31
-
-# Elongations are all B25
-
-# floated heel is B25, floated sole is B19
-
-# Wedge heel is B25, wedge sole is B18
-
-# raise is B3 up to 25mm (or 25) more than that and it is B4
-
-# Needs to run the insole logic the same way bespoke does 
-    return None
+    if formatted_passed_codes:
+        return ', '.join(formatted_passed_codes)
+    else:
+        return None
     
 def generate_a_and_r_codes(self, content):
     """
