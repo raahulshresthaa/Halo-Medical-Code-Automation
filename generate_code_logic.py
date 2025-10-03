@@ -894,92 +894,141 @@ def generate_afo_codes(self, content):
     
 def generate_modular_codes(self, content):
     """Generates codes based on the content for the Modular model, with tariff logic."""
-    passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
-
+    passed_codes = defaultdict(int) # Use defaultdict to count occurrences
     # Split the content into lines
     lines = content.split('\n')
-
     # Convert lines to a dictionary
     content_dict = {}
     for line in lines:
         if ':' in line:
             key, value = line.split(':', 1)
             content_dict[key.strip().lower()] = value.strip().lower()
-
     clinic_name = content_dict.get('clinic', '').lower()
     customer_no = get_customer_no(clinic_name)
-
     # Track if tariffs were added
     modular_tariff_added = False
-
     # --- Medway Tariffs for Modular ---
     if customer_no in tariff_medway_customer_nos:
         passed_codes['MEDFOOTWEAR'] += 2
         modular_tariff_added = True
-
     # Wales Tariff Check for Modular
     if customer_no in tariff_wales_customer_nos:
         passed_codes['WALES-MODULAR'] += 2
         modular_tariff_added = True
-
     # Modular Tariff Check (other clinics)
     if customer_no in tariff_modular_customer_nos:
         passed_codes['TARIFF MODULAR'] += 2
         modular_tariff_added = True
-
     # Style Checks
     style_value = content_dict.get('styles', '')
-
     style = content_dict.get('styles', '').lower()
-
-    sport_styles = {'sneaker', 'greenock', 'greeock', 'colwyn', 'lineham', 'hove', 'plymouth', 
-                    'drayton', 'olympic', 'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'} 
+    sport_styles = {'sneaker', 'greenock', 'greeock', 'colwyn', 'lineham', 'hove', 'plymouth',
+                    'drayton', 'olympic', 'melton', 'kelso', 'dover', 'shelwyck', 'mowbray'}
     shoe_styles = {'trent', 'selby', 'hallam', 'totnes', 'tenby', 'chelsea', 'galway', 'vienna',
                    'truro', 'hendon', 'stirling', 'exeter', 'chester', 'shelby'}
     boot_styles = {'bumper', 'whitby', 'tralee', 'rockingham', 'perth', 'rockliffe',
                    'dundee', 'brigg', 'elgin', 'highland'}
-
     if style in sport_styles:
         passed_codes['MODULAR SPORTS'] += 2
     elif style in shoe_styles:
         passed_codes['MODULAR SHOES'] += 2
     elif style in boot_styles:
         passed_codes['MODULAR BOOTS'] += 2
-
-    # need to add velcro codes if r/pull velcro or lay on velcro == selected
-
-    # sheepskin == selected add B14
-
-    # commando == seleced add BNS62
-
-    # (side) t strap == sellected add B33
-
-    # (side) double decker == selected add B34
-
-    # (side) heel retaining or (side) spur retaining == selected add B8 
-
-    # (side) standard rocker == selected add B17 AND ADD B5
-
-    # (side) plr rocker == selected add B17 AND ADD B5
-
-    # (side) two point rocker == selected add B17
-
-    # (side) toe protector rocker == selected add B24
-
-    # (side) welt protector rocker == selected add B23
-
-    # sOCKETS  all = B30 but if b/stop selected then they equal B31
-
-    # Elongations are all B25
-
-    # floated heel is B25, floated sole is B19
-
-    # Wedge heel is B25, wedge sole is B18
-
-    # raise is B3 up to 25mm (or 25) more than that and it is B4
-
-    # Needs to run the insole logic the same way bespoke does 
-
+    # Velcro logic
+    velcro_selected = content_dict.get('r/pull velcro', '') == 'selected' or content_dict.get('lay on velcro', '') == 'selected'
+    if velcro_selected and customer_no not in tariff_medway_customer_nos:
+        passed_codes['VELCRO'] += 2
+        x2_styles = {'selby', 'chelsea', 'vienna', 'truro', 'lineham', 'hove', 'plymouth', 'drayton', 'sneaker', 'olympic', 'melton', 'rockingham', 'dover', 'shelwyck', 'mowbray', 'rockliffe', 'dundee'}
+        x3_styles = {'bumper', 'whitby', 'perth', 'elgin'}
+        if style in x2_styles:
+            passed_codes['VELCRO'] *= 2
+        elif style in x3_styles:
+            passed_codes['VELCRO'] *= 3
+    # Sheepskin lining
+    if content_dict.get('sheepskin lining', '') == 'selected':
+        passed_codes['B14'] += 2
+    # Commando soling
+    if content_dict.get('commando soling', '') == 'selected':
+        passed_codes['BNS62'] += 2
+    # Straps
+    for side in ['left', 'right']:
+        if content_dict.get(f'{side} t strap', '') == 'selected':
+            passed_codes['B33'] += 2
+        if content_dict.get(f'{side} doubledecker', '') == 'selected':
+            passed_codes['B34'] += 2
+        if content_dict.get(f'{side} heel retaining', '') == 'selected' or content_dict.get(f'{side} spur retaining', '') == 'selected':
+            passed_codes['B8'] += 2
+    # Rockers
+    for side in ['left', 'right']:
+        if content_dict.get(f'{side} rocker standard', '') == 'selected':
+            passed_codes['B17'] += 2
+            passed_codes['B5'] += 2
+        if content_dict.get(f'{side} rocker plr', '') == 'selected':
+            passed_codes['B17'] += 2
+            passed_codes['B5'] += 2
+        if content_dict.get(f'{side} rocker two point', '') == 'selected':
+            passed_codes['B17'] += 2
+        if content_dict.get(f'{side} rocker toe protector', '') == 'selected':
+            passed_codes['B24'] += 2
+        if content_dict.get(f'{side} rocker welt protector', '') == 'selected':
+            passed_codes['B23'] += 2
+    # Sockets
+    for side in ['left', 'right']:
+        type_a_sockets = ['5/16 round', '1/4 round', '1/16x9/16', 'rizzoli']
+        type_b_sockets = ['5/16 backstop', '1/4 backstop']
+        has_type_a = any(content_dict.get(f'{side} {socket}', '') == 'selected' for socket in type_a_sockets)
+        has_type_b = any(content_dict.get(f'{side} {socket}', '') == 'selected' for socket in type_b_sockets)
+        if has_type_a:
+            passed_codes['B30'] += 1
+        if has_type_b:
+            passed_codes['B31'] += 1
+    # Elongations
+    for side in ['left', 'right']:
+        elongation_types = ['elongation full', 'elongation half', 'elongation med', 'elongation lat']
+        if any(content_dict.get(f'{side} {typ}', '') == 'selected' for typ in elongation_types):
+            passed_codes['B25'] += 2
+    # Floated
+    floated_heel_keys = [
+        'left floated heel medial', 'left floated heel lateral',
+        'right floated heel medial', 'right floated heel lateral',
+    ]
+    for key in floated_heel_keys:
+        if content_dict.get(key, '') == 'selected':
+            passed_codes['B25'] += 2
+    floated_sole_keys = [
+        'left floated sole medial', 'left floated sole lateral',
+        'right floated sole medial', 'right floated sole lateral',
+    ]
+    for key in floated_sole_keys:
+        if content_dict.get(key, '') == 'selected':
+            passed_codes['B19'] += 2
+    # Wedges
+    wedges_heel_keys = [
+        'left wedges heel medial', 'left wedges heel lateral',
+        'right wedges heel medial', 'right wedges heel lateral',
+    ]
+    for key in wedges_heel_keys:
+        if content_dict.get(key, '') == 'selected':
+            passed_codes['B25'] += 2
+    wedges_sole_keys = [
+        'left wedges sole medial', 'left wedges sole lateral',
+        'right wedges sole medial', 'right wedges sole lateral',
+    ]
+    for key in wedges_sole_keys:
+        if content_dict.get(key, '') == 'selected':
+            passed_codes['B18'] += 2
+    # Raises (assuming height is provided per side in mm; using a simple regex to extract number)
+    for side in ['left', 'right']:
+        if content_dict.get(f'raise {side} inside', '') == 'selected' or content_dict.get(f'raise {side} outside', '') == 'selected':
+            raise_height_str = content_dict.get(f'{side} raise height', '')
+            height = 0
+            match = re.search(r'(\d+\.?\d*)', raise_height_str)
+            if match:
+                height = float(match.group(1))
+            if height <= 25:
+                passed_codes['B3'] += 2
+            else:
+                passed_codes['B4'] += 2
     # --- Final Filtering Step ---
     modular_filter_codes = {
         '6MM', 'PATTERN', 'BNS62', 'MODULAR SHOES', 'MODULAR BOOTS',
@@ -990,12 +1039,10 @@ def generate_modular_codes(self, content):
         for c in modular_filter_codes:
             if c in passed_codes:
                 del passed_codes[c]
-
     # Call insole logic and update passed_codes
     insole_passed = generate_insole_codes(self, content, return_dict=True)
     for code, count in insole_passed.items():
         passed_codes[code] += count
-
     # Format output
     formatted_passed_codes = []
     for code, count in passed_codes.items():
@@ -1003,7 +1050,6 @@ def generate_modular_codes(self, content):
             formatted_passed_codes.append(f"{code} x{count}")
         else:
             formatted_passed_codes.append(code)
-
     if formatted_passed_codes:
         return ', '.join(formatted_passed_codes)
     else:
