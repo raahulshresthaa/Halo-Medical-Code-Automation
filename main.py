@@ -46,7 +46,7 @@ MODEL_IDS = {
     'Insoles': 'InsoleFullReaderV13',
     'AFOs': 'AfoReaderV11',
     'Bespoke': 'BespokeReaderFullV16',
-    'Modular': 'ModularReaderFullV9',
+    'Modular': 'ModularReaderFullV10',
     'A&R': 'AdaptsAndRepairsReader3',
     'Kafo': 'KafoFormReaderV3' 
 }
