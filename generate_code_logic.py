@@ -953,25 +953,25 @@ def generate_modular_codes(self, content):
     # Straps
     for side in ['left', 'right']:
         if content_dict.get(f'{side} t strap', '') == 'selected':
-            passed_codes['B33'] += 2
+            passed_codes['B33'] += 1
         if content_dict.get(f'{side} doubledecker', '') == 'selected':
-            passed_codes['B34'] += 2
+            passed_codes['B34'] += 1
         if content_dict.get(f'{side} heel retaining', '') == 'selected' or content_dict.get(f'{side} spur retaining', '') == 'selected':
-            passed_codes['B8'] += 2
+            passed_codes['B8'] += 1
     # Rockers
     for side in ['left', 'right']:
         if content_dict.get(f'{side} rocker standard', '') == 'selected':
-            passed_codes['B17'] += 2
-            passed_codes['B5'] += 2
+            passed_codes['B17'] += 1
+            passed_codes['B5'] += 1
         if content_dict.get(f'{side} rocker plr', '') == 'selected':
-            passed_codes['B17'] += 2
-            passed_codes['B5'] += 2
+            passed_codes['B17'] += 1
+            passed_codes['B5'] += 1
         if content_dict.get(f'{side} rocker two point', '') == 'selected':
-            passed_codes['B17'] += 2
+            passed_codes['B17'] += 1
         if content_dict.get(f'{side} rocker toe protector', '') == 'selected':
-            passed_codes['B24'] += 2
+            passed_codes['B24'] += 1
         if content_dict.get(f'{side} rocker welt protector', '') == 'selected':
-            passed_codes['B23'] += 2
+            passed_codes['B23'] += 1
     # Sockets
     for side in ['left', 'right']:
         type_a_sockets = ['5/16 round', '1/4 round', '1/16x9/16', 'rizzoli']
@@ -982,44 +982,27 @@ def generate_modular_codes(self, content):
             passed_codes['B30'] += 1
         if has_type_b:
             passed_codes['B31'] += 1
-    # Elongations
-    for side in ['left', 'right']:
-        elongation_types = ['elongation full', 'elongation half', 'elongation med', 'elongation lat']
-        if any(content_dict.get(f'{side} {typ}', '') == 'selected' for typ in elongation_types):
-            passed_codes['B25'] += 2
     # Floated
-    floated_heel_keys = [
-        'left floated heel medial', 'left floated heel lateral',
-        'right floated heel medial', 'right floated heel lateral',
-    ]
-    for key in floated_heel_keys:
-        if content_dict.get(key, '') == 'selected':
-            passed_codes['B25'] += 2
-    floated_sole_keys = [
-        'left floated sole medial', 'left floated sole lateral',
-        'right floated sole medial', 'right floated sole lateral',
-    ]
-    for key in floated_sole_keys:
-        if content_dict.get(key, '') == 'selected':
-            passed_codes['B19'] += 2
+    if content_dict.get('left floated heel length', '') != '':
+        passed_codes['B25'] += 1
+    if content_dict.get('right floated heel length', '') != '':
+        passed_codes['B25'] += 1
+    if content_dict.get('left floated sole length', '') != '':
+        passed_codes['B19'] += 1
+    if content_dict.get('right floated sole length', '') != '':
+        passed_codes['B19'] += 1
     # Wedges
-    wedges_heel_keys = [
-        'left wedges heel medial', 'left wedges heel lateral',
-        'right wedges heel medial', 'right wedges heel lateral',
-    ]
-    for key in wedges_heel_keys:
-        if content_dict.get(key, '') == 'selected':
-            passed_codes['B25'] += 2
-    wedges_sole_keys = [
-        'left wedges sole medial', 'left wedges sole lateral',
-        'right wedges sole medial', 'right wedges sole lateral',
-    ]
-    for key in wedges_sole_keys:
-        if content_dict.get(key, '') == 'selected':
-            passed_codes['B18'] += 2
+    if content_dict.get('left wedges heel length', '') != '':
+        passed_codes['B25'] += 1
+    if content_dict.get('right wedges heel length', '') != '':
+        passed_codes['B25'] += 1
+    if content_dict.get('left wedges sole length', '') != '':
+        passed_codes['B18'] += 1
+    if content_dict.get('right wedges sole length', '') != '':
+        passed_codes['B18'] += 1
     # Raises (assuming height is provided per side in mm; using a simple regex to extract number)
     for side in ['left', 'right']:
-        if content_dict.get(f'raise {side} inside', '') == 'selected' or content_dict.get(f'raise {side} outside', '') == 'selected':
+        if content_dict.get(f'{side} heel external raise', '') == 'selected' or content_dict.get(f'{side} sole external raise', '') == 'selected':
             raise_height_str = content_dict.get(f'{side} raise height', '')
             height = 0
             match = re.search(r'(\d+\.?\d*)', raise_height_str)
