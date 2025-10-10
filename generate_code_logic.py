@@ -626,6 +626,19 @@ def generate_afo_codes(self, content):
     if content_dict.get('transfer', '') != '':
         passed_codes['D10I'] += 1
 
+    # Additions logic
+    if content_dict.get('additions tamarac', '') == 'selected':
+        passed_codes['D2A'] += 1
+
+    if content_dict.get('additions other', '') == 'metal':
+        passed_codes['D2B'] += 1
+
+    if content_dict.get('additions carbon', '') == 'selected':
+        passed_codes['D10A'] += 1
+
+    if content_dict.get('additions ribbed', '') == 'selected':
+        passed_codes['D10B'] += 1
+
     # Handle pairs by doubling codes if applicable
     if is_pair:
         for code in list(passed_codes.keys()):
