@@ -34,7 +34,6 @@ tariff_wales_customer_nos = {
     'GB-CUST02805', 'GB-CUST02830', 'GB-CUST02916', 'GB-CUST02917',
     'GB-CUST02918'
 }
-tariff_medway_customer_nos = {'GB-CUST02158'}
 
 # Database path
 if getattr(sys, 'frozen', False):
@@ -76,11 +75,6 @@ def generate_bespoke_codes(self, content):
 
     # Track if tariffs were added
     bespoke_tariff_added = False
-
-    # --- Medway Tariffs for Bespoke ---
-    if customer_no in tariff_medway_customer_nos:
-        passed_codes['MEDFOOTWEAR'] += 2
-        bespoke_tariff_added = True
 
     # Wales Tariff Check for Bespoke
     if customer_no in tariff_wales_customer_nos:
@@ -347,22 +341,8 @@ def generate_insole_codes(self, content, return_dict=False):
     elif content_dict.get('insole type hand mould', '') == 'selected':
         insole_type = 'handmould'
 
-    # --- Medway Tariff Logic ---
-    if customer_no in tariff_medway_customer_nos:
-        if insole_type == 'simple':
-            passed_codes['MEDBNS71'] += 1
-        else:
-            passed_codes['MEDBNS72'] += 1
-        if is_pair:
-            for code in list(passed_codes.keys()):
-                passed_codes[code] *= 2
-        # Remove other codes if any (though unlikely at this point)
-        for code in list(passed_codes.keys()):
-            if code not in ['MEDBNS71', 'MEDBNS72']:
-                del passed_codes[code]
-
     # Wales Tariff Logic for Insoles
-    elif customer_no in tariff_wales_customer_nos:
+    if customer_no in tariff_wales_customer_nos:
         if selected_base == 'poly':
             passed_codes['WALES-POLYPROP'] += 1
         elif insole_type == 'simple':
@@ -615,13 +595,6 @@ def generate_afo_codes(self, content):
 
     # Check if it's a pair for AFO
     is_pair = content_dict.get('pair', '') == 'selected' or content_dict.get('afo pair', '') == 'selected'
-
-    # --- New Medway Tariff ---
-    if customer_no in tariff_medway_customer_nos:
-        passed_codes['MEDDNS2'] += 1
-        if is_pair:
-            passed_codes['MEDDNS2'] *= 2
-        return 'MEDDNS2' if passed_codes['MEDDNS2'] == 1 else f'MEDDNS2 x{passed_codes["MEDDNS2"]}'
 
     # Wales Tariff for AFO
     if customer_no in tariff_wales_customer_nos:
@@ -907,10 +880,6 @@ def generate_modular_codes(self, content):
     customer_no = get_customer_no(clinic_name)
     # Track if tariffs were added
     modular_tariff_added = False
-    # --- Medway Tariffs for Modular ---
-    if customer_no in tariff_medway_customer_nos:
-        passed_codes['MEDFOOTWEAR'] += 2
-        modular_tariff_added = True
     # Wales Tariff Check for Modular
     if customer_no in tariff_wales_customer_nos:
         passed_codes['WALES-MODULAR'] += 2
@@ -936,7 +905,7 @@ def generate_modular_codes(self, content):
         passed_codes['MODULAR BOOTS'] += 2
     # Velcro logic
     velcro_selected = content_dict.get('r/pull velcro', '') == 'selected' or content_dict.get('lay on velcro', '') == 'selected'
-    if velcro_selected and customer_no not in tariff_medway_customer_nos:
+    if velcro_selected:
         passed_codes['VELCRO'] += 2
         x2_styles = {'selby', 'chelsea', 'vienna', 'truro', 'lineham', 'hove', 'plymouth', 'drayton', 'sneaker', 'olympic', 'melton', 'rockingham', 'dover', 'shelwyck', 'mowbray', 'rockliffe', 'dundee'}
         x3_styles = {'bumper', 'whitby', 'perth', 'elgin'}
