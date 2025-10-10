@@ -622,7 +622,15 @@ class PdfButtonHandler:
                     'additional info modeling',
                     'additional info cut outs',
                     'additional info additions',
-                    'additional info top cover'
+                    'additional info top cover',
+                    'additional info negative cast',
+                    'additional info positive cast',
+                    'additional info bench alignment',
+                    'additional info ptm',
+                    'additional info soling',                    
+                    'additional info upper',
+                    'additional info adaptions',
+                    'additional info'
                 ]
                 filled_sections = []
                 for key in additional_info_keys:
