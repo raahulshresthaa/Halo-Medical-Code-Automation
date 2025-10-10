@@ -574,6 +574,10 @@ def generate_insole_codes(self, content, return_dict=False):
         return None
             
 def generate_afo_codes(self, content):
+
+# I need this implimented 
+
+
     """Generates codes based on the content for the AFO model, counting duplicates."""
     """
     from collections import defaultdict
