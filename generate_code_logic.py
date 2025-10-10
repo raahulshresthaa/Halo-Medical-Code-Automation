@@ -574,12 +574,7 @@ def generate_insole_codes(self, content, return_dict=False):
         return None
             
 def generate_afo_codes(self, content):
-
-# I need this implimented 
-
-
     """Generates codes based on the content for the AFO model, counting duplicates."""
-    """
     from collections import defaultdict
     passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
@@ -614,245 +609,27 @@ def generate_afo_codes(self, content):
             passed_codes['TARIFF AFO'] *= 2
         return 'TARIFF AFO' if passed_codes['TARIFF AFO'] == 1 else f'TARIFF AFO x{passed_codes["TARIFF AFO"]}'
 
-    # --- Start of AFO-specific logic (if not a Tariff AFO clinic) ---
-    # Default codes
-    default_codes = ['D1C', 'D8U']
+    # Non-tariff AFO type logic
+    if content_dict.get('dafo', '') == 'selected' or content_dict.get('afo fixed', '') == 'selected':
+        passed_codes['D1K'] += 1
 
-    # Determine AFO Type codes with pair handling for 'D8U'
-    afo_type = content_dict.get('afo type', '').lower()
-    if afo_type in ('normal', 'fixed', 'articulated'):
+    if (content_dict.get('afo smafo', '') == 'selected' or content_dict.get('grafo', '') == 'selected' or
+        content_dict.get('afo hinged', '') == 'selected' or content_dict.get('afo/dafo', '') == 'selected'):
         passed_codes['D1C'] += 1
-        code_count = 1
-        if content_dict.get('afo pair', '') == 'selected':
-            code_count *= 2
-        passed_codes['D8U'] += code_count
-    elif afo_type == 'crow boot':
-        passed_codes['DNS1'] += 1
-    elif afo_type == 'afo/dafo':
-        passed_codes['D1C'] += 2
-        code_count = 2
-        if content_dict.get('afo pair', '') == 'selected':
-            code_count *= 2
-        passed_codes['D8U'] += code_count
-    elif afo_type == 'anterior shell':
-        passed_codes['D12M'] += 1
-    else:
-        # If 'AFO Type' does not exist, use default codes
-        passed_codes['D1C'] += 1
-        code_count = 1
-        if content_dict.get('afo pair', '') == 'selected':
-            code_count *= 2
-        passed_codes['D8U'] += code_count
 
-    # Check for 'Anterior Shell Height' even if 'AFO Type' is not 'anterior shell'
-    if afo_type != 'anterior shell' and content_dict.get('anterior shell height', ''):
+    if content_dict.get('crow', '') == 'selected':
+        passed_codes['DNS6'] += 1
+
+    if content_dict.get('clam shell', '') == 'selected':
         passed_codes['D12M'] += 1
 
-    # Determine Hinge Type codes
-    hinge_type = content_dict.get('hinge type', '').lower()
-    hinge_code = None
-    if hinge_type == 'gillette/tamrack':
-        hinge_code = 'D2A'
-    elif hinge_type in ('double action', 'camber axis'):
-        hinge_code = 'D2D'
-    elif hinge_type in ('appalachian/metal', 'appalachian', 'metal'):
-        hinge_code = 'D2B'
+    if content_dict.get('transfer', '') != '':
+        passed_codes['D10I'] += 1
 
-    if hinge_code:
-        code_count = 1
-        if content_dict.get('afo pair', '') == 'selected':
-            code_count *= 2
-        passed_codes[hinge_code] += code_count
-
-    # Heel Posting
-    heel_posting_codes = 0
-    heel_posting_keys = [
-        'left heel posting attached', 'left heel posting blended',
-        'left heel posting heel only', 'left heel posting loose',
-        'right heel posting attached', 'right heel posting blended',
-        'right heel posting heel only', 'right heel posting loose'
-    ]
-    right_as_left_heel = content_dict.get('ca&t right as left', '') == 'selected'
-    left_heel_posting = any(content_dict.get(key, '') == 'selected' for key in heel_posting_keys if 'left' in key)
-    right_heel_posting = any(content_dict.get(key, '') == 'selected' for key in heel_posting_keys if 'right' in key)
-
-    if right_as_left_heel and (left_heel_posting != right_heel_posting):
-        heel_posting_codes = 2
-    else:
-        heel_posting_codes = sum([left_heel_posting, right_heel_posting])
-
-    if heel_posting_codes > 0:
-        passed_codes['D10E'] += heel_posting_codes
-
-    # PCRO Codes
-    pcro_codes = defaultdict(int)
-    pcro_right_as_left = content_dict.get('pcro right as left', '') == 'selected'
-
-    # List of PCRO features and their codes
-    pcro_features = {
-        'varus resist': 'D8D',
-        'valgus resist': 'D8D',
-        'suctentaculum tali': 'D8H',
-        'peroneal notch': 'D8I',
-        'metatarsal button': 'B41',
-        'neuro plate': 'D8A',
-        'toe lift': 'D8U',
-        'pcro values': 'D8B'
-    }
-
-    for feature, code in pcro_features.items():
-        left_key = f'{feature} left'
-        right_key = f'{feature} right'
-
-        left_selected = content_dict.get(left_key, '') == 'selected' or content_dict.get(left_key, '').isdigit()
-        right_selected = content_dict.get(right_key, '') == 'selected' or content_dict.get(right_key, '').isdigit()
-
-        if pcro_right_as_left and (left_selected != right_selected):
-            # If right as left is selected and only one side is filled out, multiply by 2
-            total = 2
-        else:
-            total = sum([left_selected, right_selected])
-
-        if total > 0:
-            pcro_codes[code] += total
-
-    # Add PCRO codes to passed_codes
-    for code, count in pcro_codes.items():
-        passed_codes[code] += count
-
-    # Kirby Skive
-    left_kirby_selected = content_dict.get('left kirby skive medial', '') == 'selected' or content_dict.get('left kirby skive lateral', '') == 'selected'
-    right_kirby_selected = content_dict.get('right kirby skive medial', '') == 'selected' or content_dict.get('right kirby skive lateral', '') == 'selected'
-
-    if pcro_right_as_left and (left_kirby_selected != right_kirby_selected):
-        total_kirby = 2
-    else:
-        total_kirby = sum([left_kirby_selected, right_kirby_selected])
-
-    if total_kirby > 0:
-        passed_codes['D8A'] += total_kirby
-
-    # M&T Codes
-    m_and_t_codes = []
-    if content_dict.get('carbon ankle reinforcements', '') == 'selected':
-        m_and_t_codes.append('D10B')
-    if content_dict.get('ribbed ankle reinforcements', '') == 'selected':
-        m_and_t_codes.append('D10A')
-    if content_dict.get('walking surface', '') == 'selected':
-        m_and_t_codes.append('D10G')
-    if content_dict.get('transfer 1st choice', ''):
-        m_and_t_codes.append('D10I')
-
-    # Add M&T codes
-    for code in m_and_t_codes:
-        passed_codes[code] += 1
-
-    # AFO Lining (only calf material)
-    afo_lining_codes = []
-
-    # Process AFO Calf Material
-    afo_calf_material_value = content_dict.get('afo calf material', '').lower()
-
-    if afo_calf_material_value:
-        if afo_calf_material_value.startswith('yes'):
-            afo_lining_codes.append('D14D')  # Add D14D code for 'yes' override
-            # Extract the material after 'yes'
-            afo_calf_material = afo_calf_material_value[3:].strip()
-        else:
-            # If 'yes' is not present, assume the entire value is the material
-            afo_calf_material = afo_calf_material_value.strip()
-    else:
-        afo_calf_material = ''  # No material provided
-
-    # Materials for AFO Lining
-    lining_materials = {
-        'ld eva': 'D14D',
-        "p'zote": 'D14D',
-        'chamois': 'D14F',
-        'leather': 'D14F',
-        'sheepskin': 'D14F'
-    }
-
-    # Check and add codes based on calf material
-    if afo_calf_material in lining_materials:
-        afo_lining_codes.append(lining_materials[afo_calf_material])
-
-    # Add AFO lining codes
-    for code in afo_lining_codes:
-        passed_codes[code] += 1
-
-    # Pads
-    pads_codes = []
-
-    if content_dict.get('arch pads', '').lower() == 'yes':
-        pads_codes.append('D14C')
-    if content_dict.get('navicular pad', '').lower() == 'yes':
-        pads_codes.append('D14C')
-
-    # Add pads codes 
-    for code in pads_codes:
-        passed_codes[code] += 1
-
-    # Slotted Heel Strap
-    sides = ['left', 'right']
-    slip_pads = ['slip pad calf', 'slip pad ankle', 'slip pad foot']
-    slip_pads_needed = any(content_dict.get(pad, '') == 'yes' for pad in slip_pads)
-
-    for side in sides:
-        strap_type_key = f'{side} strap type'
-        strap_type = content_dict.get(strap_type_key, '').lower()
-
-        if strap_type == 'y strap':
-            passed_codes['D14A'] += 1
-            passed_codes['P15'] += 1
-        elif strap_type == 'full as part of ankle lining':
-            passed_codes['D14A'] += 1
-            passed_codes['P15'] += 1
-        elif strap_type == 'single slotted fix':
-            passed_codes['P1'] += 1
-            passed_codes['P4'] += 1
-            passed_codes['P15'] += 1
-        elif not strap_type and slip_pads_needed:
-            passed_codes['P15'] += 1
-
-    # Additional Information
-    additional_info_fields = [
-        'additional information',
-        'ca&t comments',
-        'm&t comments',
-        'pcro comments'
-    ]
-
-    for field in additional_info_fields:
-        comments = content_dict.get(field, '').lower()
-        
-        # Check for 'make multiple' to multiply all codes accordingly
-        if 'make multiple' in comments:
-            # Try to extract the multiplier from the comments, e.g., 'make multiple 3'
-            multiplier = 2  # Default to 2 if not specified
-            words = comments.split()
-            for i, word in enumerate(words):
-                if word == 'multiple' and i + 1 < len(words):
-                    try:
-                        multiplier = int(words[i + 1])
-                    except ValueError:
-                        pass  # Keep default multiplier
-            # Multiply all codes accordingly
-            for code in passed_codes:
-                passed_codes[code] *= multiplier
-
-    # --- Pair Handling ---
-    # Apply Pair Handling after all codes have been added
-    if content_dict.get('afo pair', '') == 'selected':
-        # Codes to exclude from pair handling
-        codes_to_exclude = ['D10E', 'P1', 'P4', 'D8D','D8H','D8A', 'B41','D8I', 'D8U', 'D8B', 'D2D', 'D2B', 'D2A', 'D8A']
-        for code in passed_codes:
-            if code not in codes_to_exclude:
-                passed_codes[code] *= 2
-
-    # Cap 'D8U' at a maximum of 2
-    if 'D8U' in passed_codes and passed_codes['D8U'] > 2:
-        passed_codes['D8U'] = 2
+    # Handle pairs by doubling codes if applicable
+    if is_pair:
+        for code in list(passed_codes.keys()):
+            passed_codes[code] *= 2
 
     # Format the passed codes with counts
     formatted_passed_codes = []
@@ -862,12 +639,10 @@ def generate_afo_codes(self, content):
         else:
             formatted_passed_codes.append(code)
 
-    # Return the passed codes as a string
     if formatted_passed_codes:
         return ', '.join(formatted_passed_codes)
     else:
-    """
-    return None  # Return None if no codes were added
+        return None
     
 def generate_modular_codes(self, content):
     """Generates codes based on the content for the Modular model, with tariff logic."""
