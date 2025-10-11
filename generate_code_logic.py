@@ -854,3 +854,9 @@ def generate_kafo_codes(handler, content):
     """
     # Example logic (copy from generate_a_and_r_codes and modify if necessary)
     return None  # Return None if no codes are generated
+
+def generate_repairs_codes(self, content):
+    return None
+
+def generate_adapts_and_modifications_codes(self, content):
+    return None

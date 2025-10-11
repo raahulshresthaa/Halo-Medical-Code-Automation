@@ -29,8 +29,9 @@ from generate_code_logic import (
     generate_insole_codes,
     generate_afo_codes,
     generate_modular_codes,
-    generate_a_and_r_codes,
     generate_kafo_codes,
+    generate_repairs_codes,
+    generate_adapts_and_modifications_codes,
     tariff_wales_customer_nos
 )
 from NavApi import create_sales_order, parse_pre_app_date
@@ -47,8 +48,9 @@ MODEL_IDS = {
     'AFOs': 'AfoReaderV12',
     'Bespoke': 'BespokeReaderFullV16',
     'Modular': 'ModularReaderFullV10',
-    'A&R': 'AdaptsAndRepairsReader3',
-    'Kafo': 'KafoFormReaderV3' 
+    'Kafo': 'KafoFormReaderV3',
+    'Repairs': 'RepairsReaderV1',
+    'A&M': 'AdaptsAndModificationsV1'
 }
 
 if getattr(sys, 'frozen', False):
@@ -99,14 +101,14 @@ def determine_order_category_code(model_id, fields_data):
             return 'MODULAR/TCI'
         return 'MODULAR'
     
-    elif model_id == MODEL_IDS['A&R']:
-        if fields_data.get('form type afo', '').lower() == 'selected' or fields_data.get('form type kafo', '').lower() == 'selected':
-            return 'REPAIRS PLASTIC'
-        else:
-            return 'ADAPTION'
-    
     elif model_id == MODEL_IDS['Kafo']:  # New condition for Kafo
         return 'REPAIRS PLASTIC'  # Matches A&R behavior when KAFO is relevant
+    
+    elif model_id == MODEL_IDS['Repairs']:
+        return 'REPAIRS PLASTIC'
+    
+    elif model_id == MODEL_IDS['A&M']:
+        return 'ADAPTION'
     
     else:
         return 'UNKNOWN'
@@ -587,8 +589,9 @@ class PdfButtonHandler:
                 'AFO Prescription Form': MODEL_IDS['AFOs'],
                 'Bespoke Footwear Prescription Form': MODEL_IDS['Bespoke'],
                 'Modular Footwear Prescription Form': MODEL_IDS['Modular'],
-                'Adapts, Repairs & Modifications': MODEL_IDS['A&R'],
-                'KAFO Prescription Form': MODEL_IDS['Kafo']
+                'KAFO Prescription Form': MODEL_IDS['Kafo'],
+                'Repairs Form': MODEL_IDS['Repairs'],
+                'Adapts & Modifications': MODEL_IDS['A&M']
             }
             correct_model_id = form_to_model.get(form_confirmation, None)
             if correct_model_id is None:
@@ -741,19 +744,28 @@ class PdfButtonHandler:
                     print(f"Passed codes added to content: {passed_codes}")
                 else:
                     print("No passed codes generated.")
-            elif model_id == MODEL_IDS['A&R']:
-                logic_file_name = 'a_and_r_logic.txt'
+            elif model_id == MODEL_IDS['Kafo']:
+                logic_file_name = 'kafo_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
-                passed_codes = generate_a_and_r_codes(self, content)
+                passed_codes = generate_kafo_codes(self, content)
                 if passed_codes:
                     content += f"\n\nPassed code:\n{passed_codes}"
                     print(f"Passed codes added to content: {passed_codes}")
                 else:
                     print("No passed codes generated.")
-            elif model_id == MODEL_IDS['Kafo']:
-                logic_file_name = 'kafo_logic.txt'
+            elif model_id == MODEL_IDS['Repairs']:
+                logic_file_name = 'repairs_logic.txt'
                 print(f"Logic file name: {logic_file_name}")
-                passed_codes = generate_kafo_codes(self, content)
+                passed_codes = generate_repairs_codes(self, content)
+                if passed_codes:
+                    content += f"\n\nPassed code:\n{passed_codes}"
+                    print(f"Passed codes added to content: {passed_codes}")
+                else:
+                    print("No passed codes generated.")
+            elif model_id == MODEL_IDS['A&M']:
+                logic_file_name = 'adapts_and_modifications_logic.txt'
+                print(f"Logic file name: {logic_file_name}")
+                passed_codes = generate_adapts_and_modifications_codes(self, content)
                 if passed_codes:
                     content += f"\n\nPassed code:\n{passed_codes}"
                     print(f"Passed codes added to content: {passed_codes}")
