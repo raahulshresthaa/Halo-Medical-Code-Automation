@@ -639,6 +639,26 @@ def generate_afo_codes(self, content):
     if content_dict.get('additions ribbed', '') == 'selected':
         passed_codes['D10B'] += 1
 
+    # PTM
+    if content_dict.get('ptm fully lined', '') == 'selected':
+        passed_codes['D14E'] += 1
+
+    if content_dict.get('ptm pad top of calf', '') == 'selected':
+        passed_codes['D14D'] += 1
+
+    if content_dict.get('ptm footplate lining', '') == 'selected':
+        passed_codes['D14H'] += 1
+
+    # finishing
+    if content_dict.get('finishing perforated', '') == 'selected':
+        passed_codes['D10V'] += 1
+
+    if content_dict.get('finishing non slip sole', '') == 'selected':
+        passed_codes['D10C'] += 1
+
+    if content_dict.get('finishing heel wedging', '') != '':
+        passed_codes['B43'] += 1
+
     # Handle pairs by doubling codes if applicable
     if is_pair:
         for code in list(passed_codes.keys()):
