@@ -1539,7 +1539,7 @@ ensure_result_logs_folder_exists()
 icon_path = os.path.join(os.getcwd(), 'images', 'halo_simple_logo.ico')
 
 # Define the path for the logo file
-logo_file_path = os.path.join(os.getcwd(), 'images', 'HALO(TM)_Logo.png')
+logo_file_path = os.path.join(os.getcwd(), 'images', 'Medfac Logo_FINAL.png')
 
 # Function to load and resize the icon image
 def load_icon_image(icon_path, size=(32, 32)):
@@ -1559,7 +1559,7 @@ root = TkinterDnD.Tk()
 style = ttk.Style('lumen')  # You can set a default theme here
 style.theme_use(selected_theme)
 
-root.title("Halo Medical Code Automation - PDF Processing")
+root.title("Medfac Code Automation V2 - PDF Processing")
 
 # Force Tkinter to calculate window size and layout before setting position
 root.update_idletasks()
@@ -1623,7 +1623,7 @@ notebook.add(main_tab, text="Main PDF Processing")
 # Load the logo image
 try:
     logo_img = Image.open(logo_file_path)
-    logo_img = logo_img.resize((200, 100), Image.LANCZOS)
+    logo_img = logo_img.resize((600, 150), Image.LANCZOS)
     logo_photo = ImageTk.PhotoImage(logo_img)
     root.logo_photo = logo_photo  # Keep a reference to prevent GC
 
@@ -1634,7 +1634,7 @@ except Exception as e:
     messagebox.showerror("Error", f"Error loading logo: {str(e)}")
 
 # Title label in main_tab
-title_label = ttk.Label(main_tab, text="Code Automation Program", font=("Calibri", 16, "bold"))
+title_label = ttk.Label(main_tab, text="Code Automation Program V2", font=("Calibri", 16, "bold"))
 title_label.pack(pady=5)
 
 # Info frame in main_tab
