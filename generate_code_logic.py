@@ -659,6 +659,26 @@ def generate_afo_codes(self, content):
     if content_dict.get('finishing heel wedging', '') != '':
         passed_codes['B43'] += 1
 
+    # Straps
+    sides = ['left', 'right']
+    positions = ['medial', 'lateral']
+
+    for side in sides:
+        for position in positions:
+            if content_dict.get(f'{side} {position} straps slotted', '') == 'selected':
+                passed_codes['D10H'] += 1
+            if content_dict.get(f'{side} {position} straps toe', '') == 'selected':
+                passed_codes['D14A'] += 1
+            if content_dict.get(f'{side} {position} straps df assist', '') == 'selected':
+                passed_codes['D14B'] += 1
+
+    # pads
+    for side in sides:
+        if content_dict.get(f'{side} arch pads', '') == 'selected':
+            passed_codes['D14C'] += 1
+        if content_dict.get(f'{side} navicular pads', '') == 'selected':
+            passed_codes['D14C'] += 1
+
     # Handle pairs by doubling codes if applicable
     if is_pair:
         for code in list(passed_codes.keys()):
