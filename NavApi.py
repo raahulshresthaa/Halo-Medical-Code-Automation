@@ -115,6 +115,16 @@ def parse_pre_app_date(date_str):
             continue
     return None
 
+def work_order_repairs(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
+
+def work_order_adapts_and_modifications(auto_doc_ref):
+    target_operation = "Special Instructions"
+    target_text = "Refer to Prescription form " + auto_doc_ref
+    return target_operation, target_text
+
 def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
@@ -241,7 +251,9 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         'modular': work_order_modular,
         'afos': work_order_afo,
         'a&r': work_order_a_and_r,
-        'kafo': work_order_a_and_r
+        'kafo': work_order_a_and_r,
+        'repairs': work_order_repairs,
+        'a&m': work_order_adapts_and_modifications
     }
     work_order_func = work_order_funcs.get(form_type.lower())
     target_operation, target_text = work_order_func(auto_doc_ref)
