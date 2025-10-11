@@ -49,8 +49,8 @@ MODEL_IDS = {
     'Bespoke': 'BespokeReaderFullV16',
     'Modular': 'ModularReaderFullV10',
     'Kafo': 'KafoFormReaderV3',
-    'Repairs': 'RepairsReaderV1',
-    'A&M': 'AdaptsAndModificationsV1'
+    'Repairs': 'RepairsReaderV2',
+    'A&M': 'AdaptsAndModificationsV2'
 }
 
 if getattr(sys, 'frozen', False):
