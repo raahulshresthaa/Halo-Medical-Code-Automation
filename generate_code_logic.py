@@ -838,20 +838,6 @@ def generate_modular_codes(self, content):
         return ', '.join(formatted_passed_codes)
     else:
         return None
-    
-def generate_a_and_r_codes(self, content):
-    """
-    Generates codes for the 'A&R' (Adapts and Repairs) model type based on content.
-    
-    Args:
-        self: The instance of PdfButtonHandler.
-        content (str): The extracted data from the PDF as a string.
-    
-    Returns:
-        str: A comma-separated string of generated codes, or None if no codes are generated.
-    """
-    # should return nothing
-    return
 
 # In generate_code_logic.py
 def generate_kafo_codes(handler, content):
