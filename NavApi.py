@@ -101,12 +101,12 @@ def work_order_kafo(auto_doc_ref):
     return target_operation, target_text
 
 def parse_pre_app_date(date_str):
-    """Parse 'pre app date' from formats 'dd.mm.yy' or 'd/m/yyyy'. Returns None if invalid."""
+    """Parse 'pre app date' from formats 'dd.mm.yy', 'd/m/yyyy', or 'YYYY-MM-DD'. Returns None if invalid."""
     if not date_str:
         return None
     # Remove "Date:" prefix if present
     date_str = re.sub(r'^Date:\s*', '', date_str).strip()
-    formats = ["%d.%m.%y", "%d.%m.%Y", "%d/%m/%y", "%d/%m/%Y"]
+    formats = ["%d.%m.%y", "%d.%m.%Y", "%d/%m/%y", "%d/%m/%Y", "%Y-%m-%d"]
     for fmt in formats:
         try:
             dt = datetime.datetime.strptime(date_str, fmt)
