@@ -498,25 +498,33 @@ def generate_insole_codes(self, content, return_dict=False):
         # Insole coding - MATHS
         x = 1
         print(f"Initial value: x = {x}")
-
         if insole_type == 'simple':
             x -= 1
             print(f"After insole_type 'simple' check: x = {x}")
-        if content_dict.get('no lining', '') == 'selected':
-            x -= 0
-            print(f"After no lining check: x = {x}")
-        else:
+
+        # Check if any poron lining is selected
+        linings = [
+            'soft poron 1.6mm',
+            'soft poron 3mm',
+            'soft poron 6mm',
+            'medium poron 1.6mm',
+            'medium poron 3mm',
+            'medium poron 6mm',
+            'firm memory foam poron 1.6mm',
+            'firm memory foam poron 3mm',
+            'firm memory foam poron 6mm'
+        ]
+        has_lining = any(content_dict.get(lining, '') == 'selected' for lining in linings)
+        if has_lining:
             x += 1
-            print(f"After no lining check (else): x = {x}")
+            print(f"After poron lining check: x = {x}")
 
         if content_dict.get('spenco 1.5mm', '') == 'selected' or content_dict.get('spenco 3mm', '') == 'selected':
             x += 1
             print(f"After spenco check: x = {x}")
-
         if selected_base in ['a40/25/80', 'a30/20/80']:
             x += 1
             print(f"After base check: x = {x}")
-
         if x >= 3:
             passed_codes['B55C'] += 1
             print(f"x >= 3, incrementing B55C: {passed_codes['B55C']}")
