@@ -104,11 +104,11 @@ def generate_bespoke_codes(self, content):
 
     # Determine based on style
     if style in a1a_styles:
-        passed_codes['A1A'] += 2
+        passed_codes['A1A'] += 1
     elif style in a1b_styles:
-        passed_codes['A1B'] += 2
+        passed_codes['A1B'] += 1
     else:
-        passed_codes['A1A'] += 2  # Default to A1A if no style matches
+        passed_codes['A1A'] += 1  # Default to A1A if no style matches
 
     # Add logic for 'pop cast'
     if content_dict.get('pop cast', '') == 'selected':
