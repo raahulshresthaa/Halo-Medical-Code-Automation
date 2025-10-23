@@ -116,17 +116,30 @@ def generate_bespoke_codes(self, content):
 
     # Stiffeners Checks
     for side in ['left', 'right']:
+        print(f"Checking stiffeners for side: {side}")
         a20_count = 0
         for typ in ['high', 'elongated']:
             for pos in ['medial', 'lateral']:
-                if content_dict.get(f'stiffener {typ} {side} {pos}', '') == 'selected':
+                key = f'stiffener {typ} {side} {pos}'
+                value = content_dict.get(key, '')
+                print(f"Checking key '{key}': value = '{value}'")
+                if value == 'selected':
                     a20_count += 1
+                    print(f"Incrementing a20_count for {key}")
+        print(f"Pre-cap a20_count for {side}: {a20_count}")
         if a20_count > 1:
             a20_count = 1
-        passed_codes['A20'] += a20_count
+            print(f"Capped a20_count to 1 for {side}")
+        if a20_count > 0:
+            passed_codes['A20'] += a20_count
+            print(f"Added to A20: {a20_count} (total now: {passed_codes['A20']})")
 
-        if content_dict.get(f'stiffener padded {side}', '') == 'selected':
+        padded_key = f'stiffener padded {side}'
+        padded_value = content_dict.get(padded_key, '')
+        print(f"Checking padded key '{padded_key}': value = '{padded_value}'")
+        if padded_value == 'selected':
             passed_codes['A15'] += 1
+            print(f"Added A15 for {padded_key}")
 
     # Sole Additions
     sole_addition_keys = {
