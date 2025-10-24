@@ -141,6 +141,11 @@ def generate_bespoke_codes(self, content):
             passed_codes['A15'] += 1
             print(f"Added A15 for {padded_key}")
 
+        elongated_lateral_key = f'stiffener elongated {side} lateral'
+        elongated_lateral_value = content_dict.get(elongated_lateral_key, '')
+        if elongated_lateral_value == 'selected':
+            passed_codes['A16'] += 1
+
     # Sole Additions
     sole_addition_keys = {
         'sole additions left toe tips': 'A23',
