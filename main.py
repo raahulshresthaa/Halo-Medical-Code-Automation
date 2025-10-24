@@ -586,12 +586,13 @@ class PdfButtonHandler:
                 'Insole Prescription Form': MODEL_IDS['Insoles'],
                 '(Internal Digitised) Insole Prescription Form': MODEL_IDS['Insoles'],
                 '(Repeat) Insole Prescription Form': MODEL_IDS['Insoles'],
+                '(Repeats) Insole Prescription Form': MODEL_IDS['Insoles'],
                 'AFO Prescription Form': MODEL_IDS['AFOs'],
                 'Bespoke Footwear Prescription Form': MODEL_IDS['Bespoke'],
                 'Modular Footwear Prescription Form': MODEL_IDS['Modular'],
                 'KAFO Prescription Form': MODEL_IDS['Kafo'],
                 'Repairs Form': MODEL_IDS['Repairs'],
-                'Adapts & Modifications': MODEL_IDS['A&M']
+                'Adapts & Modifications': MODEL_IDS['A&M']  
             }
             correct_model_id = form_to_model.get(form_confirmation, None)
             if correct_model_id is None:
