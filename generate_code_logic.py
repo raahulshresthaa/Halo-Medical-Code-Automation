@@ -10,7 +10,7 @@ import sys
 # Define the tariff customer number sets outside the functions
 tariff_tci_customer_nos = {
     'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02090',
-    'GB-CUST02295', 'GB-CUST02554', 'GB-CUST02583'
+    'GB-CUST02295', 'GB-CUST02554', 'GB-CUST02583', 'GB-CUST02836'
 }
 tariff_simple_customer_nos = {
     'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02090',
