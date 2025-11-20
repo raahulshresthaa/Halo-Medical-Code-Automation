@@ -432,20 +432,30 @@ class PdfButtonHandler:
                 self.root.after(0, self.append_and_show_info, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
                 add_missing_contact('clinician', clinician)
                 return
+            # Define ignored dates as a set for fast lookup
+            ignored_dates = set()
+            for d in range(9, 23):  # 9 to 22 inclusive
+                ignored_dates.add(datetime.date(2025, 12, d))
+            for d in range(24, 32):  # 24 to 31 inclusive
+                ignored_dates.add(datetime.date(2025, 12, d))
+            ignored_dates.add(datetime.date(2026, 1, 1))
             # Calculate both possible delivery dates
             creation_dt = datetime.datetime.strptime(creation_date, '%Y-%m-%d').date()
             required_by_days = self.get_required_by_days(customer_no, model_id)
             default_dt = creation_dt + datetime.timedelta(days=required_by_days)
-
+            # Roll forward default_dt to next available day if it falls on an ignored date
+            while default_dt in ignored_dates:
+                default_dt += datetime.timedelta(days=1)
             pre_app_dt = None
             if pre_app_date:
                 pre_app_dt = datetime.datetime.strptime(pre_app_date, '%Y-%m-%d').date() - datetime.timedelta(days=3)
-
+                # Roll forward pre_app_dt to next available day if it falls on an ignored date
+                while pre_app_dt in ignored_dates:
+                    pre_app_dt += datetime.timedelta(days=1)
             if pre_app_dt and pre_app_dt < default_dt:
                 delivery_dt = pre_app_dt
             else:
                 delivery_dt = default_dt
-
             request_delivery_date = delivery_dt.strftime('%Y-%m-%d')
             # Pass order_category_code and pre_app_date to attempt_nav_upload
             success, sales_order_no, messages = attempt_nav_upload(
