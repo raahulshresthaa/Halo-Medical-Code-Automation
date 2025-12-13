@@ -125,7 +125,7 @@ def work_order_adapts_and_modifications(auto_doc_ref):
     target_text = "Refer to Prescription form " + auto_doc_ref
     return target_operation, target_text
 
-def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None):
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None, header_fields=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
     error_messages = []
@@ -207,6 +207,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         if pre_app_date:
             print(f"Pre App Date (Formatted): {pre_app_date}")
             order_data["Pre_appointed_Date"] = pre_app_date
+        if header_fields:  # NEW: Add header fields to payload if provided
+            order_data.update(header_fields)  # e.g., {"Style": "value", "Colour": "value", ...}
 
         post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
         
@@ -333,3 +335,27 @@ def increment_order_no(order_no):
         return f"{prefix}{next_number:05d}"
     else:
         raise ValueError(f"Invalid order number format: {order_no}")
+    
+def post_to_nav_medical_detail(document_no, operation, detail_text, line_no=10000):
+    cons_medical_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails"
+
+    payload = {
+        "Document_No": document_no,
+        "Line_No": line_no,
+        "Operation": operation,
+        "Medical_Detail_Text": detail_text
+    }
+
+    print(f" Uploading | Document: {document_no} | Operation: {operation}")
+    print("Payload being sent:\n" + json.dumps(payload, indent=4))
+    response = requests.post(cons_medical_url, headers=headers, data=json.dumps(payload), auth=auth)
+
+    if response.status_code == 201:
+        print(f"Successfully uploaded: {operation}")
+    else:
+        print(f"Failed to upload: {operation}")
+        print(f"Status: {response.status_code}")
+        try:
+            print(json.dumps(response.json(), indent=4))
+        except:
+            print(response.text)

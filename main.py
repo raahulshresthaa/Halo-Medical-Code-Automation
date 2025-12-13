@@ -38,19 +38,307 @@ from NavApi import create_sales_order, parse_pre_app_date
 from tkinter import messagebox
 import concurrent.futures
 import requests.exceptions
+import urllib.parse
 
 # Version number
-VERSION = "7.0.3-alpha"
+VERSION = "7.1.0-alpha"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
-    'Insoles': 'InsoleFullReaderV14',
-    'AFOs': 'AfoReaderV12',
-    'Bespoke': 'BespokeReaderFullV18',
-    'Modular': 'ModularReaderFullV11',
-    'Kafo': 'KafoFormReaderV3',
-    'Repairs': 'RepairsReaderV2',
-    'A&M': 'AdaptsAndModificationsV2'
+    "Insoles": "InsoleFullReaderV16",
+    "AFOs": "AfoReaderV15",
+    "Bespoke": "BespokeReaderFullV22",
+    "Modular": "ModularReaderFullV13",
+    "Kafo": "KafoFormReaderV3",
+    "Repairs": "RepairsReaderV2",
+    "A&M": "AdaptsAndModificationsV2"
+}
+
+# Group definitions for processing extracted fields (from config.py)
+BESPOKE_GROUPS = {
+    "General Operations": [
+        "additional info upper", "additional info soling", "additional info adaptions",
+    ],
+    "Modelling": [
+        "wedge heel internal right", "wedge heel internal left", "wedge sole internal right", "wedge sole internal left", "wedge toe internal right", "wedge toe internal left",
+        "round toe", "nature toe",
+    ],
+    "Patterns": [
+        "ankle height", "straps med", "straps lat",
+        "right heel retaining strap", "left heel retaining strap",
+        "right spur retaining strap", "left spur retaining strap",
+        "padded right", "padded left",
+        "right t strap", "left t strap",
+        "right y strap", "left y strap", "right double decker", "left double decker",
+    ],
+    "Click & Close": [
+        "padded right", "padded left", "straps med", "straps lat",
+        "right t strap", "left t strap",
+        "right y strap", "left y strap", "right double decker", "left double decker",
+        "lining on steam", "lining tan plush", "lining black plush", "lining tan kip", "lining sheepskin",
+        "diabetic rim right", "diabetic rim left", " standard toe puff right", "standard toe puff left", "none toe puff right", "none toe puff left"
+    ],
+    "Lasting": [
+        "ankle height",
+        "stiffener high right medial", "stiffener high right lateral",
+        "stiffener high left lateral", "stiffener high left medial",
+        "stiffener elongated right medial", "stiffener elongated right lateral",
+        "stiffener elongated left lateral", "stiffener elongated left medial",
+        "stiffener padded right", "stiffener padded left",
+    ],
+    "Finishing": [
+        "Raise Left Heel Height",
+        "Raise Left Joint Height", "Raise Left Toe End Height", "Raise Right Heel Height",
+        "Raise Right Joint Height", "Raise Right Toe End Height",
+        "right elongation full", "left elongation full",
+        "right elongation half", "left elongation half", "right elongation med",
+        "left elongation med", "right elongation lat", "left elongation lat",
+        "5/16 backstop", "1/4 backstop", "right 5/16 round", "left 5/16 round",
+        "right 1/4 round", "left 1/4 round", "right 3/16x9/16", "left 3/16x9/16",
+        "right rizzoli", "left rizzoli",
+        "socket med right", "socket med left", "socket lat right", "socket lat left", "socket double right", "socket double left",
+        "left floated heel length", "left floated sole length", "right floated heel length", "right floated sole length",
+        "right medial floated heel", "left medial floated heel", "floated lat right", "floated lat left",
+        "left wedges heel length","right wedges heel length", "right wedges sole length", "left wedges sole length",
+        "wedge toe right", "wedge toe left", "wedge p heel right", "wedge p heel left", "wedge n heel right", "wedge n heel left",
+        "right standard rocker", "left standard rocker", "left plr rocker",
+        "right plr rocker", "right two point rocker", "left two point rocker",
+        "toe protector right", "toe protector left", "welt protector right", "welt protector left", "height on apex",
+        "right heel retaining strap", "left heel retaining strap",
+        "right spur retaining strap", "left spur retaining strap",
+        "straps med", "straps lat",
+        "eva pyramid", "eva morflex", "eva dogtooth", "eva wavy", "svig", "welted",
+        "Sole Additions Left Toe Tips", "Sole Additions Right Toe Tips",
+        "Sole Additions Left Toe Caps", "Sole Additions Right Toe Caps",
+        "Sole Additions Left Stick on Soles", "Sole Additions Right Stick on Soles",
+        "heel tips right", "heel tips left",
+        "Sole Stiffeners Left Carbon Fibre", "Sole Stiffeners Left Steel",
+        "Sole Stiffeners Right Steel", "Sole Stiffeners Right Carbon Fibre",
+    ],
+    "Insole Room": [
+        "no insole", "3mm poron", "6mm poron", "9mm poron", "custom tci required",
+
+        "insole type adult", "insole type paed", "insole type uni lat r", "insole type uni lat l", "insole pair",
+        "insole type tci", "insole type simple", "insole type hand mould", "insole type cradle",
+        "base a65 high", "base a50 med", "base a40 low", "base hd pzote", "base a40/25/80", "base a30/20/80", "base poly", "base cork",
+        "base carbon 1.5mm", "base carbon 3mm", "base grey poron 3mm", "base grey poron 6mm",
+        "men's wide template", "men's narrow template", "ladies wide template", "ladies narrow template", "child template", "template custom",
+        "insole length three quarter", "insole length sulcus", "insole length full",
+        "insole thickness 2", "insole thickness 3", "insole thickness 6",
+        "heel cup flat", "heel cup 12mm", "heel cup 16mm", "heel cup 20mm",
+        "arch flexibility non", "arch flexibility low", "arch flexibility semi", "arch flexibility flexible",
+        "additional info modeling",
+
+        "right valgus pad 3mm", "left valgus pad 3mm", "right valgus pad 6mm", "left valgus pad 6mm",
+        "right heel pad 3mm", "left heel pad 3mm", "right heel pad 6mm", "left heel pad 6mm",
+        "right mortons extension", "left mortons extension", "right reverse mortons extension", "left reverse mortons extension",
+        "right met bar", "left met bar", "right met dome", "left met dome",
+        "additional info additions",
+
+        "right medial rearfoot height", "left medial rearfoot height", "right lateral rearfoot height", "left lateral rearfoot height",
+        "right medial forefoot height", "left medial forefoot height","right lateral forefoot height", "left lateral forefoot height",
+        "right heel raise posting", "right heel raise", "left heel raise posting", "left heel raise",
+        "left medial kirby skive size", "right medial kirby skive size",
+        "right lateral kirby skive", "right lateral kirby skive size", "left lateral kirby skive", "left lateral kirby skive size",
+        "right 1st met head", "left 1st met head", "right 5th met head", "left 5th met head",
+        "right all mets", "left all mets", "right 1st met ray", "left 1st met ray", "right 5th met ray", "left 5th met ray",
+        "right custom hole and plug", "left custom hole and plug", "right navicular sweet spot", "left navicular sweet spot",
+        "additional info cut outs",
+
+        "no lining", "soft poron 1.6mm", "soft poron 3mm", "soft poron 6mm", "medium poron 1.6mm", "medium poron 3mm", "medium poron 6mm",
+        "firm memory foam poron 1.6mm", "firm memory foam poron 3mm", "firm memory foam poron 6mm",
+        "no top cover", "vinyl black", "on steam", "microfibre brown", "multi ld eva 1.5mm", "black ld eva 1.5mm", "black ld eva 3mm", "spenco 1.5mm", "spenco 3mm"
+        "additional info top cover"
+    ],
+}
+
+INSOLE_GROUPS = {
+    "General Operations": [
+        "insole type tci", "insole type simple", "insole type cradle", "insole type hand mould",
+        "insole type adult", "insole type paed", "insole type uni lat r", "insole type uni lat l",
+        "insole pair",
+        "base a65 high", "base a50 med", "base a40 low", "base hd pzote",
+        "base a40/25/80", "base a30/20/80", "base poly", "base cork",
+        "base carbon 1.5mm", "base carbon 3mm", "base grey poron 3mm", "base grey poron 6mm",
+        "additional info modeling",
+        "men's wide template", "men's narrow template", "ladies wide template",
+        "ladies narrow template", "child template", "custom template",
+        "shoe size",
+        "insole thickness 2", "insole thickness 3", "insole thickness 6",
+        "heel cup flat", "heel cup 12mm", "heel cup 16mm", "heel cup 20mm",
+        "insole length three quarters", "insole length sulcus", "insole length full",
+        "arch flexibility non", "arch flexibility low", "arch flexibility semi", "arch flexibility flexible",
+    ],
+    "Additions": [
+        "right 1st met head", "left 1st met head", "right 5th met head", "left 5th met head",
+        "right 1st met ray", "left 1st met ray", "right 5th met ray", "left 5th met ray",
+        "left navicular sweet spot", "right navicular sweet spot", "right custom hole and plug", "left custom hole and plug",
+        "right all mets", "left all mets", "additional info cut outs",
+        "left medial rearfoot height", "right medial rearfoot height",
+        "left lateral kirby skive", "right lateral kirby skive", "right heel raise", "left heel raise",
+        "left lateral rearfoot height", "right lateral rearfoot height", "left medial forefoot height", "left lateral forefoot height",
+        "right medial forefoot height", "right lateral forefoot height", "left medial kirby skive size", "left lateral kirby skive size",
+        "right medial kirby skive size", "right lateral kirby skive size",
+        "right valgus pad 3mm", "left valgus pad 3mm", "right valgus pad 6mm", "left valgus pad 6mm",
+        "left heel pad 6mm", "right heel pad 6mm", "right heel pad 3mm", "left heel pad 3mm",
+        "right met bar", "left met bar", "right met dome", "left met dome",
+        "right mortons extension", "left mortons extension", "right reverse mortons extension", "left reverse mortons extension",
+        "additional info additions",
+    ],
+    "Covers": [
+        "no lining", "soft poron 3mm", "soft poron 6mm", "medium poron 1.6mm", "medium poron 3mm",
+        "medium poron 6mm", "firm memory foam poron 1.6mm", "firm memory foam poron 3mm", "firm memory foam poron 6mm",
+        "no top cover",
+        "vinyl black", "microfibre brown", "multi ld eva 1.5mm", "black ld eva 1.5mm",
+        "black ld eva 3mm", "spenco 1.5mm", "spenco 3mm", "on steam", 
+        "additional info top cover",
+    ],
+}
+
+MODULAR_GROUPS = {
+    "General Operations": [
+        "additional info upper", "additional info soling", "additional info adaptions",
+    ],
+    "Modelling": [
+        "round toe", "nature toe",
+    ],
+    "Patterns": [
+        "right heel retaining", "left heel retaining", "right spur retaining", "left spur retaining",
+        "padded right", "padded left",
+        "right t strap", "left t strap", "right y strap", "left y strap",
+        "right doubledecker", "left doubledecker", 
+        "straps med", "straps lat",
+        "ankle height",
+    ],
+    "Click & Close": [
+        "padded right", "padded left",
+        "right t strap", "left t strap", "right y strap", "left y strap",
+        "right doubledecker", "left doubledecker", 
+        "straps med", "straps lat",
+        "diabetic rim right", "diabetic rim left", "standard toe puff right", "standard toe puff left", "none toe puff right", "none toe puff left",
+        "lining onsteam", "sheepskin lining", "lining tan plush", "lining black plush", "lining tan kip"
+    ],
+    "Lasting": [
+        "ankle height"
+    ],
+    "Finishing": [
+        "right heel external raise", "left heel external raise", "right sole external raise", "left sole external raise", "right toe height", "left toe height",
+        "right elongation full", "left elongation full", "right elongation half", "left elongation half",
+        "right elongation med", "left elongation med", "right elongation lat", "left elongation lat",
+        "right 5/16 round", "left 5/16 round", "right 1/4 round", "left 1/4 round",
+        "right 3/16x9/16", "left 3/16x9/16", "right rizzoli", "left rizzoli",
+        "5/16 round b/stop", "1/4 round b/stop", 
+        "right socket medial", "left socket medial", "right socket lateral", "left socket lateral", "right socket double", "left socket double",
+        "right floated heel length", "left floated heel length", "right floated sole length", "left floated sole length",
+        "right floated medial", "left floated medial", "right floated lateral", "left floated lateral",
+        "right wedges heel length", "left wedges heel length", "right wedges sole length", "left wedges sole length",
+        "right wedge toe", "left wedge toe", "right wedge p heel ", "left wedge p heel", "right wedge n heel", "left wedge n heel",
+        "right rocker standard", "left rocker standard", "right rocker plr",
+        "left rocker plr", "right rocker two point", "left rocker two point",
+        "right rocker toe protector", "left rocker toe protector",
+        "right rocker welt protector", "left rocker welt protector", "height on apex",
+        "right heel retaining", "left heel retaining", "right spur retaining", "left spur retaining",
+        "commando soling", "eva pyramid", "eva morflex",
+        "right carbon sole stiffener", "left carbon sole stiffener",
+        "right steel sole stiffener", "left steel sole stiffener",
+    ],
+    "Insole Room": [
+        "no insole", "3mm poron", "6mm poron", "9mm poron", "custom tci required",
+        "insole type tci", "insole type simple", "insole type cradle", "insole type hand mould",
+        "insole type adult", "insole type paed", "insole type uni lat r", "insole type uni lat l",
+        "insole pair", "men's wide template", "men's narrow template", "ladies wide template",
+        "ladies narrow template", "child template", "custom template", "insole length three quarters", "insole length sulcus",
+        "insole length full", "insole thickness 2", "insole thickness 3", "insole thickness 6",
+        "heel cup flat", "heel cup 12mm", "heel cup 16mm", "heel cup 20mm",
+        "arch flexibility non", "arch flexibility low", "arch flexibility semi", "arch flexibility flexible",
+        "base a65 high", "base a50 med", "base a40 low", "base hd pzote",
+        "base a40/25/80", "base a30/20/80", "base poly", "base cork",
+        "base carbon 1.5mm", "base carbon 3mm", "base grey poron 3mm", "base grey poron 6mm",
+        "additional info modeling",
+        "right valgus pad 3mm", "left valgus pad 3mm", "right valgus pad 6mm", "left valgus pad 6mm",
+        "left heel pad 6mm", "right heel pad 6mm", "right heel pad 3mm", "left heel pad 3mm",
+        "right met bar", "left met bar", "right met dome", "left met dome",
+        "right mortons extension", "left mortons extension", "right reverse mortons extension", "left reverse mortons extension",
+        "additional info additions",
+        "left medial rearfoot height", "right medial rearfoot height", "left medial kirby skive", "right medial kirby skive",
+        "right heel raise", "left heel raise",
+        "left lateral rearfoot height", "right lateral rearfoot height", "left medial forefoot height", "left lateral forefoot height",
+        "right medial forefoot height", "right lateral forefoot height", "left medial kirby skive size", "left lateral kirby skive size",
+        "right medial kirby skive size", "right lateral kirby skive size",
+        "right 1st met head", "left 1st met head", "right 5th met head", "left 5th met head",
+        "right 1st met ray", "left 1st met ray", "right 5th met ray", "left 5th met ray",
+        "left navicular sweet spot", "right navicular sweet spot", "right custom hole and plug", "left custom hole and plug",
+        "right all mets", "left all mets", "additional info cut outs",
+        "vinyl black", "microfibre brown", "multi ld eva 1.5mm", "black ld eva 1.5mm",
+        "black ld eva 3mm", "spenco 1.5mm", "spenco 3mm", "on steam",
+        "no top cover", "no lining", "additional info top cover", "soft poron 1.6mm",
+        "soft poron 3mm", "soft poron 6mm", "medium poron 1.6mm", "medium poron 3mm",
+        "medium poron 6mm", "firm memory foam poron 1.6mm", "firm memory foam poron 3mm", "firm memory foam poron 6mm"
+    ],
+}
+
+
+AFO_GROUPS = {
+    "General Operations": [
+        "afo rt", "afo lt", "afo pair", "afo fixed", "afo hinged", "afo smafo", "dafo", "afo/dafo", "grafo",
+        "crow", "clam shell", "afo pls", "afo high anterior",
+    ],
+    "Rectification": [
+        "nc calf height right", "nc calf height left", "nc finished footplate right", "nc finished footplate left",
+        "nc met width right", "nc met width left", "nc mall width right", "nc mall width left", 
+        "nc ant shell right", "nc ant shell left", "nc as cast right", "nc as cast left", "nc 90 right", "nc 90 left",
+        "nc pf right", "nc pf left", "nc df right", "nc df left",
+        "right sust tali", "left sust tali", "right df toes", "left df toes",
+        "right neuro footplate", "left neuro footplate", "right 3pt pressure", "left 3pt pressure",
+        "additional info negative cast", "additional info positive cast",
+    ],
+    "Moulding": [
+        "homopoly 2mm", "homopoly 3mm", "homopoly 4mm", "homopoly 5mm",
+        "co poly natural 2mm", "co poly natural 3mm", "co poly natural 3.5mm", "co poly natural 4.5mm", "co poly natural 6mm",
+        "co poly black 3mm", "co poly black 4mm", "co poly black 6mm",
+        "ld polyethylene 3mm", "ld polyethlyene 4.5mm",
+        "modified homopoly 3mm", "modified homopoly 4mm", "modified homopoly 5mm",
+        "co poly white 3mm",
+        "carbon",
+        "additions tamarac", "additions other", "additions carbon", "additions ribbed",
+        "transfer",
+    ],
+    "Finishing": [
+        "right shank to vertical", "left shank to vertical",
+        "right alignment angle", "left alignment angle", "right sva", "left sva", "additional info bench alignment",
+        "trimlines on malls nr02 right", "trimlines on malls nr02 left", "trimlines distal to mall nr01 right", "trimlines distal to mall nr01 left",
+        "trimlines proximal to mall ird right", "trimlines proximal to mall ird left", "trimlines ground reaction right", "trimlines ground reaction left",
+        "calf sweep 8mm", "calf sweep 10mm", "calf sweep 12mm", "extended border met", "extended border lat", "extended border both",
+        "finishing flare calf", "finishing perforated", "finishing non slip sole", "finishing heel wedging",
+        "additional info",
+
+        "straps black", "straps pink", "straps beige", "straps lay on", "straps d loop", "straps slip pads",
+        "right medial full part lining","right lateral full part lining","left medial full part lining", "left lateral full part lining",
+        "right medial straps slotted", "right lateral straps slotted", "left medial straps slotted", "left lateral straps slotted",
+        "right medial straps toe", "right lateral straps toe", "left medial straps toe", "left lateral straps toe",
+        "right medial straps df assist", "right lateral straps df assist", "left medial straps df assist", "left lateral straps df assist",
+        "straps calf", "straps toe", "straps heel", "straps other",
+        "right lat mall pads", "left lat mall pads", "right med mall pads", "left med mall pads", "right elongated pads", "left elongated pads",
+        "right arch pads", "left arch pads", "right navicular pads", "left navicular pads",
+        "right lateral pads", "left lateral pads", "right medial pads", "left medial pads",
+        "additional info pads",
+
+        "ptm coh", "ptm met heads", "ptm full foot", "ptm three quarter foot", "ptm hd115 pz a95", "ptm ld60 a66",
+        "ptm nora lunairmed a18", "ptm 6mm pzld45 heel pad",
+        "ptm fully lined", "ptm fully lined des",
+        "ptm pad top of calf", "ptm pad top of calf des",
+        "ptm footplate lining", "ptm footplate lining des",
+        "additional info ptm",
+    ]
+}
+
+# Map model names to their groups
+MODEL_GROUPS = {
+    "Bespoke": BESPOKE_GROUPS,
+    "Insoles": INSOLE_GROUPS,
+    "Modular": MODULAR_GROUPS,
+    "AFOs": AFO_GROUPS,
+    # Add others if needed, e.g., for Kafo/Repairs use empty {} or define
 }
 
 if getattr(sys, 'frozen', False):
@@ -250,6 +538,43 @@ class PdfButtonHandler:
         self.result_text.tag_configure('error', foreground='red', font=('Calibri', 12, 'bold'))
         self.result_text.tag_configure('info', foreground='blue', font=('Calibri', 12, 'bold'))
 
+    def normalise(self, s):
+        return " ".join(s.lower().strip().split())
+
+    def split_side_base(self, norm_name: str):
+        words = norm_name.split()
+        side_idx = None
+        side_word = None
+        for i, w in enumerate(words):
+            if w in ("right", "left"):
+                side_idx = i
+                side_word = w
+                break
+        if side_idx is None:
+            return None, None
+        base_words = words[:side_idx] + words[side_idx + 1:]
+        base = " ".join(base_words).strip()
+        if not base:
+            return None, None
+        return side_word.capitalize(), base
+
+    def _format_detail_value(self, field, value):
+        if value is None:
+            return None
+
+        val = str(value).strip()
+        if not val:
+            return None
+
+        clean = field.strip().capitalize()
+
+        if val.lower() == "selected":
+            return clean
+        if val.lower() == "unselected":
+            return None
+
+        return f"{clean} = {val}"
+    
     def set_upload_pdf_button(self, button):
         self.upload_pdf_button = button
 
@@ -339,7 +664,7 @@ class PdfButtonHandler:
             print(f"Error retrieving required_by_days: {e}")
             return 14  # Default to 14 days on error
 
-    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code, pre_app_date):
+    def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code, pre_app_date, header_fields=None):
         try:
             price_codes = self.get_price_codes_from_content(content, logic_content)
             print(f"Price codes received: {price_codes}")
@@ -378,7 +703,7 @@ class PdfButtonHandler:
                     with open(log_file_path, 'a', encoding='utf-8') as f:
                         f.write(f"\n[ERROR] {message}\n")
                 self.root.after(0, self.append_and_show_info, "AutoDocRef Not Found", message)
-                return
+                return False, None, [], log_file_path  # Early return on failure
             clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
             clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
             if not clinician:
@@ -388,7 +713,7 @@ class PdfButtonHandler:
                     with open(log_file_path, 'a', encoding='utf-8') as f:
                         f.write(f"\n[ERROR] {message}\n")
                 self.root.after(0, self.append_and_show_info, "Clinician Not Found", message)
-                return
+                return False, None, [], log_file_path  # Early return on failure
             db_path = customers_db_path
             if not os.path.exists(db_path):
                 error_msg = f"Error: Customers database file not found at {db_path}"
@@ -409,7 +734,7 @@ class PdfButtonHandler:
                         f.write(f"\n[ERROR] {message}\n")
                 self.root.after(0, self.append_and_show_info, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
                 add_missing_contact('clinic', clinic)
-                return
+                return False, None, [], log_file_path  # Early return on failure
             # Check if Wales clinic and show popup
             if customer_no in tariff_wales_customer_nos:
                 self.root.after(0, self.append_and_show_warning, "Wales Clinic", "Wales clinic: kick to code checker")
@@ -431,12 +756,12 @@ class PdfButtonHandler:
                         f.write(f"\n[ERROR] {message}\n")
                 self.root.after(0, self.append_and_show_info, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
                 add_missing_contact('clinician', clinician)
-                return
+                return False, None, [], log_file_path  # Early return on failure
             # Define ignored dates as a set for fast lookup
             ignored_dates = set()
-            for d in range(9, 23):  # 9 to 22 inclusive
+            for d in range(9, 23): # 9 to 22 inclusive
                 ignored_dates.add(datetime.date(2025, 12, d))
-            for d in range(24, 32):  # 24 to 31 inclusive
+            for d in range(24, 32): # 24 to 31 inclusive
                 ignored_dates.add(datetime.date(2025, 12, d))
             ignored_dates.add(datetime.date(2026, 1, 1))
             # Calculate both possible delivery dates
@@ -460,12 +785,15 @@ class PdfButtonHandler:
             # Pass order_category_code and pre_app_date to attempt_nav_upload
             success, sales_order_no, messages = attempt_nav_upload(
                 customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
-                form_type_for_filename, log_file_path, final_codes, patient_name, gender_full, pre_app_date
+                form_type_for_filename, log_file_path, final_codes, patient_name, gender_full, pre_app_date,
+                header_fields=header_fields # NEW: Pass header_fields
             )
             for text, tag in messages:
                 self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
+            return success, sales_order_no, messages, log_file_path  # NEW: Return these for caller to use
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
+            return False, None, [], None  # Return on error
         finally:
             self.root.after(0, self.close_loading_popup)
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
@@ -602,7 +930,7 @@ class PdfButtonHandler:
                 'Modular Footwear Prescription Form': MODEL_IDS['Modular'],
                 'KAFO Prescription Form': MODEL_IDS['Kafo'],
                 'Repairs Form': MODEL_IDS['Repairs'],
-                'Adapts & Modifications': MODEL_IDS['A&M']  
+                'Adapts & Modifications': MODEL_IDS['A&M']
             }
             correct_model_id = form_to_model.get(form_confirmation, None)
             if correct_model_id is None:
@@ -641,7 +969,7 @@ class PdfButtonHandler:
                     'additional info positive cast',
                     'additional info bench alignment',
                     'additional info ptm',
-                    'additional info soling',                    
+                    'additional info soling',
                     'additional info upper',
                     'additional info adaptions',
                     'additional info'
@@ -691,7 +1019,7 @@ class PdfButtonHandler:
             elif gender in ['F', 'FEMALE']:
                 gender_full = 'Female'
             else:
-                gender_full = ''  # Use blank as fallback to match NAV options
+                gender_full = '' # Use blank as fallback to match NAV options
             # Extract and parse pre_app_date
             pre_app_date_str = fields_data.get('pre app date', '').strip()
             if pre_app_date_str:
@@ -701,6 +1029,26 @@ class PdfButtonHandler:
             else:
                 pre_app_date = None
             print(f"Parsed pre_app_date: {pre_app_date}")
+            # NEW: Extract header fields if Bespoke/Modular (as per email)
+            header_fields = {}
+            if model_id in (MODEL_IDS['Bespoke'], MODEL_IDS['Modular']):
+                # Style
+                header_fields['Style'] = fields_data.get('style', '')
+                # Colour
+                colour_key = 'upper material colour' if model_id == MODEL_IDS['Bespoke'] else 'style colours'
+                header_fields['Colour'] = fields_data.get(colour_key, '')
+                # Fastening (combine selected ones)
+                fastenings = []
+                for key in ["fastening lace", "r/pull velcro", "lay on velcro", "toptwo hooks", "easy grip boa"]:
+                    if fields_data.get(key, '').lower() == 'selected':
+                        fastenings.append(key.capitalize())
+                header_fields['Fastening'] = ', '.join(fastenings) if fastenings else ''
+                # Material (combine selected ones)
+                materials = []
+                for key in ["leather", "softee", "man-made", "nubuck", "suede", "hexmesh", "grain", "waxy"]:
+                    if fields_data.get(key, '').lower() == 'selected':
+                        materials.append(key.capitalize())
+                header_fields['Material'] = ', '.join(materials) if materials else ''
             logic_file_name = None
             if model_id == MODEL_IDS['Insoles']:
                 form_type = self.determine_form_type(fields_data)
@@ -789,8 +1137,15 @@ class PdfButtonHandler:
             logic_content = self.read_logic_file(logic_file_path)
             if "Error" in logic_content:
                 raise ValueError(logic_content)
-            self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date,
-                                patient_name, gender_full, order_category_code, pre_app_date)
+            # Call process_api_call and capture its return values
+            success, sales_order_no, messages, log_file_path = self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date,
+                                                                                    patient_name, gender_full, order_category_code, pre_app_date, header_fields=header_fields)
+            if success and sales_order_no:
+                model_name = next((k for k, v in MODEL_IDS.items() if v == model_id), None)
+                if model_name:
+                    self.process_and_post_medical_details(model_name, fields_data, sales_order_no, log_file_path)
+                else:
+                    self.append_to_result_text("❌ Unknown model for details upload.", 'error')
         except TimeoutError as e:
             error_msg = f"Timeout error: {str(e)}"
             self.root.after(0, messagebox.showerror, "Timeout Error", error_msg)
@@ -902,14 +1257,293 @@ class PdfButtonHandler:
         for line in lines:
             if line.startswith('base carbon') and 'selected' in line:
                 return True
-        return False
+            
+    def process_and_post_medical_details(self, model_name, extracted, sales_order_no, log_file_path=None):
+        """Process extracted fields into grouped details and post to NAV MedicalDetails."""
+        # Get groups for the model
+        groups_to_use = MODEL_GROUPS.get(model_name, {})
+        if not groups_to_use:
+            self.append_to_result_text(f"No groups defined for model: {model_name}", 'error')
+            return
+
+        # Special handling dictionaries
+        special_group_lines = {}
+        consumed_fields = set()
+        line_no = 10000  # Starting line number, as in original
+
+        # Special rocker handling for Bespoke
+        if model_name == "Bespoke":
+            rocker_fields_bespoke = [
+                "right standard rocker", "left standard rocker",
+                "left plr rocker", "right plr rocker",
+                "right two point rocker", "left two point rocker",
+                "toe protector right", "toe protector left",
+                "welt protector right", "welt protector left",
+            ]
+            apex_field = "height on apex"
+            rocker_bases = {}
+            for f in rocker_fields_bespoke:
+                v = extracted.get(f)
+                if not v or v.strip().lower() != "selected":
+                    continue
+                norm_f = self.normalise(f)
+                side, base = self.split_side_base(norm_f)
+                if base and side:
+                    rocker_bases.setdefault(base, set()).add(side)
+            if rocker_bases:
+                apex_val = extracted.get(apex_field)
+                for base, sides in rocker_bases.items():
+                    if not sides:
+                        continue
+                    if "Right" in sides and "Left" in sides:
+                        rocker_text = f"{base.capitalize()} = Right and Left"
+                    else:
+                        side_text = " and ".join(sorted(sides))
+                        rocker_text = f"{base.capitalize()} = {side_text}"
+                    parts = [rocker_text]
+                    if apex_val:
+                        parts.append(f"Height on apex = {apex_val}")
+                    combo_text = " | ".join(parts)
+                    special_group_lines.setdefault("Finishing", []).append(combo_text)
+                for f in rocker_fields_bespoke:
+                    v = extracted.get(f)
+                    if v and v.strip().lower() == "selected":
+                        consumed_fields.add(f)
+                if apex_val:
+                    consumed_fields.add(apex_field)
+
+        # Similar for Modular (copy the original logic)
+        if model_name == "Modular":
+            rocker_fields_modular = [
+                "right rocker standard", "left rocker standard",
+                "right rocker plr", "left rocker plr",
+                "right rocker two point", "left rocker two point",
+                "right rocker toe protector", "left rocker toe protector",
+                "right rocker welt protector", "left rocker welt protector",
+            ]
+            apex_field = "height on apex"
+            rocker_bases = {}
+            for f in rocker_fields_modular:
+                v = extracted.get(f)
+                if not v or v.strip().lower() != "selected":
+                    continue
+                norm_f = self.normalise(f)
+                side, base = self.split_side_base(norm_f)
+                if base and side:
+                    rocker_bases.setdefault(base, set()).add(side)
+            if rocker_bases:
+                apex_val = extracted.get(apex_field)
+                for base, sides in rocker_bases.items():
+                    if not sides:
+                        continue
+                    if "Right" in sides and "Left" in sides:
+                        rocker_text = f"{base.capitalize()} = Right and Left"
+                    else:
+                        side_text = " and ".join(sorted(sides))
+                        rocker_text = f"{base.capitalize()} = {side_text}"
+                    parts = [rocker_text]
+                    if apex_val:
+                        parts.append(f"Height on apex = {apex_val}")
+                    combo_text = " | ".join(parts)
+                    special_group_lines.setdefault("Finishing", []).append(combo_text)
+                for f in rocker_fields_modular:
+                    v = extracted.get(f)
+                    if v and v.strip().lower() == "selected":
+                        consumed_fields.add(f)
+                if apex_val:
+                    consumed_fields.add(apex_field)
+
+        # Process each group
+        for group_name, fields in groups_to_use.items():
+            first_in_group = True
+            posted_any = False
+            already_merged = set()
+
+            # Buffer for Insole Room in Bespoke/Modular
+            buffer_lines = None
+            if model_name in ("Bespoke", "Modular") and group_name == "Insole Room":
+                buffer_lines = []
+
+            normalised_map = {self.normalise(f): f for f in fields}
+
+            for field in fields:
+                if field in already_merged or self.normalise(field) in already_merged:
+                    continue
+
+                if model_name in ("Bespoke", "Modular") and field in consumed_fields:
+                    continue
+
+                val = extracted.get(field)
+                val_norm = val.lower() if val else None
+                norm = self.normalise(field)
+
+                side, base = self.split_side_base(norm)
+
+                merged_posted = False
+
+                # Merge Left/Right with "selected"
+                if base and side and val_norm == "selected":
+                    other_side_cap = "Left" if side == "Right" else "Right"
+                    full_counter = None
+                    for norm_candidate, orig_candidate in normalised_map.items():
+                        if orig_candidate == field:
+                            continue
+                        if model_name in ("Bespoke", "Modular") and orig_candidate in consumed_fields:
+                            continue
+                        if orig_candidate in already_merged or self.normalise(orig_candidate) in already_merged:
+                            continue
+
+                        s2, b2 = self.split_side_base(norm_candidate)
+                        if b2 == base and s2 == other_side_cap:
+                            full_counter = orig_candidate
+                            break
+
+                    if full_counter:
+                        cv = extracted.get(full_counter)
+                        if cv and cv.lower() == "selected":
+                            pretty = base.capitalize()
+                            merged_text = f"{pretty} = Right and Left"
+                            if model_name in ("Bespoke", "Modular"):
+                                merged_text = merged_text.upper()
+
+                            if buffer_lines is not None:
+                                buffer_lines.append(merged_text)
+                                posted_any = True
+                            else:
+                                operation = group_name if first_in_group else ""
+                                first_in_group = False
+                                posted_any = True
+                                from NavApi import post_to_nav_medical_detail  # Import if not already
+                                post_to_nav_medical_detail(sales_order_no, operation, merged_text, line_no)
+                                line_no += 10000
+
+                            already_merged.add(field)
+                            already_merged.add(full_counter)
+                            already_merged.add(norm)
+                            already_merged.add(self.normalise(full_counter))
+
+                            merged_posted = True
+
+                # Merge Left/Right with numeric/other values
+                elif base and side and val and val_norm not in ("selected", "unselected"):
+                    other_side_cap = "Left" if side == "Right" else "Right"
+                    full_counter = None
+                    for norm_candidate, orig_candidate in normalised_map.items():
+                        if orig_candidate == field:
+                            continue
+                        if model_name in ("Bespoke", "Modular") and orig_candidate in consumed_fields:
+                            continue
+                        if orig_candidate in already_merged or self.normalise(orig_candidate) in already_merged:
+                            continue
+
+                        s2, b2 = self.split_side_base(norm_candidate)
+                        if b2 == base and s2 == other_side_cap:
+                            full_counter = orig_candidate
+                            break
+
+                    if full_counter:
+                        cv = extracted.get(full_counter)
+                        cv_norm = cv.lower() if cv else None
+                        if cv and cv_norm not in ("selected", "unselected"):
+                            pretty = base.capitalize()
+                            if side == "Right":
+                                rv, lv = val, cv
+                            else:
+                                rv, lv = cv, val
+
+                            merged_text = f"{pretty} = Right: {rv} | Left: {lv}"
+                            if model_name in ("Bespoke", "Modular"):
+                                merged_text = merged_text.upper()
+
+                            if buffer_lines is not None:
+                                buffer_lines.append(merged_text)
+                                posted_any = True
+                            else:
+                                operation = group_name if first_in_group else ""
+                                first_in_group = False
+                                posted_any = True
+                                from NavApi import post_to_nav_medical_detail
+                                post_to_nav_medical_detail(sales_order_no, operation, merged_text, line_no)
+                                line_no += 10000
+
+                            already_merged.add(field)
+                            already_merged.add(full_counter)
+                            already_merged.add(norm)
+                            already_merged.add(self.normalise(full_counter))
+
+                            merged_posted = True
+
+                if merged_posted:
+                    continue
+
+                detail = self._format_detail_value(field, val)
+                if detail:
+                    if model_name in ("Bespoke", "Modular"):
+                        detail = detail.upper()
+
+                    if buffer_lines is not None:
+                        buffer_lines.append(detail)
+                        posted_any = True
+                    else:
+                        operation = group_name if first_in_group else ""
+                        first_in_group = False
+                        posted_any = True
+                        from NavApi import post_to_nav_medical_detail
+                        post_to_nav_medical_detail(sales_order_no, operation, detail, line_no)
+                        line_no += 10000
+
+            if buffer_lines is not None and buffer_lines:
+                idx = 0
+                n = len(buffer_lines)
+                while idx < n:
+                    d1 = buffer_lines[idx]
+                    if idx + 1 < n:
+                        d2 = buffer_lines[idx + 1]
+                        combined = f"{d1}     |     {d2}"
+                        idx += 2
+                    else:
+                        combined = d1
+                        idx += 1
+
+                    operation = group_name if first_in_group else ""
+                    first_in_group = False
+                    from NavApi import post_to_nav_medical_detail
+                    post_to_nav_medical_detail(sales_order_no, operation, combined, line_no)
+                    line_no += 10000
+
+            special_lines = special_group_lines.get(group_name, [])
+            if special_lines:
+                for text in special_lines:
+                    detail_text = text
+                    if model_name in ("Bespoke", "Modular"):
+                        detail_text = detail_text.upper()
+                    operation = group_name if first_in_group else ""
+                    first_in_group = False
+                    posted_any = True
+                    from NavApi import post_to_nav_medical_detail
+                    post_to_nav_medical_detail(sales_order_no, operation, detail_text, line_no)
+                    line_no += 10000
+            if posted_any:
+                from NavApi import post_to_nav_medical_detail
+                post_to_nav_medical_detail(sales_order_no, "", " ", line_no)
+                line_no += 10000
+
+        # Log if path provided
+        if log_file_path:
+            with open(log_file_path, 'a', encoding='utf-8') as f:
+                f.write("\n[Medical Details Uploaded]\n")  # Placeholder; add details if needed
+
+        self.append_to_result_text("✅ Work ticket details uploaded to NAV.", 'success')    
+
+        return False 
 
 def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date,
-                      auto_doc_ref, order_category_code, form_type, log_file_path=None,
-                      final_codes=None, patient_name=None, gender_full=None, pre_app_date=None):
+                       auto_doc_ref, order_category_code, form_type, log_file_path=None,
+                       final_codes=None, patient_name=None, gender_full=None, pre_app_date=None,
+                       header_fields=None):
     """
     Attempts to create a sales order in NAV using the provided parameters with enhanced error handling.
-   
+  
     Args:
         customer_no (str): The customer number.
         prescriber (str): The prescriber number (e.g., 'GB-CONT0001').
@@ -923,7 +1557,8 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         patient_name (str, optional): The patient's name.
         gender_full (str, optional): The patient's gender ("Male", "Female", or "Unknown").
         pre_app_date (str, optional): The pre-appointed date in 'YYYY-MM-DD' format.
-   
+        header_fields (dict, optional): Additional header fields like Style, Colour, etc.
+  
     Returns:
         tuple: (success (bool), sales_order_no (str or None), messages (list of (text, tag)))
     """
@@ -939,16 +1574,17 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             final_codes=final_codes if final_codes else [],
             patient_name=patient_name if patient_name else "",
             gender=gender_full,
-            pre_app_date=pre_app_date # Pass pre_app_date to create_sales_order
+            pre_app_date=pre_app_date,
+            header_fields=header_fields  # Pass header_fields to create_sales_order
         )
-       
+      
         success = result.get('success', False)
         sales_order_no = result.get('sales_order_no', None)
         error_messages = result.get('error_messages', [])
-       
+      
         ui_messages = []
         log_messages = []
-       
+      
         if sales_order_no:
             ui_messages.append((f"✅ Created Sales Order: {sales_order_no}", 'success'))
             log_messages.append(f"[SUCCESS] Created Sales Order: {sales_order_no}")
@@ -1020,14 +1656,14 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                     ui_msg = "❌ Error uploading to NAV. Please check order details."
                 ui_messages.append((ui_msg, 'error'))
                 log_messages.append(f"[ERROR] {error}")
-       
+      
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
                 for log_msg in log_messages:
                     f.write(f"{log_msg}\n")
-       
+      
         return success, sales_order_no, ui_messages
-   
+  
     except Exception as e:
         ui_error_message = "❌ Error uploading to NAV. Please check order details."
         log_error_message = f"[ERROR] Unexpected error: {str(e)}"
