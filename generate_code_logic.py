@@ -446,12 +446,12 @@ def generate_insole_codes(self, content, return_dict=False):
 
         # Postings
         posting_keys_left = [
-            'left medial rearfoot posting', 'left lateral rearfoot posting',
-            'left medial forefoot posting', 'left lateral forefoot posting',
+            'left medial rearfoot', 'left lateral rearfoot',
+            'left medial forefoot', 'left lateral forefoot',
         ]
         posting_keys_right = [
-            'right medial rearfoot posting', 'right lateral rearfoot posting',
-            'right medial forefoot posting', 'right lateral forefoot posting',
+            'right medial rearfoot', 'right lateral rearfoot',
+            'right medial forefoot', 'right lateral forefoot',
         ]
 
         left_postings_count = 0

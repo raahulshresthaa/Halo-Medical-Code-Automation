@@ -45,7 +45,7 @@ VERSION = "7.1.0-alpha"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
-    "Insoles": "InsoleFullReaderV16",
+    "Insoles": "InsoleFullReaderV18",
     "AFOs": "AfoReaderV15",
     "Bespoke": "BespokeReaderFullV22",
     "Modular": "ModularReaderFullV13",
@@ -135,7 +135,7 @@ BESPOKE_GROUPS = {
         "right met bar", "left met bar", "right met dome", "left met dome",
         "additional info additions",
 
-        "right medial rearfoot height", "left medial rearfoot height", "right lateral rearfoot height", "left lateral rearfoot height",
+        "right medial rearfoot height", "left medial rearfoot height", "right lateral rearfoot height", "left lateral rearfoot height", # may need to change this 
         "right medial forefoot height", "left medial forefoot height","right lateral forefoot height", "left lateral forefoot height",
         "right heel raise posting", "right heel raise", "left heel raise posting", "left heel raise",
         "left medial kirby skive size", "right medial kirby skive size",
@@ -174,11 +174,14 @@ INSOLE_GROUPS = {
         "right 1st met ray", "left 1st met ray", "right 5th met ray", "left 5th met ray",
         "left navicular sweet spot", "right navicular sweet spot", "right custom hole and plug", "left custom hole and plug",
         "right all mets", "left all mets", "additional info cut outs",
-        "left medial rearfoot height", "right medial rearfoot height",
-        "left lateral kirby skive", "right lateral kirby skive", "right heel raise", "left heel raise",
-        "left lateral rearfoot height", "right lateral rearfoot height", "left medial forefoot height", "left lateral forefoot height",
-        "right medial forefoot height", "right lateral forefoot height", "left medial kirby skive size", "left lateral kirby skive size",
-        "right medial kirby skive size", "right lateral kirby skive size",
+        "left medial rearfoot posting", "right medial rearfoot posting",
+        "left lateral rearfoot posting", "right lateral rearfoot posting",
+        "left medial forefoot posting", "left lateral forefoot posting",
+        "right medial forefoot posting", "right lateral forefoot posting",
+        "left medial kirby skive posting", "left lateral kirby skive posting",
+        "right medial kirby skive posting", "right lateral kirby skive posting",
+        "right heel raise", "left heel raise",
+        "heel raise r posting", "heel raise l posting",
         "right valgus pad 3mm", "left valgus pad 3mm", "right valgus pad 6mm", "left valgus pad 6mm",
         "left heel pad 6mm", "right heel pad 6mm", "right heel pad 3mm", "left heel pad 3mm",
         "right met bar", "left met bar", "right met dome", "left met dome",
