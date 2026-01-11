@@ -47,7 +47,7 @@ VERSION = "7.1.0-alpha"
 MODEL_IDS = {
     "Insoles": "InsoleFullReaderV18",
     "AFOs": "AfoReaderV15",
-    "Bespoke": "BespokeReaderFullV22",
+    "Bespoke": "BespokeReaderFullV23",
     "Modular": "ModularReaderFullV14",
     "Kafo": "KafoFormReaderV3",
     "Repairs": "RepairsReaderV2",
@@ -120,35 +120,42 @@ BESPOKE_GROUPS = {
 
         "insole type adult", "insole type paed", "insole type uni lat r", "insole type uni lat l", "insole pair",
         "insole type tci", "insole type simple", "insole type hand mould", "insole type cradle",
-        "base a65 high", "base a50 med", "base a40 low", "base hd pzote", "base a40/25/80", "base a30/20/80", "base poly", "base cork",
+        "base a65 high", "base a50 med", "base a40 low", "base hd pzote",
+        "base a40/25/80", "base a30/20/80", "base poly", "base cork",
         "base carbon 1.5mm", "base carbon 3mm", "base grey poron 3mm", "base grey poron 6mm",
-        "men's wide template", "men's narrow template", "ladies wide template", "ladies narrow template", "child template", "template custom",
+        "men's wide template", "men's narrow template", "ladies wide template",
+        "ladies narrow template", "child template", "template custom",
         "insole length three quarter", "insole length sulcus", "insole length full",
         "insole thickness 2", "insole thickness 3", "insole thickness 6",
         "heel cup flat", "heel cup 12mm", "heel cup 16mm", "heel cup 20mm",
         "arch flexibility non", "arch flexibility low", "arch flexibility semi", "arch flexibility flexible",
         "additional info modeling",
-
         "right valgus pad 3mm", "left valgus pad 3mm", "right valgus pad 6mm", "left valgus pad 6mm",
         "right heel pad 3mm", "left heel pad 3mm", "right heel pad 6mm", "left heel pad 6mm",
-        "right mortons extension", "left mortons extension", "right reverse mortons extension", "left reverse mortons extension",
+        "right mortons extension", "left mortons extension",
+        "right reverse mortons extension", "left reverse mortons extension",
         "right met bar", "left met bar", "right met dome", "left met dome",
         "additional info additions",
-
-        "right medial rearfoot height", "left medial rearfoot height", "right lateral rearfoot height", "left lateral rearfoot height", # may need to change this 
-        "right medial forefoot height", "left medial forefoot height","right lateral forefoot height", "left lateral forefoot height",
-        "right heel raise posting", "right heel raise", "left heel raise posting", "left heel raise",
-        "left medial kirby skive size", "right medial kirby skive size",
-        "right lateral kirby skive", "right lateral kirby skive size", "left lateral kirby skive", "left lateral kirby skive size",
+        "left medial rearfoot posting", "right medial rearfoot posting",
+        "left lateral rearfoot posting", "right lateral rearfoot posting",
+        "left medial forefoot posting", "left lateral forefoot posting",
+        "right medial forefoot posting", "right lateral forefoot posting",
+        "left medial kirby skive posting", "left lateral kirby skive posting",
+        "right medial kirby skive posting", "right lateral kirby skive posting",
+        "right heel raise posting", "right heel raise",
+        "left heel raise posting", "left heel raise",
         "right 1st met head", "left 1st met head", "right 5th met head", "left 5th met head",
-        "right all mets", "left all mets", "right 1st met ray", "left 1st met ray", "right 5th met ray", "left 5th met ray",
-        "right custom hole and plug", "left custom hole and plug", "right navicular sweet spot", "left navicular sweet spot",
+        "right all mets", "left all mets", "right 1st met ray", "left 1st met ray",
+        "right 5th met ray", "left 5th met ray",
+        "right custom hole and plug", "left custom hole and plug",
+        "right navicular sweet spot", "left navicular sweet spot",
         "additional info cut outs",
-
-        "no lining", "soft poron 1.6mm", "soft poron 3mm", "soft poron 6mm", "medium poron 1.6mm", "medium poron 3mm", "medium poron 6mm",
+        "no lining", "soft poron 1.6mm", "soft poron 3mm", "soft poron 6mm",
+        "medium poron 1.6mm", "medium poron 3mm", "medium poron 6mm",
         "firm memory foam poron 1.6mm", "firm memory foam poron 3mm", "firm memory foam poron 6mm",
-        "no top cover", "vinyl black", "on steam", "microfibre brown", "multi ld eva 1.5mm", "black ld eva 1.5mm", "black ld eva 3mm", "spenco 1.5mm", "spenco 3mm"
-        "additional info top cover"
+        "no top cover", "vinyl black", "on steam", "microfibre brown",
+        "multi ld eva 1.5mm", "black ld eva 1.5mm", "black ld eva 3mm",
+        "spenco 1.5mm", "spenco 3mm", "additional info top cover"
     ],
 }
 
