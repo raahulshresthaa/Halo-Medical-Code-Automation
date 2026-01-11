@@ -785,8 +785,7 @@ class PdfButtonHandler:
             # Pass order_category_code and pre_app_date to attempt_nav_upload
             success, sales_order_no, messages = attempt_nav_upload(
                 customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
-                form_type_for_filename, log_file_path, final_codes, patient_name, gender_full, pre_app_date,
-                header_fields=header_fields # NEW: Pass header_fields
+                form_type_for_filename, log_file_path, final_codes, patient_name, gender_full, pre_app_date
             )
             for text, tag in messages:
                 self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
@@ -1029,26 +1028,6 @@ class PdfButtonHandler:
             else:
                 pre_app_date = None
             print(f"Parsed pre_app_date: {pre_app_date}")
-            # NEW: Extract header fields if Bespoke/Modular (as per email)
-            header_fields = {}
-            if model_id in (MODEL_IDS['Bespoke'], MODEL_IDS['Modular']):
-                # Style
-                header_fields['Style'] = fields_data.get('style', '')
-                # Colour
-                colour_key = 'upper material colour' if model_id == MODEL_IDS['Bespoke'] else 'style colours'
-                header_fields['Colour'] = fields_data.get(colour_key, '')
-                # Fastening (combine selected ones)
-                fastenings = []
-                for key in ["fastening lace", "r/pull velcro", "lay on velcro", "toptwo hooks", "easy grip boa"]:
-                    if fields_data.get(key, '').lower() == 'selected':
-                        fastenings.append(key.capitalize())
-                header_fields['Fastening'] = ', '.join(fastenings) if fastenings else ''
-                # Material (combine selected ones)
-                materials = []
-                for key in ["leather", "softee", "man-made", "nubuck", "suede", "hexmesh", "grain", "waxy"]:
-                    if fields_data.get(key, '').lower() == 'selected':
-                        materials.append(key.capitalize())
-                header_fields['Material'] = ', '.join(materials) if materials else ''
             logic_file_name = None
             if model_id == MODEL_IDS['Insoles']:
                 form_type = self.determine_form_type(fields_data)
@@ -1139,7 +1118,7 @@ class PdfButtonHandler:
                 raise ValueError(logic_content)
             # Call process_api_call and capture its return values
             success, sales_order_no, messages, log_file_path = self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date,
-                                                                                    patient_name, gender_full, order_category_code, pre_app_date, header_fields=header_fields)
+                                                                                    patient_name, gender_full, order_category_code, pre_app_date)
             if success and sales_order_no:
                 model_name = next((k for k, v in MODEL_IDS.items() if v == model_id), None)
                 if model_name:
@@ -1539,8 +1518,7 @@ class PdfButtonHandler:
 
 def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date,
                        auto_doc_ref, order_category_code, form_type, log_file_path=None,
-                       final_codes=None, patient_name=None, gender_full=None, pre_app_date=None,
-                       header_fields=None):
+                       final_codes=None, patient_name=None, gender_full=None, pre_app_date=None):
     """
     Attempts to create a sales order in NAV using the provided parameters with enhanced error handling.
   
@@ -1575,7 +1553,6 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             patient_name=patient_name if patient_name else "",
             gender=gender_full,
             pre_app_date=pre_app_date,
-            header_fields=header_fields  # Pass header_fields to create_sales_order
         )
       
         success = result.get('success', False)

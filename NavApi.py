@@ -125,7 +125,7 @@ def work_order_adapts_and_modifications(auto_doc_ref):
     target_text = "Refer to Prescription form " + auto_doc_ref
     return target_operation, target_text
 
-def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None, header_fields=None):
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
     error_messages = []
@@ -207,8 +207,6 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         if pre_app_date:
             print(f"Pre App Date (Formatted): {pre_app_date}")
             order_data["Pre_appointed_Date"] = pre_app_date
-        if header_fields:  # NEW: Add header fields to payload if provided
-            order_data.update(header_fields)  # e.g., {"Style": "value", "Colour": "value", ...}
 
         post_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService"
         
