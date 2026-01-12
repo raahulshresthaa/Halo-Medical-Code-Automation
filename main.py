@@ -41,7 +41,7 @@ import requests.exceptions
 import urllib.parse
 
 # Version number
-VERSION = "7.1.0-alpha"
+VERSION = "7.1.1-alpha"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
