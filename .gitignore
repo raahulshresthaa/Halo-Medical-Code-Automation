@@ -28,3 +28,4 @@ create_clinic_database.py
 createNewDatabase.py
 database_query_test.py
 testnewDatabase.py
+base_encoder.py
