@@ -435,12 +435,12 @@ def generate_insole_codes(self, content, return_dict=False):
         right_modifications_count = 0
 
         for mod in foot_modifications:
-            left_key = f"left {mod}"
-            right_key = f"right {mod}"
-            if content_dict.get(left_key, '') == 'selected':
+            left_keys = [f"left {mod}", f"left {mod} cut outs"]
+            right_keys = [f"right {mod}", f"right {mod} cut outs"]
+            if any(content_dict.get(k, '') == 'selected' for k in left_keys):
                 left_modifications_count += 1
                 passed_codes['BNS45'] += 1
-            if content_dict.get(right_key, '') == 'selected':
+            if any(content_dict.get(k, '') == 'selected' for k in right_keys):
                 right_modifications_count += 1
                 passed_codes['BNS45'] += 1
 
