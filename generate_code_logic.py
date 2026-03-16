@@ -482,7 +482,7 @@ def generate_insole_codes(self, content, return_dict=False):
 
         # Additions
         addition_keys = [
-            'left valgus pad 3mm', 'left valgus pad 6mm', 'right valgus pad 3mm',
+            'left valgus pad 3mm', 'left valgus pad 6mm', 'right valgus pad 3mm', 'right valgus pad 6mm',
             'left heel pad 3mm', 'left heel pad 6mm', 'right heel pad 3mm', 'right heel pad 6mm',
             'left mortons extension', 'right mortons extension',
             'left reverse mortons extension', 'right reverse mortons extension',
@@ -578,7 +578,7 @@ def generate_insole_codes(self, content, return_dict=False):
         else:
             # Normal pair handling if not CLCH simple
             if is_pair:
-                codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B', 'B41']
+                codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B']
                 for code in codes_to_double_insole:
                     if code in passed_codes:
                         passed_codes[code] *= 2
