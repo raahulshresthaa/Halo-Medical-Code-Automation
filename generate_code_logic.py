@@ -578,7 +578,7 @@ def generate_insole_codes(self, content, return_dict=False):
         else:
             # Normal pair handling if not CLCH simple
             if is_pair:
-                codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B']
+                codes_to_double_insole = ['B54C', 'B40B', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B', 'B41']
                 for code in codes_to_double_insole:
                     if code in passed_codes:
                         passed_codes[code] *= 2
