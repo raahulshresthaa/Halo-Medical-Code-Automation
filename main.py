@@ -542,6 +542,8 @@ class PdfButtonHandler:
 
         # Reference to the upload PDF button (will be set later)
         self.upload_pdf_button = None
+        self.kicked_to_code_checker = False
+        self.pending_warnings = []
 
         # Read Azure credentials from files
         self.endpoint = self.read_azure_credential_file('azure_endpoint.txt', 'Azure Endpoint')
@@ -831,7 +833,15 @@ class PdfButtonHandler:
     def append_and_show_warning(self, title, message):
         """Append warning message to result_text and show pop-up."""
         self.append_to_result_text(f"{title}: {message}", 'warning')
-        messagebox.showwarning(title, message)
+        if title == "Kick to Code Checker":
+            self.kicked_to_code_checker = True
+        self.pending_warnings.append((title, message))
+
+    def show_pending_warnings(self):
+        """Show all queued warning popups after loading popup is closed."""
+        for title, message in self.pending_warnings:
+            messagebox.showwarning(title, message)
+        self.pending_warnings.clear()
 
     def append_to_result_text(self, message, tag='success'):
         self.result_text.config(state=tk.NORMAL)
@@ -905,6 +915,7 @@ class PdfButtonHandler:
             messagebox.showinfo("No PDF File Selected", "Please select a PDF file to process.")
 
     def process_pdf_and_call_api(self, pdf_file_path, attempt=1):
+        self.kicked_to_code_checker = False
         def azure_api_call():
             with open(pdf_file_path, "rb") as pdf_file:
                 poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
@@ -1166,6 +1177,7 @@ class PdfButtonHandler:
         finally:
             if attempt == 1:
                 self.root.after(0, self.close_loading_popup)
+                self.root.after(0, self.show_pending_warnings)
                 self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
     def extract_fields_from_result(self, result):
@@ -2469,7 +2481,9 @@ def copy_final_codes():
     last_index = full_text.rfind("Final Codes")
     if last_index == -1:
         return
-    final_codes_text = full_text[last_index:]
+    final_codes_text = full_text[last_index:].rstrip()
+    if pdf_handler.kicked_to_code_checker:
+        final_codes_text += "\nKicked to Code Checker"
     root.clipboard_clear()
     root.clipboard_append(final_codes_text)
     original_style = copy_codes_button.cget("style")
