@@ -41,11 +41,11 @@ import requests.exceptions
 import urllib.parse
 
 # Version number
-VERSION = "7.1.3-alpha"
+VERSION = "7.1.4-alpha"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
-    "Insoles": "InsoleFullReaderV19",
+    "Insoles": "InsoleFullReaderV20",
     "AFOs": "AfoReaderV18",
     "Bespoke": "BespokeReaderFullV24",
     "Modular": "ModularReaderFullV15",
