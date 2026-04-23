@@ -41,7 +41,7 @@ import requests.exceptions
 import urllib.parse
 
 # Version number
-VERSION = "7.1.4-alpha"
+VERSION = "7.1.5-alpha"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
@@ -403,7 +403,7 @@ def determine_order_category_code(model_id, fields_data):
             return 'MILLED INSOLES'
     
     elif model_id == MODEL_IDS['AFOs']:
-        return 'PLASTICS'
+        return 'PLASTICS/AFO'
     
     elif model_id == MODEL_IDS['Bespoke']:
         if fields_data.get('insole type tci', '').lower() == 'selected':
@@ -415,8 +415,8 @@ def determine_order_category_code(model_id, fields_data):
             return 'MODULAR/TCI'
         return 'MODULAR'
     
-    elif model_id == MODEL_IDS['Kafo']:  # New condition for Kafo
-        return 'REPAIRS PLASTIC'  # Matches A&R behavior when KAFO is relevant
+    elif model_id == MODEL_IDS['Kafo']:
+        return 'PLASTICS/ KAFO'
     
     elif model_id == MODEL_IDS['Repairs']:
         return 'REPAIRS PLASTIC'
