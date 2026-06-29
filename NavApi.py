@@ -141,7 +141,7 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         sales_order_no = existing_order['No']
         message = f"Auto doc reference {auto_doc_ref} has already been uploaded to nav"
         messagebox.showinfo("Information", message)
-        return {'success': True, 'sales_order_no': sales_order_no, 'error_messages': [message]}
+        return {'success': True, 'sales_order_no': sales_order_no, 'error_messages': [message], 'already_exists': True}
     else:
         filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=2"
         get_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_soa}"

@@ -700,16 +700,16 @@ class PdfButtonHandler:
                 delivery_dt = default_dt
             request_delivery_date = delivery_dt.strftime('%Y-%m-%d')
             # Pass order_category_code and pre_app_date to attempt_nav_upload
-            success, sales_order_no, messages = attempt_nav_upload(
+            success, sales_order_no, messages, already_exists = attempt_nav_upload(
                 customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
                 form_type_for_filename, log_file_path, final_codes, patient_name, gender_full, pre_app_date
             )
             for text, tag in messages:
                 self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
-            return success, sales_order_no, messages, log_file_path  # NEW: Return these for caller to use
+            return success, sales_order_no, messages, log_file_path, already_exists  # NEW: Return these for caller to use
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
-            return False, None, [], None  # Return on error
+            return False, None, [], None, False  # Return on error
         finally:
             self.root.after(0, self.close_loading_popup)
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
@@ -1043,9 +1043,11 @@ class PdfButtonHandler:
             if "Error" in logic_content:
                 raise ValueError(logic_content)
             # Call process_api_call and capture its return values
-            success, sales_order_no, messages, log_file_path = self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date,
+            success, sales_order_no, messages, log_file_path, already_exists = self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date,
                                                                                     patient_name, gender_full, order_category_code, pre_app_date)
-            if success and sales_order_no:
+            # Skip the work ticket if the order already existed (message already shown
+            # by attempt_nav_upload) so we never append a duplicate set of details.
+            if success and sales_order_no and not already_exists:
                 model_name = next((k for k, v in MODEL_IDS.items() if v == model_id), None)
                 # Work tickets (NAV medical details) are only generated for Bespoke and Modular forms
                 if model_name in ("Bespoke", "Modular"):
@@ -1503,7 +1505,17 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         success = result.get('success', False)
         sales_order_no = result.get('sales_order_no', None)
         error_messages = result.get('error_messages', [])
-      
+        already_exists = result.get('already_exists', False)
+
+        # If the order was already in NAV, don't re-post anything (no duplicate
+        # work ticket / lines). Surface a single clear message and bail out.
+        if already_exists:
+            info_msg = f"ℹ️ Order already exists in NAV ({sales_order_no}); nothing re-uploaded."
+            if log_file_path:
+                with open(log_file_path, 'a', encoding='utf-8') as f:
+                    f.write(f"[INFO] Order already exists in NAV: {sales_order_no}. Work ticket not re-uploaded.\n")
+            return success, sales_order_no, [(info_msg, 'info')], already_exists
+
         ui_messages = []
         log_messages = []
       
@@ -1584,15 +1596,15 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                 for log_msg in log_messages:
                     f.write(f"{log_msg}\n")
       
-        return success, sales_order_no, ui_messages
-  
+        return success, sales_order_no, ui_messages, already_exists
+
     except Exception as e:
         ui_error_message = "❌ Error uploading to NAV. Please check order details."
         log_error_message = f"[ERROR] Unexpected error: {str(e)}"
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
                 f.write(f"{log_error_message}\n")
-        return False, None, [(ui_error_message, 'error')]
+        return False, None, [(ui_error_message, 'error')], False
     
 # --- Main Application Setup ---
 class EntryDialog(Toplevel):
