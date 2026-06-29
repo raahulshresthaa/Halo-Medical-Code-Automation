@@ -159,52 +159,6 @@ BESPOKE_GROUPS = {
     ],
 }
 
-INSOLE_GROUPS = {
-    "General Operations": [
-        "insole type tci", "insole type simple", "insole type cradle", "insole type hand mould",
-        "insole type adult", "insole type paed", "insole type uni lat r", "insole type uni lat l",
-        "insole pair",
-        "base a65 high", "base a50 med", "base a40 low", "base hd pzote",
-        "base a40/25/80", "base a30/20/80", "base poly", "base cork",
-        "base carbon 1.5mm", "base carbon 3mm", "base grey poron 3mm", "base grey poron 6mm",
-        "additional info modeling",
-        "men's wide template", "men's narrow template", "ladies wide template",
-        "ladies narrow template", "child template", "custom template",
-        "shoe size",
-        "insole thickness 2", "insole thickness 3", "insole thickness 6",
-        "heel cup flat", "heel cup 12mm", "heel cup 16mm", "heel cup 20mm",
-        "insole length three quarters", "insole length sulcus", "insole length full",
-        "arch flexibility non", "arch flexibility low", "arch flexibility semi", "arch flexibility flexible",
-    ],
-    "Additions": [
-        "right 1st met head", "left 1st met head", "right 5th met head", "left 5th met head",
-        "right 1st met ray", "left 1st met ray", "right 5th met ray", "left 5th met ray",
-        "left navicular sweet spot", "right navicular sweet spot", "right custom hole and plug", "left custom hole and plug",
-        "right all mets", "left all mets", "additional info cut outs",
-        "left medial rearfoot posting", "right medial rearfoot posting",
-        "left lateral rearfoot posting", "right lateral rearfoot posting",
-        "left medial forefoot posting", "left lateral forefoot posting",
-        "right medial forefoot posting", "right lateral forefoot posting",
-        "left medial kirby skive posting", "left lateral kirby skive posting",
-        "right medial kirby skive posting", "right lateral kirby skive posting",
-        "right heel raise", "left heel raise",
-        "heel raise r posting", "heel raise l posting",
-        "right valgus pad 3mm", "left valgus pad 3mm", "right valgus pad 6mm", "left valgus pad 6mm",
-        "left heel pad 6mm", "right heel pad 6mm", "right heel pad 3mm", "left heel pad 3mm",
-        "right met bar", "left met bar", "right met dome", "left met dome",
-        "right mortons extension", "left mortons extension", "right reverse mortons extension", "left reverse mortons extension",
-        "additional info additions",
-    ],
-    "Covers": [
-        "no lining", "soft poron 3mm", "soft poron 6mm", "medium poron 1.6mm", "medium poron 3mm",
-        "medium poron 6mm", "firm memory foam poron 1.6mm", "firm memory foam poron 3mm", "firm memory foam poron 6mm",
-        "no top cover",
-        "vinyl black", "microfibre brown", "multi ld eva 1.5mm", "black ld eva 1.5mm",
-        "black ld eva 3mm", "spenco 1.5mm", "spenco 3mm", "on steam", 
-        "additional info top cover",
-    ],
-}
-
 MODULAR_GROUPS = {
     "General Operations": [
         "additional info upper", "additional info soling", "additional info adaptions",
@@ -295,76 +249,11 @@ MODULAR_GROUPS = {
 }
 
 
-AFO_GROUPS = {
-    "General Operations": [
-        "afo rt", "afo lt", "afo pair", "afo fixed", "afo hinged", "afo smafo", "dafo", "afo/dafo", "grafo",
-        "crow", "clam shell", "afo pls", "afo high anterior",
-    ],
-    "Rectification": [
-        "nc calf height right", "nc calf height left", "nc finished footplate right", "nc finished footplate left",
-        "nc met width right", "nc met width left", "nc mall width right", "nc mall width left", 
-        "nc ant shell right", "nc ant shell left", "nc as cast right", "nc as cast left", "nc 90 right", "nc 90 left",
-        "nc pf right", "nc pf left", "nc df right", "nc df left",
-        "right sust tali", "left sust tali", "right df toes", "left df toes",
-        "right neuro footplate", "left neuro footplate", "right 3pt pressure", "left 3pt pressure",
-        "additional info negative cast", "additional info positive cast",
-    ],
-    "Moulding": [
-        "homopoly 2mm", "homopoly 3mm", "homopoly 4mm", "homopoly 5mm",
-        "co poly natural 2mm", "co poly natural 3mm", "co poly natural 3.5mm", "co poly natural 4.5mm", "co poly natural 6mm",
-        "co poly black 3mm", "co poly black 4mm", "co poly black 6mm",
-        "ld polyethylene 3mm", "ld polyethlyene 4.5mm",
-        "modified homopoly 3mm", "modified homopoly 4mm", "modified homopoly 5mm",
-        "co poly white 3mm",
-        "carbon",
-        "additions tamarac", "additions other", "additions carbon", "additions ribbed",
-        "transfer",
-    ],
-    "Finishing": [
-        "right shank to vertical", "left shank to vertical",
-        "right alignment angle", "left alignment angle", "right sva", "left sva", "additional info bench alignment",
-        "trimlines on malls nr02 right", "trimlines on malls nr02 left",
-        "trimlines on malls nrd2 right", "trimlines on malls nrd2 left",
-        "trimlines distal to mall nr01 right", "trimlines distal to mall nr01 left",
-        "trimlines distal to mall nrd1 right", "trimlines distal to mall nrd1 left",
-        "trimlines proximal to mall ird right", "trimlines proximal to mall ird left",
-        "trimlines proximal to mall ird2 right", "trimlines proximal to mall ird2 left",
-        "trimlines ground reaction right", "trimlines ground reaction left",
-        "calf sweep 8mm", "calf sweep 10mm", "calf sweep 12mm",
-        "extended border met", "extended border lat", "extended border both",
-        "finishing flare calf", "finishing perforated", "finishing non slip sole", "finishing heel wedging",
-        "additional info",
-        "straps black", "straps pink", "straps beige", "straps lay on", "straps d loop", "straps slip pads",
-        "right medial full part lining", "right lateral full part lining",
-        "left medial full part lining", "left lateral full part lining",
-        "right medial straps slotted", "right lateral straps slotted",
-        "left medial straps slotted", "left lateral straps slotted",
-        "right medial straps toe", "right lateral straps toe",
-        "left medial straps toe", "left lateral straps toe",
-        "right medial straps df assist", "right lateral straps df assist",
-        "left medial straps df assist", "left lateral straps df assist",
-        "straps calf", "straps toe", "straps heel", "straps other",
-        "right lat mall pads", "left lat mall pads", "right med mall pads", "left med mall pads",
-        "right elongated pads", "left elongated pads",
-        "right arch pads", "left arch pads", "right navicular pads", "left navicular pads",
-        "right lateral pads", "left lateral pads", "right medial pads", "left medial pads",
-        "additional info pads",
-        "ptm coh", "ptm met heads", "ptm full foot", "ptm three quarter foot",
-        "ptm hd115 pz a95", "ptm ld60 a66", "ptm nora lunairmed a18", "ptm 6mm pzld45 heel pad",
-        "ptm fully lined", "ptm fully lined des",
-        "ptm pad top of calf", "ptm pad top of calf des",
-        "ptm footplate lining", "ptm footplate lining des",
-        "additional info ptm",
-    ]
-}
-
 # Map model names to their groups
 MODEL_GROUPS = {
     "Bespoke": BESPOKE_GROUPS,
-    "Insoles": INSOLE_GROUPS,
     "Modular": MODULAR_GROUPS,
-    "AFOs": AFO_GROUPS,
-    # Add others if needed, e.g., for Kafo/Repairs use empty {} or define
+    # Work tickets are only generated for Bespoke and Modular forms
 }
 
 if getattr(sys, 'frozen', False):
@@ -1158,10 +1047,9 @@ class PdfButtonHandler:
                                                                                     patient_name, gender_full, order_category_code, pre_app_date)
             if success and sales_order_no:
                 model_name = next((k for k, v in MODEL_IDS.items() if v == model_id), None)
-                if model_name:
+                # Work tickets (NAV medical details) are only generated for Bespoke and Modular forms
+                if model_name in ("Bespoke", "Modular"):
                     self.process_and_post_medical_details(model_name, fields_data, sales_order_no, log_file_path)
-                else:
-                    self.append_to_result_text("❌ Unknown model for details upload.", 'error')
         except TimeoutError as e:
             error_msg = f"Timeout error: {str(e)}"
             self.root.after(0, messagebox.showerror, "Timeout Error", error_msg)
