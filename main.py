@@ -1174,7 +1174,21 @@ class PdfButtonHandler:
         # Special handling dictionaries
         special_group_lines = {}
         consumed_fields = set()
-        line_no = 10000  # Starting line number, as in original
+        # Start after any detail lines create_sales_order already wrote (e.g. the
+        # 'Special Instructions' line at Line_No 100000) to avoid key collisions.
+        from NavApi import get_next_medical_detail_line_no, post_to_nav_medical_detail
+        line_no = get_next_medical_detail_line_no(sales_order_no)
+
+        # Track upload outcomes so the final message reflects what actually posted.
+        posted_count = 0
+        failed_count = 0
+
+        def _post(operation, detail_text, ln):
+            nonlocal posted_count, failed_count
+            if post_to_nav_medical_detail(sales_order_no, operation, detail_text, ln):
+                posted_count += 1
+            else:
+                failed_count += 1
 
         # Special rocker handling for Bespoke
         if model_name == "Bespoke":
@@ -1318,8 +1332,7 @@ class PdfButtonHandler:
                                 operation = group_name if first_in_group else ""
                                 first_in_group = False
                                 posted_any = True
-                                from NavApi import post_to_nav_medical_detail  # Import if not already
-                                post_to_nav_medical_detail(sales_order_no, operation, merged_text, line_no)
+                                _post(operation, merged_text, line_no)
                                 line_no += 10000
 
                             already_merged.add(field)
@@ -1367,8 +1380,7 @@ class PdfButtonHandler:
                                 operation = group_name if first_in_group else ""
                                 first_in_group = False
                                 posted_any = True
-                                from NavApi import post_to_nav_medical_detail
-                                post_to_nav_medical_detail(sales_order_no, operation, merged_text, line_no)
+                                _post(operation, merged_text, line_no)
                                 line_no += 10000
 
                             already_merged.add(field)
@@ -1393,8 +1405,7 @@ class PdfButtonHandler:
                         operation = group_name if first_in_group else ""
                         first_in_group = False
                         posted_any = True
-                        from NavApi import post_to_nav_medical_detail
-                        post_to_nav_medical_detail(sales_order_no, operation, detail, line_no)
+                        _post(operation, detail, line_no)
                         line_no += 10000
 
             if buffer_lines is not None and buffer_lines:
@@ -1412,8 +1423,7 @@ class PdfButtonHandler:
 
                     operation = group_name if first_in_group else ""
                     first_in_group = False
-                    from NavApi import post_to_nav_medical_detail
-                    post_to_nav_medical_detail(sales_order_no, operation, combined, line_no)
+                    _post(operation, combined, line_no)
                     line_no += 10000
 
             special_lines = special_group_lines.get(group_name, [])
@@ -1425,22 +1435,31 @@ class PdfButtonHandler:
                     operation = group_name if first_in_group else ""
                     first_in_group = False
                     posted_any = True
-                    from NavApi import post_to_nav_medical_detail
-                    post_to_nav_medical_detail(sales_order_no, operation, detail_text, line_no)
+                    _post(operation, detail_text, line_no)
                     line_no += 10000
             if posted_any:
-                from NavApi import post_to_nav_medical_detail
-                post_to_nav_medical_detail(sales_order_no, "", " ", line_no)
+                _post("", " ", line_no)
                 line_no += 10000
+
+        total_count = posted_count + failed_count
 
         # Log if path provided
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
-                f.write("\n[Medical Details Uploaded]\n")  # Placeholder; add details if needed
+                if failed_count == 0:
+                    f.write(f"\n[Work ticket uploaded to NAV: {posted_count} line(s)]\n")
+                else:
+                    f.write(f"\n[Work ticket PARTIAL upload to NAV: {posted_count} ok, {failed_count} FAILED of {total_count}]\n")
 
-        self.append_to_result_text("✅ Work ticket details uploaded to NAV.", 'success')    
+        if failed_count == 0:
+            self.append_to_result_text(f"✅ Work ticket details uploaded to NAV ({posted_count} line(s)).", 'success')
+        else:
+            self.append_to_result_text(
+                f"⚠️ Work ticket upload incomplete: {failed_count} of {total_count} line(s) failed to upload to NAV. Check the order in NAV.",
+                'error'
+            )
 
-        return False 
+        return failed_count == 0
 
 def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date,
                        auto_doc_ref, order_category_code, form_type, log_file_path=None,

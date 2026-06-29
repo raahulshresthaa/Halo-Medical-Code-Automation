@@ -334,6 +334,23 @@ def increment_order_no(order_no):
     else:
         raise ValueError(f"Invalid order number format: {order_no}")
     
+def get_next_medical_detail_line_no(document_no, step=10000):
+    """Return the next free Line_No for MedicalDetails on the given document.
+
+    Returns `step` if no details exist yet, otherwise the highest existing
+    Line_No plus `step`. This prevents work-ticket lines from colliding with
+    detail lines already written during create_sales_order (e.g. the
+    'Special Instructions' line placed at Line_No 100000).
+    """
+    filter_medical = f"$filter=Document_No eq '{document_no}'"
+    get_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails?{filter_medical}"
+    response = requests.get(get_url, headers=headers, auth=auth)
+    if response.status_code == 200:
+        existing = response.json().get('value', [])
+        if existing:
+            return max(detail['Line_No'] for detail in existing) + step
+    return step
+
 def post_to_nav_medical_detail(document_no, operation, detail_text, line_no=10000):
     cons_medical_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails"
 
@@ -350,6 +367,7 @@ def post_to_nav_medical_detail(document_no, operation, detail_text, line_no=1000
 
     if response.status_code == 201:
         print(f"Successfully uploaded: {operation}")
+        return True
     else:
         print(f"Failed to upload: {operation}")
         print(f"Status: {response.status_code}")
@@ -357,3 +375,4 @@ def post_to_nav_medical_detail(document_no, operation, detail_text, line_no=1000
             print(json.dumps(response.json(), indent=4))
         except:
             print(response.text)
+        return False
