@@ -638,6 +638,8 @@ def generate_afo_codes(self, content):
     # Non-tariff AFO type logic
     # P15 - applied by default at 2 per device (single -> x2, pair -> x4 via pair doubling below)
     passed_codes['P15'] += 2
+    # D8U - applied by default at 1 per device (single -> x1, pair -> x2 via pair doubling below)
+    passed_codes['D8U'] += 1
 
     if content_dict.get('dafo', '') == 'selected' or content_dict.get('afo fixed', '') == 'selected':
         passed_codes['D1K'] += 1
