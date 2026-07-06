@@ -539,12 +539,25 @@ class PdfButtonHandler:
 
     def get_price_codes_from_content(self, content, logic_content):
         try:
+            # Build the AI input. The system prompt varies by form type via logic_content.
+            system_prompt = f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nAlways analyze if 'make x2' or similar (e.g., 'make pair', 'duplicate', 'x2') appears in the cradle details or additional information sections. If it does, double all quantities in the passed codes (e.g., 'B55B x2' becomes 'B55B x4'). Otherwise, repeat the passed codes exactly as they are.\n\nFirst, write your full working out, explaining step-by-step and why. Then, always write **Final Codes:** followed by the final codes each on a new line. Do not include any additional text or summary after the final codes. Ensure the **Final Codes:** section is always present, even if no changes are made."
+            user_prompt = f"Here is the content to process:\n{content}"
+
+            # Log the exact input sent to the AI model (varies by form type) for tracking/debugging
+            print("=" * 80)
+            print("AI INPUT - SYSTEM PROMPT:")
+            print(system_prompt)
+            print("-" * 80)
+            print("AI INPUT - USER PROMPT:")
+            print(user_prompt)
+            print("=" * 80)
+
             # Send the content, logic, and file context to the assistant
             response = openai.ChatCompletion.create(
                 model="gpt-4.1-2025-04-14", # Use the appropriate model
                 messages=[
-                    {"role": "system", "content": f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nAlways analyze if 'make x2' or similar (e.g., 'make pair', 'duplicate', 'x2') appears in the cradle details or additional information sections. If it does, double all quantities in the passed codes (e.g., 'B55B x2' becomes 'B55B x4'). Otherwise, repeat the passed codes exactly as they are.\n\nFirst, write your full working out, explaining step-by-step if doubling is needed and why. Then, always write **Final Codes:** followed by the final codes each on a new line. Do not include any additional text or summary after the final codes. Ensure the **Final Codes:** section is always present, even if no changes are made."},
-                    {"role": "user", "content": f"Here is the content to process:\n{content}"}
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
                 ],
                 max_tokens=1000, # Adjust as necessary
                 temperature=0 # Set to 0 for more deterministic output to reduce intermittency
