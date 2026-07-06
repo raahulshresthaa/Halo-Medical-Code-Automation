@@ -704,12 +704,12 @@ def generate_afo_codes(self, content):
             if content_dict.get(f'{side} {position} straps df assist', '') == 'selected':
                 passed_codes['D14B'] += 1
 
-    # pads
+    # pads - one D14C per mall/elongated pad, per side (arch/navicular pads do NOT count toward D14C)
+    pad_types = ['lat mall pads', 'med mall pads', 'elongated pads']
     for side in sides:
-        if content_dict.get(f'{side} arch pads', '') == 'selected':
-            passed_codes['D14C'] += 1
-        if content_dict.get(f'{side} navicular pads', '') == 'selected':
-            passed_codes['D14C'] += 1
+        for pad in pad_types:
+            if content_dict.get(f'{side} {pad}', '') == 'selected':
+                passed_codes['D14C'] += 1
 
     # Handle pairs by doubling codes if applicable
     if is_pair:
