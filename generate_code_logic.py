@@ -636,6 +636,9 @@ def generate_afo_codes(self, content):
         return 'TARIFF AFO' if passed_codes['TARIFF AFO'] == 1 else f'TARIFF AFO x{passed_codes["TARIFF AFO"]}'
 
     # Non-tariff AFO type logic
+    # P15 - applied by default at 2 per device (single -> x2, pair -> x4 via pair doubling below)
+    passed_codes['P15'] += 2
+
     if content_dict.get('dafo', '') == 'selected' or content_dict.get('afo fixed', '') == 'selected':
         passed_codes['D1K'] += 1
 
