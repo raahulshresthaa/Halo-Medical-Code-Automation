@@ -641,11 +641,12 @@ def generate_afo_codes(self, content):
     # D8U - applied by default at 1 per device (single -> x1, pair -> x2 via pair doubling below)
     passed_codes['D8U'] += 1
 
-    if content_dict.get('dafo', '') == 'selected' or content_dict.get('afo fixed', '') == 'selected':
+    if content_dict.get('dafo', '') == 'selected':
         passed_codes['D1K'] += 1
 
-    if (content_dict.get('afo smafo', '') == 'selected' or content_dict.get('grafo', '') == 'selected' or
-        content_dict.get('afo hinged', '') == 'selected' or content_dict.get('afo/dafo', '') == 'selected'):
+    if (content_dict.get('afo fixed', '') == 'selected' or content_dict.get('afo smafo', '') == 'selected' or
+        content_dict.get('grafo', '') == 'selected' or content_dict.get('afo hinged', '') == 'selected' or
+        content_dict.get('afo/dafo', '') == 'selected'):
         passed_codes['D1C'] += 1
 
     if content_dict.get('crow', '') == 'selected':
