@@ -620,7 +620,7 @@ class PdfButtonHandler:
                     with open(log_file_path, 'a', encoding='utf-8') as f:
                         f.write(f"\n[ERROR] {message}\n")
                 self.root.after(0, self.append_and_show_info, "AutoDocRef Not Found", message)
-                return False, None, [], log_file_path  # Early return on failure
+                return False, None, [], log_file_path, False  # Early return on failure
             clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
             clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
             if not clinician:
@@ -630,7 +630,7 @@ class PdfButtonHandler:
                     with open(log_file_path, 'a', encoding='utf-8') as f:
                         f.write(f"\n[ERROR] {message}\n")
                 self.root.after(0, self.append_and_show_info, "Clinician Not Found", message)
-                return False, None, [], log_file_path  # Early return on failure
+                return False, None, [], log_file_path, False  # Early return on failure
             db_path = customers_db_path
             if not os.path.exists(db_path):
                 error_msg = f"Error: Customers database file not found at {db_path}"
@@ -651,7 +651,7 @@ class PdfButtonHandler:
                         f.write(f"\n[ERROR] {message}\n")
                 self.root.after(0, self.append_and_show_info, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
                 add_missing_contact('clinic', clinic)
-                return False, None, [], log_file_path  # Early return on failure
+                return False, None, [], log_file_path, False  # Early return on failure
             # Check if Wales clinic and show popup
             if customer_no in tariff_wales_customer_nos:
                 self.root.after(0, self.append_and_show_warning, "Wales Clinic", "Wales clinic: kick to code checker")
@@ -673,7 +673,7 @@ class PdfButtonHandler:
                         f.write(f"\n[ERROR] {message}\n")
                 self.root.after(0, self.append_and_show_info, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
                 add_missing_contact('clinician', clinician)
-                return False, None, [], log_file_path  # Early return on failure
+                return False, None, [], log_file_path, False  # Early return on failure
             # Define ignored dates as a set for fast lookup
             ignored_dates = set()
             for d in range(9, 23): # 9 to 22 inclusive
