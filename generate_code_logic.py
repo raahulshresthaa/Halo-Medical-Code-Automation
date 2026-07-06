@@ -677,7 +677,7 @@ def generate_afo_codes(self, content):
 
     # finishing
     if content_dict.get('finishing perforated', '') == 'selected':
-        passed_codes['D10V'] += 1
+        passed_codes['D10U'] += 1
 
     if content_dict.get('finishing non slip sole', '') == 'selected':
         passed_codes['D10C'] += 1
