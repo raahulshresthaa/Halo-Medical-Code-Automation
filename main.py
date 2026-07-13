@@ -41,7 +41,7 @@ import requests.exceptions
 import urllib.parse
 
 # Version number
-VERSION = "7.1.6-alpha"
+VERSION = "7.1.7-alpha"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
@@ -538,20 +538,19 @@ class PdfButtonHandler:
             return f"Error reading the logic file '{logic_file_path}': {str(e)}"
 
     def get_price_codes_from_content(self, content, logic_content):
+        # Build the AI input. The system prompt varies by form type via logic_content.
+        system_prompt = f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nAlways analyze if 'make x2' or similar (e.g., 'make pair', 'duplicate', 'x2') appears in the cradle details or additional information sections. If it does, double all quantities in the passed codes (e.g., 'B55B x2' becomes 'B55B x4'). Otherwise, repeat the passed codes exactly as they are.\n\nFirst, write your full working out, explaining step-by-step and why. Then, always write **Final Codes:** followed by the final codes each on a new line. Do not include any additional text or summary after the final codes. Ensure the **Final Codes:** section is always present, even if no changes are made."
+        user_prompt = f"Here is the content to process:\n{content}"
+
+        # Record the AI system prompt for tracking/debugging (also written to the log file by the caller).
+        # The user prompt is just the extracted content, which is already logged, so it's omitted here.
+        ai_input = system_prompt
+        print("=" * 80)
+        print("AI SYSTEM PROMPT:")
+        print(ai_input)
+        print("=" * 80)
+
         try:
-            # Build the AI input. The system prompt varies by form type via logic_content.
-            system_prompt = f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nAlways analyze if 'make x2' or similar (e.g., 'make pair', 'duplicate', 'x2') appears in the cradle details or additional information sections. If it does, double all quantities in the passed codes (e.g., 'B55B x2' becomes 'B55B x4'). Otherwise, repeat the passed codes exactly as they are.\n\nFirst, write your full working out, explaining step-by-step and why. Then, always write **Final Codes:** followed by the final codes each on a new line. Do not include any additional text or summary after the final codes. Ensure the **Final Codes:** section is always present, even if no changes are made."
-            user_prompt = f"Here is the content to process:\n{content}"
-
-            # Log the exact input sent to the AI model (varies by form type) for tracking/debugging
-            print("=" * 80)
-            print("AI INPUT - SYSTEM PROMPT:")
-            print(system_prompt)
-            print("-" * 80)
-            print("AI INPUT - USER PROMPT:")
-            print(user_prompt)
-            print("=" * 80)
-
             # Send the content, logic, and file context to the assistant
             response = openai.ChatCompletion.create(
                 model="gpt-4.1-2025-04-14", # Use the appropriate model
@@ -564,9 +563,9 @@ class PdfButtonHandler:
             )
             # Extract the assistant's response (price codes)
             assistant_response = response['choices'][0]['message']['content']
-            return assistant_response
+            return assistant_response, ai_input
         except Exception as e:
-            return f"Error: {str(e)}"
+            return f"Error: {str(e)}", ai_input
         
     def get_required_by_days(self, customer_no, model_id):
         """Retrieve the appropriate required_by_days from the release_times database based on Sell_to_Customer_No and model_id."""
@@ -596,7 +595,7 @@ class PdfButtonHandler:
 
     def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code, pre_app_date, header_fields=None):
         try:
-            price_codes = self.get_price_codes_from_content(content, logic_content)
+            price_codes, ai_input = self.get_price_codes_from_content(content, logic_content)
             print(f"Price codes received: {price_codes}")
             # Extract codes from the last occurrence of "**Final Codes:**"
             sections = price_codes.split('**Final Codes:**')
@@ -625,7 +624,7 @@ class PdfButtonHandler:
             messages = [query_message] if query_message else []
             combined_messages = '\n'.join(messages) if messages else None
             self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes, combined_messages)
-            log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages)
+            log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages, ai_input)
             if AutoDocRef == 'N/A':
                 message = "No AutoDocRef found in the extracted data. Please kick to query."
                 self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
@@ -751,7 +750,7 @@ class PdfButtonHandler:
         self.result_text.see(tk.END)
         self.result_text.config(state=tk.DISABLED)
 
-    def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, form_type, messages=None):
+    def write_to_log_file(self, price_codes, auto_doc_ref, clinic, azure_data, form_type, messages=None, ai_input=None):
         try:
             result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
             if not os.path.exists(result_logs_folder):
@@ -776,6 +775,9 @@ class PdfButtonHandler:
                 log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
                 log_file.write(f"Clinic: {clinic}\n\n")
                 log_file.write(f"AZURE EXTRACTED DATA:\n\n{azure_data}\n\n") # Azure log data
+                # Include the AI system prompt (varies by form type) for tracking prompt changes
+                if ai_input:
+                    log_file.write(f"AI SYSTEM PROMPT:\n\n{ai_input}\n\n")
                 # Include any messages (query or warning) if they exist
                 if messages:
                     log_file.write(f"MESSAGES:\n{messages}\n\n")
