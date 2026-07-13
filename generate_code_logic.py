@@ -653,7 +653,8 @@ def generate_afo_codes(self, content):
         passed_codes['DNS6'] += 1
 
     if content_dict.get('clam shell', '') == 'selected':
-        passed_codes['D12M'] += 1
+        passed_codes['D1C'] += 1     # base code (was missing - clam shell is a solid AFO)
+        passed_codes['D12M'] += 1    # anterior-shell addition
 
     if content_dict.get('transfer', '') != '':
         passed_codes['D10I'] += 1
