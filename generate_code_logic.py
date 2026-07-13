@@ -699,10 +699,18 @@ def generate_afo_codes(self, content):
         for position in positions:
             if content_dict.get(f'{side} {position} straps slotted', '') == 'selected':
                 passed_codes['D10H'] += 1
-            if content_dict.get(f'{side} {position} straps toe', '') == 'selected':
-                passed_codes['D14A'] += 1
             if content_dict.get(f'{side} {position} straps df assist', '') == 'selected':
                 passed_codes['D14B'] += 1
+
+    # D14A - PINNED. Cannot be reliably derived from the free-text strap fields:
+    # the corrective-strap description is misspelled/phrased inconsistently and often
+    # extracts as a date/number/measurement/lining, so any deterministic rule over-bills
+    # (fires on ~40% of forms that should have no D14A). Left un-emitted until handled by
+    # the AI or flagged for human review. See discussion.
+    # if content_dict.get('straps calf', '') != '':
+    #     passed_codes['D14A'] += 1
+    # if content_dict.get('straps heel', '') != '':
+    #     passed_codes['D14A'] += 1
 
     # pads - one D14C per mall/elongated pad, per side (arch/navicular pads do NOT count toward D14C)
     pad_types = ['lat mall pads', 'med mall pads', 'elongated pads']
@@ -714,6 +722,7 @@ def generate_afo_codes(self, content):
     # Handle pairs by doubling codes if applicable.
     # Per-side codes are counted from both the left and right fields, so they are already
     # bilateral for a pair and must NOT be doubled again (that would double-count them).
+    # D14A is device-level (straps calf/heel) and IS doubled for pairs.
     per_side_codes = {'D14C'}
     if is_pair:
         for code in list(passed_codes.keys()):
