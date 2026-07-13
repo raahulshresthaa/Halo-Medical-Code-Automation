@@ -711,10 +711,14 @@ def generate_afo_codes(self, content):
             if content_dict.get(f'{side} {pad}', '') == 'selected':
                 passed_codes['D14C'] += 1
 
-    # Handle pairs by doubling codes if applicable
+    # Handle pairs by doubling codes if applicable.
+    # Per-side codes are counted from both the left and right fields, so they are already
+    # bilateral for a pair and must NOT be doubled again (that would double-count them).
+    per_side_codes = {'D14C'}
     if is_pair:
         for code in list(passed_codes.keys()):
-            passed_codes[code] *= 2
+            if code not in per_side_codes:
+                passed_codes[code] *= 2
 
     # Format the passed codes with counts
     formatted_passed_codes = []

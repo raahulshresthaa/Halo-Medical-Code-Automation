@@ -539,7 +539,7 @@ class PdfButtonHandler:
 
     def get_price_codes_from_content(self, content, logic_content):
         # Build the AI input. The system prompt varies by form type via logic_content.
-        system_prompt = f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nAlways analyze if 'make x2' or similar (e.g., 'make pair', 'duplicate', 'x2') appears in the cradle details or additional information sections. If it does, double all quantities in the passed codes (e.g., 'B55B x2' becomes 'B55B x4'). Otherwise, repeat the passed codes exactly as they are.\n\nFirst, write your full working out, explaining step-by-step and why. Then, always write **Final Codes:** followed by the final codes each on a new line. Do not include any additional text or summary after the final codes. Ensure the **Final Codes:** section is always present, even if no changes are made."
+        system_prompt = f"Use the following logic to generate price codes:\n\n{logic_content}\n\nThe 'Passed code' section contains codes that have already been generated and should be included in the final output.\n\nDoubling rule: Any structured pair selection (e.g. 'afo pair: selected', 'insole pair: selected', 'pair: selected') has ALREADY been applied to the passed codes by the system - do NOT double the quantities because of it. Only look for a free-text doubling instruction written by the clinician in the cradle details or additional information sections (e.g. 'make two', 'two shoes', 'make a pair', 'duplicate', 'x2'). If such a free-text instruction is present AND no structured pair field is selected, double all quantities in the passed codes (e.g. 'B55B x2' becomes 'B55B x4'). If a structured pair field IS selected, do NOT apply any further doubling, even if the free text also mentions a pair. If the free text clearly requests a specific larger quantity (e.g. 'make 4'), apply that exact multiple; if the requested quantity is unclear, do not change the quantities. Otherwise, repeat the passed codes exactly as they are.\n\nFirst, write your full working out, explaining step-by-step and why. Then, always write **Final Codes:** followed by the final codes. Formatting requirement: each code MUST be on its own separate line. NEVER put more than one code on a line and NEVER separate codes with commas. For example:\nP15 x2\nD8U\nD1C\nDo not include any additional text or summary after the final codes. Ensure the **Final Codes:** section is always present, even if no changes are made."
         user_prompt = f"Here is the content to process:\n{content}"
 
         # Record the AI system prompt for tracking/debugging (also written to the log file by the caller).
@@ -551,15 +551,18 @@ class PdfButtonHandler:
         print("=" * 80)
 
         try:
-            # Send the content, logic, and file context to the assistant
+            # Send the content, logic, and file context to the assistant.
+            # gpt-5.6-terra is a reasoning model: it does NOT accept 'temperature', it uses
+            # 'max_completion_tokens' (which must also cover the reasoning tokens it spends),
+            # and 'reasoning_effort' controls how hard it thinks.
             response = openai.ChatCompletion.create(
-                model="gpt-4.1-2025-04-14", # Use the appropriate model
+                model="gpt-5.6-terra",
+                reasoning_effort="high",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                max_tokens=1000, # Adjust as necessary
-                temperature=0 # Set to 0 for more deterministic output to reduce intermittency
+                max_completion_tokens=8000, # headroom for reasoning tokens + the short code output
             )
             # Extract the assistant's response (price codes)
             assistant_response = response['choices'][0]['message']['content']
@@ -711,6 +714,10 @@ class PdfButtonHandler:
             else:
                 delivery_dt = default_dt
             request_delivery_date = delivery_dt.strftime('%Y-%m-%d')
+            # Last chance to cancel: once the NAV upload starts the popup X is locked out
+            if self.cancelled_by_user():
+                return False, None, [], log_file_path, False
+            nav_upload_locked.set()
             # Pass order_category_code and pre_app_date to attempt_nav_upload
             success, sales_order_no, messages, already_exists = attempt_nav_upload(
                 customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
@@ -723,6 +730,7 @@ class PdfButtonHandler:
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
             return False, None, [], None, False  # Return on error
         finally:
+            nav_upload_locked.clear()
             self.root.after(0, self.close_loading_popup)
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
@@ -833,6 +841,8 @@ class PdfButtonHandler:
             timeout_seconds = 30
             max_retries = 2
             for attempt_num in range(max_retries + 1):
+                if self.cancelled_by_user():
+                    return
                 try:
                     with concurrent.futures.ThreadPoolExecutor() as executor:
                         future = executor.submit(azure_api_call)
@@ -1057,6 +1067,8 @@ class PdfButtonHandler:
             logic_content = self.read_logic_file(logic_file_path)
             if "Error" in logic_content:
                 raise ValueError(logic_content)
+            if self.cancelled_by_user():
+                return
             # Call process_api_call and capture its return values
             success, sales_order_no, messages, log_file_path, already_exists = self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date,
                                                                                     patient_name, gender_full, order_category_code, pre_app_date)
@@ -1134,6 +1146,16 @@ class PdfButtonHandler:
         global base_message
         base_message = new_message
         loading_label.config(text=f"{base_message}\n{dot_index * '.'}")
+
+    def cancelled_by_user(self):
+        """Check whether the user cancelled via the loading popup. Cleans up if so."""
+        if processing_cancel_event.is_set():
+            print("Order cancelled by user.")
+            self.root.after(0, lambda: self.append_to_result_text("Order cancelled by user.", 'error'))
+            self.root.after(0, self.close_loading_popup)
+            self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+            return True
+        return False
 
     def handle_drop(self, event):
         """Handle files dropped into the result_text widget."""
@@ -2319,8 +2341,26 @@ for model_name, model_id_value in MODEL_IDS.items():
     radio_button.pack(side='left', padx=2)
 
 # The loading popup and associated functions
+# Cancellation of in-flight order processing. The X button on the loading popup requests a
+# cancel; the worker thread checks for it at safe points (between Azure retries, before the
+# AI call, before NAV upload). Once the NAV upload starts, cancelling is locked out.
+processing_cancel_event = threading.Event()
+nav_upload_locked = threading.Event()
+
+def request_cancel_processing():
+    """Called when the user clicks X on the loading popup."""
+    global base_message
+    if nav_upload_locked.is_set():
+        return  # Uploading to Navision - too late to cancel, keep the popup locked
+    if not processing_cancel_event.is_set():
+        processing_cancel_event.set()
+        base_message = "Cancelling order"  # picked up by animate_dots
+
 def show_loading_popup():
     global loading_popup, loading_label, dot_index, base_message
+    # Reset cancellation state for this new run
+    processing_cancel_event.clear()
+    nav_upload_locked.clear()
     loading_popup = Toplevel(root)
     loading_popup.title("Loading...")
     icon_image_loading = load_icon_image(icon_path, size=(32, 32))
@@ -2329,7 +2369,7 @@ def show_loading_popup():
         loading_popup.icon_image = icon_image_loading
 
     loading_popup.resizable(False, False)
-    loading_popup.protocol("WM_DELETE_WINDOW", lambda: None)
+    loading_popup.protocol("WM_DELETE_WINDOW", request_cancel_processing)
 
     root.update_idletasks()
     x = root.winfo_x() + (root.winfo_width() // 2) - (300 // 2)
@@ -2355,7 +2395,10 @@ def animate_dots():
     loading_popup.after(500, animate_dots)
 
 def close_loading_popup():
-    loading_popup.destroy()
+    try:
+        loading_popup.destroy()
+    except Exception:
+        pass  # Already destroyed (e.g. closed once by the cancel path and again by a finally block)
     root.attributes('-disabled', False)
     root.focus_force()
 
