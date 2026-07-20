@@ -638,8 +638,8 @@ def generate_afo_codes(self, content):
         return 'TARIFF AFO' if passed_codes['TARIFF AFO'] == 1 else f'TARIFF AFO x{passed_codes["TARIFF AFO"]}'
 
     # Non-tariff AFO type logic
-    # P15 - applied by default at 2 per device (single -> x2, pair -> x4 via pair doubling below)
-    passed_codes['P15'] += 2
+    # P15 - no longer a blanket default; it now comes only from real triggers
+    # (currently the Y-strap full-part lining, handled in the straps section below).
     # D8U - applied by default at 1 per device (single -> x1, pair -> x2 via pair doubling below)
     passed_codes['D8U'] += 1
 
@@ -657,6 +657,14 @@ def generate_afo_codes(self, content):
     if content_dict.get('clam shell', '') == 'selected':
         passed_codes['D1C'] += 1     # base code (was missing - clam shell is a solid AFO)
         passed_codes['D12M'] += 1    # anterior-shell addition
+
+    # D12M - anterior / front shell addition (on top of any D1C base set above)
+    if content_dict.get('grafo', '') == 'selected':
+        passed_codes['D12M'] += 1
+    # nc ant shell: one D12M per side present (per-side, confirmed by owner)
+    for side in ['left', 'right']:
+        if content_dict.get(f'nc ant shell {side}', '') != '':
+            passed_codes['D12M'] += 1
 
     if content_dict.get('transfer', '') != '':
         passed_codes['D10I'] += 1
@@ -694,6 +702,11 @@ def generate_afo_codes(self, content):
     if content_dict.get('finishing heel wedging', '') != '':
         passed_codes['B43'] += 1
 
+    # D10E - heel post, one per side present (per-side, confirmed by owner)
+    for side in ['left', 'right']:
+        if content_dict.get(f'{side} heel raise posting', '') != '':
+            passed_codes['D10E'] += 1
+
     # Straps
     sides = ['left', 'right']
     positions = ['medial', 'lateral']
@@ -705,15 +718,18 @@ def generate_afo_codes(self, content):
             if content_dict.get(f'{side} {position} straps df assist', '') == 'selected':
                 passed_codes['D14B'] += 1
 
-    # D14A - PINNED. Cannot be reliably derived from the free-text strap fields:
-    # the corrective-strap description is misspelled/phrased inconsistently and often
-    # extracts as a date/number/measurement/lining, so any deterministic rule over-bills
-    # (fires on ~40% of forms that should have no D14A). Left un-emitted until handled by
-    # the AI or flagged for human review. See discussion.
-    # if content_dict.get('straps calf', '') != '':
-    #     passed_codes['D14A'] += 1
-    # if content_dict.get('straps heel', '') != '':
-    #     passed_codes['D14A'] += 1
+    # D14A - toe straps, and Y-strap full-part lining. Device-level; doubled for pairs below.
+    # NOTE: the date/number values seen in `straps toe` in the logs come from a stamp applied
+    # AFTER the app has processed a form, so the live app never sees them - the field is clean
+    # at processing time, hence a plain non-empty check is safe here.
+    # (The earlier straps-calf/straps-heel rule was the wrong trigger and was removed.)
+    if content_dict.get('straps toe', '') != '':
+        passed_codes['D14A'] += 1
+    # Y-strap full-part lining = D14A + P15 (the only source of P15 now the default is gone).
+    if (content_dict.get('left y strap', '') == 'selected' or
+            content_dict.get('right y strap', '') == 'selected'):
+        passed_codes['D14A'] += 1
+        passed_codes['P15'] += 1
 
     # pads - one D14C per mall/elongated pad, per side (arch/navicular pads do NOT count toward D14C)
     pad_types = ['lat mall pads', 'med mall pads', 'elongated pads']
@@ -725,8 +741,8 @@ def generate_afo_codes(self, content):
     # Handle pairs by doubling codes if applicable.
     # Per-side codes are counted from both the left and right fields, so they are already
     # bilateral for a pair and must NOT be doubled again (that would double-count them).
-    # D14A is device-level (straps calf/heel) and IS doubled for pairs.
-    per_side_codes = {'D14C'}
+    # D14A is device-level (toe strap / Y-strap) and IS doubled for pairs.
+    per_side_codes = {'D14C', 'D12M', 'D10E'}
     if is_pair:
         for code in list(passed_codes.keys()):
             if code not in per_side_codes:
