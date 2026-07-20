@@ -1,265 +1,252 @@
 # analysis_tab.py
 import os
+import tkinter as tk
+
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.ticker import MaxNLocator
 import ttkbootstrap as ttk
 import mplcursors  # for hover tooltips
 
+# Multi-line chart categories. These mirror the form types in main.py MODEL_IDS
+# (log files are named results_log_<ref>_<form_type>.txt, where <form_type> is
+# the lowercased MODEL_IDS key). Keep this list in sync with MODEL_IDS.
+#   (chart label, filename suffix, theme color attribute or hex)
+MULTI_CATEGORIES = [
+    ('Insole',  'insoles', 'primary'),
+    ('AFO',     'afos',    'warning'),
+    ('Bespoke', 'bespoke', 'info'),
+    ('Modular', 'modular', 'success'),
+    ('KAFO',    'kafo',    'secondary'),
+    ('Repairs', 'repairs', 'danger'),
+    ('A&M',     'a&m',     '#9b59b6'),  # no distinct theme slot left
+]
+
+
 def create_analysis_tab(notebook, style):
     """
-    Creates a new tab in the provided ttk.Notebook that reads
-    the 'result_logs' folder, and displays EITHER:
-      - Single-line total logs/day,
-      - OR 4 separate lines (insole, bespoke, afo, modular).
+    Adds a "Results Analysis" tab that charts how many prescription logs were
+    processed per day, read live from the 'result_logs' folder.
 
-    It offers a "Toggle Multi-Line Mode" button that switches between
-    the two modes. The background and colors follow the current ttkbootstrap theme.
+    Two views (toggle button):
+      - Total logs per day (single line).
+      - One line per form type (see MULTI_CATEGORIES, mirrors MODEL_IDS).
+
+    Layout uses matplotlib constrained_layout so the chart always fits and
+    resizes with the window; a navigation toolbar allows zoom / pan / save.
     """
 
-    # 1) Create the main tab frame
+    def _color(name):
+        """Resolve a MULTI_CATEGORIES color: a theme attr name or a hex string."""
+        if isinstance(name, str) and name.startswith('#'):
+            return name
+        return getattr(style.colors, name, style.colors.primary)
+
+    def _matches(fname, suffix):
+        """True if a log filename belongs to `suffix`'s form type.
+
+        The form type is the token after the last '_'; compared whole and
+        ignoring a trailing 's', so both current plural names (afos, insoles)
+        and older singular ones (afo, insole) count, while 'kafo' and 'afos'
+        can't collide. Legacy names with no current form type (old '_a&r' /
+        'adapts and repairs' logs) match nothing here.
+        """
+        name = fname.lower()
+        if name.endswith('.txt'):
+            name = name[:-4]
+        token = name.rsplit('_', 1)[-1]
+        norm = lambda s: s[:-1] if s.endswith('s') else s
+        return norm(token) == norm(suffix)
+
+    # ------------------------------------------------------------------ tab
     style.configure("Analysis.TFrame", background=style.colors.bg)
-    analysis_tab = ttk.Frame(notebook, style="Analysis.TFrame")
-    notebook.add(analysis_tab, text="Results Analysis")
+    tab = ttk.Frame(notebook, style="Analysis.TFrame")
+    notebook.add(tab, text="Results Analysis")
 
-    # 2) Internal state: single-line vs multi-line
-    multi_mode = False
-
-    def set_multi_mode(value: bool):
-        nonlocal multi_mode
-        multi_mode = value
+    multi_mode = True  # per-type breakdown is the more useful default
 
     def is_multi_mode():
         return multi_mode
 
-    # 3) Data gatherers
+    def set_multi_mode(value: bool):
+        nonlocal multi_mode
+        multi_mode = bool(value)
+
+    # ------------------------------------------------------------- data read
+    def _iter_day_folders():
+        root = os.path.join(os.getcwd(), 'result_logs')
+        if not os.path.exists(root):
+            return
+        for folder in sorted(os.listdir(root)):
+            fp = os.path.join(root, folder)
+            if os.path.isdir(fp):
+                files = [f for f in os.listdir(fp)
+                         if os.path.isfile(os.path.join(fp, f))]
+                yield folder, files
 
     def get_log_data_single():
-        """
-        Returns a dict:
-            {
-                'YYYY-MM-DD': total_file_count_that_day,
-                ...
-            }
-        """
-        data = {}
-        result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
-        if os.path.exists(result_logs_folder):
-            for folder in sorted(os.listdir(result_logs_folder)):
-                folder_path = os.path.join(result_logs_folder, folder)
-                if os.path.isdir(folder_path):
-                    count = len([
-                        f for f in os.listdir(folder_path)
-                        if os.path.isfile(os.path.join(folder_path, f))
-                    ])
-                    data[folder] = count
-        return data
+        """{'YYYY-MM-DD': total_file_count}."""
+        return {folder: len(files) for folder, files in _iter_day_folders()}
 
     def get_log_data_multi():
-        """
-        Returns a dict:
-            {
-                'YYYY-MM-DD': {
-                    'insole': x,
-                    'bespoke': y,
-                    'afo': z,
-                    'modular': w
-                },
-                ...
-            }
-        """
+        """{'YYYY-MM-DD': {suffix: count, ...}} — one entry per MULTI_CATEGORIES type."""
         data = {}
-        result_logs_folder = os.path.join(os.getcwd(), 'result_logs')
-        if os.path.exists(result_logs_folder):
-            for folder in sorted(os.listdir(result_logs_folder)):
-                folder_path = os.path.join(result_logs_folder, folder)
-                if os.path.isdir(folder_path):
-                    cat_counts = {'insole': 0, 'bespoke': 0, 'afo': 0, 'modular': 0}
-                    for fname in os.listdir(folder_path):
-                        if os.path.isfile(os.path.join(folder_path, fname)):
-                            f_lower = fname.lower()
-                            if 'insole' in f_lower:
-                                cat_counts['insole'] += 1
-                            elif 'bespoke' in f_lower:
-                                cat_counts['bespoke'] += 1
-                            elif 'afo' in f_lower:
-                                cat_counts['afo'] += 1
-                            elif 'modular' in f_lower:
-                                cat_counts['modular'] += 1
-                    data[folder] = cat_counts
+        for folder, files in _iter_day_folders():
+            counts = {suffix: 0 for _, suffix, _ in MULTI_CATEGORIES}
+            for fname in files:
+                for _, suffix, _ in MULTI_CATEGORIES:
+                    if _matches(fname, suffix):
+                        counts[suffix] += 1
+                        break
+            data[folder] = counts
         return data
 
-    # 4) Create the Matplotlib figure/axes
-    fig, ax = plt.subplots(figsize=(8, 6))
+    # ------------------------------------------------------------- controls
+    controls = ttk.Frame(tab, style="Analysis.TFrame")
+    controls.pack(side='top', fill='x', padx=6, pady=4)
+
+    mode_btn = ttk.Button(controls, text="Show Total", bootstyle="secondary")
+    mode_btn.pack(side='left', padx=(0, 4))
+    refresh_btn = ttk.Button(controls, text="Refresh", bootstyle="secondary-outline")
+    refresh_btn.pack(side='left', padx=4)
+
+    style.configure("Analysis.TLabel", background=style.colors.bg, foreground=style.colors.fg)
+    summary_var = tk.StringVar(value="")
+    summary_lbl = ttk.Label(controls, textvariable=summary_var, style="Analysis.TLabel")
+    summary_lbl.pack(side='right', padx=6)
+
+    # --------------------------------------------------------------- figure
+    fig, ax = plt.subplots(figsize=(8, 5), constrained_layout=True)
     fig.patch.set_facecolor(style.colors.bg)
-    ax.set_facecolor(style.colors.bg)
 
-    # 5) Create two frames: controls (top), chart (bottom)
-    controls_frame = ttk.Frame(analysis_tab)
-    controls_frame.pack(side='top', fill='x')
-
-    chart_frame = ttk.Frame(analysis_tab)
+    chart_frame = ttk.Frame(tab, style="Analysis.TFrame")
     chart_frame.pack(side='top', fill='both', expand=True)
 
-    # 6) Place the figure canvas inside the chart frame
     canvas = FigureCanvasTkAgg(fig, master=chart_frame)
-    canvas.draw()
     canvas.get_tk_widget().pack(side='top', fill='both', expand=True)
 
-    # 7) We keep a dictionary for line hover info: {line: (dates_str, counts_list)}
-    lines_metadata = {}
+    toolbar_frame = ttk.Frame(tab, style="Analysis.TFrame")
+    toolbar_frame.pack(side='bottom', fill='x')
+    toolbar = NavigationToolbar2Tk(canvas, toolbar_frame)  # auto-packs into toolbar_frame
+    toolbar.update()
+    # Best-effort: match the toolbar strip to the theme background (safe if unsupported).
+    try:
+        toolbar.config(background=style.colors.bg)
+        for child in toolbar.winfo_children():
+            child.config(background=style.colors.bg)
+    except Exception:
+        pass
+
+    lines_metadata = {}  # {line: (dates, counts)}
+
+    def _style_axes():
+        fg = style.colors.fg
+        ax.set_facecolor(style.colors.bg)
+        ax.set_ylabel("Logs processed", color=fg)
+        ax.tick_params(axis='y', colors=fg)
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.grid(True, axis='y', alpha=0.25, color=fg)
+        for spine in ax.spines.values():
+            spine.set_edgecolor(fg)
 
     def refresh_chart():
-        """
-        Clears and redraws the chart in either single-line or multi-line mode.
-        Also sets up hover annotations via mplcursors.
-        """
         ax.clear()
-
-        # Re-apply the theme background
         fig.patch.set_facecolor(style.colors.bg)
-        ax.set_facecolor(style.colors.bg)
-
         lines_metadata.clear()
         plotted_lines = []
+        fg = style.colors.fg
 
-        # Single-line mode or multi-line mode?
-        if not is_multi_mode():
-            # --- Single-Line Mode ---
-            data_dict = get_log_data_single()
-            dates_str = list(data_dict.keys())
-            counts = [data_dict[d] for d in dates_str]
-
-            xvals = range(len(dates_str))
-            (line,) = ax.plot(
-                xvals,
-                counts,
-                marker='o',
-                linestyle='-',
-                color=style.colors.primary,
-                label='All Logs'  # <--- We give this line a label
-            )
-            plotted_lines.append(line)
-
-            # Store metadata for hover
-            lines_metadata[line] = (dates_str, counts)
-
-            ax.set_title("Total Logs by Day", color=style.colors.fg)
-
-        else:
-            # --- Multi-Line Mode ---
+        # Which dataset?
+        if is_multi_mode():
             data_dict = get_log_data_multi()
-            dates_str = list(data_dict.keys())
+        else:
+            data_dict = get_log_data_single()
+        dates = list(data_dict.keys())
 
-            # Build arrays for each category
-            insole_counts  = []
-            bespoke_counts = []
-            afo_counts     = []
-            modular_counts = []
+        # Empty state
+        if not dates:
+            ax.text(0.5, 0.5, "No logs found in result_logs/",
+                    ha='center', va='center', transform=ax.transAxes, color=fg)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for spine in ax.spines.values():
+                spine.set_edgecolor(fg)
+            summary_var.set("No logs yet")
+            canvas.draw()
+            return
 
-            for d in dates_str:
-                cat_counts = data_dict[d]
-                insole_counts.append(cat_counts['insole'])
-                bespoke_counts.append(cat_counts['bespoke'])
-                afo_counts.append(cat_counts['afo'])
-                modular_counts.append(cat_counts['modular'])
+        xvals = range(len(dates))
+        marker_sz = 5 if len(dates) <= 40 else 3
 
-            xvals = range(len(dates_str))
+        if is_multi_mode():
+            grand = 0
+            for label, suffix, color in MULTI_CATEGORIES:
+                counts = [data_dict[d][suffix] for d in dates]
+                total = sum(counts)
+                grand += total
+                (line,) = ax.plot(xvals, counts, marker='o', markersize=marker_sz,
+                                  linestyle='-', color=_color(color),
+                                  label=f"{label} ({total})")
+                plotted_lines.append(line)
+                lines_metadata[line] = (dates, counts)
+            ax.set_title("Logs per day by form type", color=fg)
+        else:
+            counts = [data_dict[d] for d in dates]
+            grand = sum(counts)
+            (line,) = ax.plot(xvals, counts, marker='o', markersize=marker_sz,
+                              linestyle='-', color=style.colors.primary,
+                              label=f"All logs ({grand})")
+            plotted_lines.append(line)
+            lines_metadata[line] = (dates, counts)
+            ax.set_title("Total logs per day", color=fg)
 
-            # PLOT each category with a label and a color from the theme
-            line1, = ax.plot(
-                xvals,
-                insole_counts,
-                marker='o',
-                linestyle='-',
-                color=style.colors.primary,
-                label='Insole'
-            )
-            line2, = ax.plot(
-                xvals,
-                bespoke_counts,
-                marker='o',
-                linestyle='-',
-                color=style.colors.info,
-                label='Bespoke'
-            )
-            line3, = ax.plot(
-                xvals,
-                afo_counts,
-                marker='o',
-                linestyle='-',
-                color=style.colors.warning,
-                label='AFO'
-            )
-            line4, = ax.plot(
-                xvals,
-                modular_counts,
-                marker='o',
-                linestyle='-',
-                color=style.colors.success,
-                label='Modular'
-            )
+        # Date x-axis, thinned to ~12 labels so it stays readable
+        n = len(dates)
+        step = max(1, (n + 11) // 12)
+        ticks = list(range(0, n, step))
+        ax.set_xticks(ticks)
+        ax.set_xticklabels([dates[i] for i in ticks], rotation=45,
+                           ha='right', fontsize=8, color=fg)
 
-            plotted_lines.extend([line1, line2, line3, line4])
+        _style_axes()
 
-            # Save hover info
-            lines_metadata[line1] = (dates_str, insole_counts)
-            lines_metadata[line2] = (dates_str, bespoke_counts)
-            lines_metadata[line3] = (dates_str, afo_counts)
-            lines_metadata[line4] = (dates_str, modular_counts)
+        legend = ax.legend(facecolor=style.colors.bg, edgecolor=fg, fontsize=8)
+        if legend:
+            for text in legend.get_texts():
+                text.set_color(fg)
 
-            ax.set_title("Logs by Day (Multi-Line)", color=style.colors.fg)
+        # Summary line
+        busiest = max(dates, key=lambda d: (sum(data_dict[d].values())
+                                            if is_multi_mode() else data_dict[d]))
+        summary_var.set(
+            f"{grand} logs · {n} days · {dates[0]} → {dates[-1]} · busiest {busiest}"
+        )
 
-        # Customize x/y axes
-        ax.set_xticks([])  # Hide x-axis ticks for a clean look
-        ax.set_ylabel("Number of Log Files", color=style.colors.fg)
-        ax.tick_params(axis='y', colors=style.colors.fg)
-        for spine in ax.spines.values():
-            spine.set_edgecolor(style.colors.fg)
-
-        # If there are labeled lines, draw the legend using the theme
-        if plotted_lines:
-            legend = ax.legend(facecolor=style.colors.bg, edgecolor=style.colors.fg)
-            # Make legend text match the theme's foreground color
-            if legend:
-                for text in legend.get_texts():
-                    text.set_color(style.colors.fg)
-
-        # Enable hover annotations
         cursor = mplcursors.cursor(plotted_lines, hover=True)
 
         @cursor.connect("add")
         def on_add(sel):
-            line = sel.artist
-            dates, counts = lines_metadata[line]
-            i = int(round(sel.index))
-            i = max(0, min(i, len(dates) - 1))
-
-            sel.annotation.set_text(f"{dates[i]}\nCount: {counts[i]}")
+            d, c = lines_metadata[sel.artist]
+            i = max(0, min(int(round(sel.index)), len(d) - 1))
+            lbl = sel.artist.get_label().split(' (')[0]
+            sel.annotation.set_text(f"{lbl}\n{d[i]}: {c[i]}")
 
         canvas.draw()
 
-    # 8) Define the toggle function for the button
     def toggle_multi_mode():
-        new_state = not is_multi_mode()
-        set_multi_mode(new_state)
+        set_multi_mode(not is_multi_mode())
+        mode_btn.config(text="Show Total" if is_multi_mode() else "Show Breakdown")
         refresh_chart()
 
-    # 9) Create the toggle button in the controls frame
-    toggle_button = ttk.Button(
-        controls_frame,
-        text="Toggle Multi-Line Mode",
-        command=toggle_multi_mode
-    )
-    toggle_button.pack(side='left', padx=5, pady=5)
+    mode_btn.config(command=toggle_multi_mode)
+    refresh_btn.config(command=refresh_chart)
 
-    # 10) Initial draw
     refresh_chart()
 
-    # Return the tab widget and a dictionary of useful callbacks
-    return analysis_tab, {
+    return tab, {
         'refresh_chart': refresh_chart,
         'set_multi_mode': set_multi_mode,
-        'is_multi_mode': is_multi_mode
+        'is_multi_mode': is_multi_mode,
     }

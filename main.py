@@ -23,7 +23,6 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import time
 from analysis_tab import create_analysis_tab
-import analysis_tab
 from generate_code_logic import (
     generate_bespoke_codes,
     generate_insole_codes,
@@ -35,13 +34,12 @@ from generate_code_logic import (
     tariff_wales_customer_nos
 )
 from NavApi import create_sales_order, parse_pre_app_date
-from tkinter import messagebox
 import concurrent.futures
 import requests.exceptions
 import urllib.parse
 
 # Version number
-VERSION = "7.1.7-alpha"
+VERSION = "7.1.8-alpha"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
@@ -261,7 +259,6 @@ if getattr(sys, 'frozen', False):
 else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-customers_db_path = os.path.join(base_path, 'databases', 'clinic_nav_sell_to.db')
 # Database paths
 customers_db_path = os.path.join(base_path, 'databases', 'clinic_nav_sell_to.db')
 clinician_db_path = os.path.join(base_path, 'databases', 'clinician_nav_contacts.db')
@@ -286,9 +283,8 @@ def determine_order_category_code(model_id, fields_data):
             return 'MOULDED INSOLE'
         elif insole_type == 'simple':
             return 'SIMPLE INSOLE'
-        elif insole_type in ('tci', 'cradle'):
-            return 'MILLED INSOLES'
         else:
+            # tci, cradle, handmould, or unset — milled catch-all
             return 'MILLED INSOLES'
     
     elif model_id == MODEL_IDS['AFOs']:
@@ -1065,7 +1061,7 @@ class PdfButtonHandler:
             logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
             print(f"Logic file path: {logic_file_path}")
             logic_content = self.read_logic_file(logic_file_path)
-            if "Error" in logic_content:
+            if logic_content.startswith("Error reading the logic file"):
                 raise ValueError(logic_content)
             if self.cancelled_by_user():
                 return
@@ -1157,29 +1153,6 @@ class PdfButtonHandler:
             return True
         return False
 
-    def handle_drop(self, event):
-        """Handle files dropped into the result_text widget."""
-        # event.data contains the list of files dropped
-        # It may contain multiple files separated by spaces or newlines
-        files = self.root.tk.splitlist(event.data)
-        pdf_files = [f for f in files if f.lower().endswith('.pdf')]
-        if pdf_files:
-            for pdf_file in pdf_files:
-                # Disable the upload button to prevent multiple clicks
-                self.upload_pdf_button.config(state='disabled')
-                try:
-                    # Show the loading pop-up with animation
-                    self.show_loading_popup()
-
-                    # Start processing each PDF file in a separate thread
-                    threading.Thread(target=self.process_pdf_and_call_api, args=(pdf_file,)).start()
-                except Exception as e:
-                    messagebox.showerror("Error", f"Error processing the file: {str(e)}")
-                    self.upload_pdf_button.config(state='normal')  # Re-enable the upload button
-                    self.close_loading_popup()  # Ensure the loading pop-up is closed if an error occurs
-        else:
-            messagebox.showinfo("No PDF Files", "Please drop PDF files only.")
-
     def check_for_base(self, content):
         content_lower = content.lower()
         lines = content_lower.split('\n')
@@ -1201,6 +1174,7 @@ class PdfButtonHandler:
         for line in lines:
             if line.startswith('base carbon') and 'selected' in line:
                 return True
+        return False
             
     def process_and_post_medical_details(self, model_name, extracted, sales_order_no, log_file_path=None):
         """Process extracted fields into grouped details and post to NAV MedicalDetails."""
@@ -2497,20 +2471,6 @@ pdf_handler = PdfButtonHandler(
     model_id_var=model_id_var
 )
 auto_watch_var = tk.BooleanVar(value=False)
-
-def on_auto_watch_toggled():
-    """When the checkbox is ticked ON, we skip any existing PDFs in Downloads."""
-    if auto_watch_var.get():
-        # user just turned the checkbox ON
-        downloads_folder = os.path.join(os.path.expanduser("~"), "Downloads")
-        if os.path.isdir(downloads_folder):
-            # gather all current .pdf files
-            existing_pdfs = {
-                f for f in os.listdir(downloads_folder)
-                if f.lower().endswith('.pdf')
-            }
-            # mark them as “already seen”
-            known_downloads.update(existing_pdfs)
 
 # We'll track which files we've seen so we don't re-process them
 known_downloads = set()

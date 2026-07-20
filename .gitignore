@@ -30,3 +30,4 @@ database_query_test.py
 testnewDatabase.py
 CLAUDE.md
 base_encoder.py
+errors.md

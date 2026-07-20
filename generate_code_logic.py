@@ -56,19 +56,24 @@ def get_customer_no(clinic_name):
         print(f"Database error: {e}")
         return None
 
+def parse_content_dict(content):
+    """Parse key:value content lines into a lowercase dict.
+
+    Lines without ':' are dropped; keys and values are stripped and lowercased;
+    if a key appears more than once, the last value wins.
+    """
+    content_dict = {}
+    for line in content.split('\n'):
+        if ':' in line:
+            key, value = line.split(':', 1)
+            content_dict[key.strip().lower()] = value.strip().lower()
+    return content_dict
+
 def generate_bespoke_codes(self, content):
     """Generates codes based on the content for the Bespoke model, counting duplicates."""
     passed_codes = defaultdict(float)  # Use float to allow fractional counts
 
-    # Split the content into lines for easier processing
-    lines = content.split('\n')
-
-    # Convert lines to a dictionary
-    content_dict = {}
-    for line in lines:
-        if ':' in line:
-            key, value = line.split(':', 1)
-            content_dict[key.strip().lower()] = value.strip().lower()
+    content_dict = parse_content_dict(content)
 
     clinic_name = content_dict.get('clinic', '').lower()
     customer_no = get_customer_no(clinic_name)
@@ -324,15 +329,7 @@ def generate_insole_codes(self, content, return_dict=False):
     """Generates insole codes based on the content."""
     passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
-    # Split the content into lines
-    lines = content.split('\n')
-
-    # Convert lines to a dictionary
-    content_dict = {}
-    for line in lines:
-        if ':' in line:
-            key, value = line.split(':', 1)
-            content_dict[key.strip().lower()] = value.strip().lower()
+    content_dict = parse_content_dict(content)
 
     # Determine the selected base
     selected_base = None
@@ -604,15 +601,7 @@ def generate_afo_codes(self, content):
     from collections import defaultdict
     passed_codes = defaultdict(int)  # Use defaultdict to count occurrences
 
-    # Split the content into lines for easier processing
-    lines = content.split('\n')
-
-    # Convert lines to a dictionary for easier lookup with lowercase keys and values
-    content_dict = {}
-    for line in lines:
-        if ':' in line:
-            key, value = line.split(':', 1)
-            content_dict[key.strip().lower()] = value.strip().lower()
+    content_dict = parse_content_dict(content)
 
     # Extract the clinic name if it exists in the content
     clinic_name = content_dict.get('clinic', '').lower()
@@ -746,14 +735,7 @@ def generate_afo_codes(self, content):
 def generate_modular_codes(self, content):
     """Generates codes based on the content for the Modular model, with tariff logic."""
     passed_codes = defaultdict(int) # Use defaultdict to count occurrences
-    # Split the content into lines
-    lines = content.split('\n')
-    # Convert lines to a dictionary
-    content_dict = {}
-    for line in lines:
-        if ':' in line:
-            key, value = line.split(':', 1)
-            content_dict[key.strip().lower()] = value.strip().lower()
+    content_dict = parse_content_dict(content)
     clinic_name = content_dict.get('clinic', '').lower()
     customer_no = get_customer_no(clinic_name)
     # Track if tariffs were added
