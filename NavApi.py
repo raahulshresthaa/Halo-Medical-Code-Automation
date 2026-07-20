@@ -204,6 +204,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             "Patient_Gender": gender,
             "External_Document_No": f"DNI/{auto_doc_ref}" # DNI Calculation
         }
+        print(f"Requested_Delivery_Date: {request_delivery_date}")
+        print(f"Original_Order_Date: {original_order_date}")
         if pre_app_date:
             print(f"Pre App Date (Formatted): {pre_app_date}")
             order_data["Pre_appointed_Date"] = pre_app_date

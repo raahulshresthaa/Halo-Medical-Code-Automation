@@ -264,6 +264,7 @@ customers_db_path = os.path.join(base_path, 'databases', 'clinic_nav_sell_to.db'
 clinician_db_path = os.path.join(base_path, 'databases', 'clinician_nav_contacts.db')
 missing_db_path = os.path.join(base_path, 'databases', 'missing_contacts.db')
 release_times_db_path = os.path.join(base_path, 'databases', 'clinic_release_times.db')
+holidays_db_path = os.path.join(base_path, 'databases', 'holidays.db')
 
 def determine_order_category_code(model_id, fields_data):
     if model_id == MODEL_IDS['Insoles']:
@@ -409,6 +410,105 @@ def add_missing_contact(type, name):
         cursor.execute("INSERT INTO missing_entries (type, name) VALUES (?, ?)", (type, name))
         conn.commit()
     conn.close()
+
+def ensure_holidays_table():
+    """Ensure the holiday date-range table exists."""
+    conn = sqlite3.connect(holidays_db_path)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS holidays (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_date TEXT NOT NULL,
+            end_date TEXT NOT NULL,
+            description TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def parse_user_date(date_str):
+    """Parse DD/MM/YYYY or YYYY-MM-DD into a date. Returns None on failure."""
+    if not date_str or not str(date_str).strip():
+        return None
+    s = str(date_str).strip()
+    for fmt in ('%d/%m/%Y', '%Y-%m-%d', '%d/%m/%y'):
+        try:
+            return datetime.datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+def format_date_display(iso_or_date):
+    """Format YYYY-MM-DD or date as DD/MM/YYYY for the UI."""
+    if isinstance(iso_or_date, datetime.date):
+        return iso_or_date.strftime('%d/%m/%Y')
+    try:
+        return datetime.datetime.strptime(str(iso_or_date)[:10], '%Y-%m-%d').date().strftime('%d/%m/%Y')
+    except ValueError:
+        return str(iso_or_date)
+
+def get_holiday_ranges():
+    """Return list of (start_date, end_date) as datetime.date from holidays.db."""
+    ensure_holidays_table()
+    ranges = []
+    conn = sqlite3.connect(holidays_db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT start_date, end_date FROM holidays")
+    for start_s, end_s in cursor.fetchall():
+        try:
+            start = datetime.datetime.strptime(start_s, '%Y-%m-%d').date()
+            end = datetime.datetime.strptime(end_s, '%Y-%m-%d').date()
+            ranges.append((start, end))
+        except ValueError:
+            continue
+    conn.close()
+    return ranges
+
+def is_holiday_date(d, holiday_ranges=None):
+    """True if date d falls in any configured holiday range (inclusive)."""
+    if holiday_ranges is None:
+        holiday_ranges = get_holiday_ranges()
+    for start, end in holiday_ranges:
+        if start <= d <= end:
+            return True
+    return False
+
+def roll_forward_past_holidays(d, holiday_ranges=None):
+    """Move date forward day-by-day until it is not inside a holiday range."""
+    if holiday_ranges is None:
+        holiday_ranges = get_holiday_ranges()
+    if not holiday_ranges:
+        return d
+    # Safety cap so a bad open-ended range cannot loop forever
+    for _ in range(3660):
+        if not is_holiday_date(d, holiday_ranges):
+            return d
+        d += datetime.timedelta(days=1)
+    return d
+
+def log_holiday_adjustments(log_file_path, default_before, default_after, pre_app_before, pre_app_after):
+    """Log only when a holiday actually moved a delivery candidate date."""
+    lines = []
+    if default_after != default_before:
+        lines.append(
+            f"Holiday adjustment (default): "
+            f"{format_date_display(default_before)} → {format_date_display(default_after)}"
+        )
+    if pre_app_before is not None and pre_app_after is not None and pre_app_after != pre_app_before:
+        lines.append(
+            f"Holiday adjustment (pre-app): "
+            f"{format_date_display(pre_app_before)} → {format_date_display(pre_app_after)}"
+        )
+    if not lines:
+        return
+    text = "\n".join(lines)
+    print(text)
+    if log_file_path:
+        try:
+            with open(log_file_path, 'a', encoding='utf-8') as f:
+                f.write(text + "\n")
+        except Exception as e:
+            print(f"Warning: could not write holiday adjustment to log: {e}")
 
 # --- PdfButtonHandler Class Definition ---
 
@@ -685,18 +785,29 @@ class PdfButtonHandler:
                 self.root.after(0, self.append_and_show_info, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
                 add_missing_contact('clinician', clinician)
                 return False, None, [], log_file_path, False  # Early return on failure
-            # Calculate both possible delivery dates (no holiday blackout)
+            # Calculate both possible delivery dates; roll past user-configured holidays
             creation_dt = datetime.datetime.strptime(creation_date, '%Y-%m-%d').date()
             required_by_days = self.get_required_by_days(customer_no, model_id)
-            default_dt = creation_dt + datetime.timedelta(days=required_by_days)
+            holiday_ranges = get_holiday_ranges()
+            default_before = creation_dt + datetime.timedelta(days=required_by_days)
+            default_dt = roll_forward_past_holidays(default_before, holiday_ranges)
+            pre_app_before = None
             pre_app_dt = None
             if pre_app_date:
-                pre_app_dt = datetime.datetime.strptime(pre_app_date, '%Y-%m-%d').date() - datetime.timedelta(days=3)
+                pre_app_before = datetime.datetime.strptime(pre_app_date, '%Y-%m-%d').date() - datetime.timedelta(days=3)
+                pre_app_dt = roll_forward_past_holidays(pre_app_before, holiday_ranges)
             if pre_app_dt and pre_app_dt < default_dt:
                 delivery_dt = pre_app_dt
             else:
                 delivery_dt = default_dt
             request_delivery_date = delivery_dt.strftime('%Y-%m-%d')
+            log_holiday_adjustments(
+                log_file_path,
+                default_before,
+                default_dt,
+                pre_app_before,
+                pre_app_dt,
+            )
             # Last chance to cancel: once the NAV upload starts the popup X is locked out
             if self.cancelled_by_user():
                 return False, None, [], log_file_path, False
@@ -1791,6 +1902,201 @@ def create_required_by_data_tab(notebook):
 
     return required_by_tab, populate_tree
 
+class HolidayRangeDialog(Toplevel):
+    """Dialog to add/edit a holiday date range (DD/MM/YYYY)."""
+    def __init__(self, parent, title, initial_values=None):
+        Toplevel.__init__(self, parent)
+        self.transient(parent)
+        self.title(title)
+        self.result = None
+        form_frame = ttk.Frame(self)
+        form_frame.pack(padx=10, pady=10)
+
+        ttk.Label(form_frame, text="Start date (DD/MM/YYYY):").grid(row=0, column=0, sticky='e', padx=5, pady=5)
+        self.start_entry = ttk.Entry(form_frame, width=20)
+        self.start_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        ttk.Label(form_frame, text="End date (DD/MM/YYYY):").grid(row=1, column=0, sticky='e', padx=5, pady=5)
+        self.end_entry = ttk.Entry(form_frame, width=20)
+        self.end_entry.grid(row=1, column=1, padx=5, pady=5)
+
+        ttk.Label(form_frame, text="Description (optional):").grid(row=2, column=0, sticky='e', padx=5, pady=5)
+        self.desc_entry = ttk.Entry(form_frame, width=30)
+        self.desc_entry.grid(row=2, column=1, padx=5, pady=5)
+
+        if initial_values:
+            # initial_values: (start_display, end_display, description)
+            self.start_entry.insert(0, initial_values[0] or '')
+            self.end_entry.insert(0, initial_values[1] or '')
+            self.desc_entry.insert(0, initial_values[2] or '')
+
+        button_frame = ttk.Frame(self)
+        button_frame.pack(side='bottom', fill='x', padx=10, pady=10)
+        ttk.Button(button_frame, text="OK", command=self.on_ok).pack(side='left')
+        ttk.Button(button_frame, text="Cancel", command=self.on_cancel).pack(side='right')
+
+        self.update_idletasks()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width - self.winfo_width()) // 2
+        y = (screen_height - self.winfo_height()) // 2
+        self.geometry(f"+{x}+{y}")
+        self.grab_set()
+        self.focus_set()
+        self.start_entry.focus_set()
+
+    def on_ok(self):
+        start = parse_user_date(self.start_entry.get())
+        end = parse_user_date(self.end_entry.get())
+        if start is None or end is None:
+            messagebox.showerror("Invalid date", "Enter start and end dates as DD/MM/YYYY.", parent=self)
+            return
+        if end < start:
+            messagebox.showerror("Invalid range", "End date must be on or after start date.", parent=self)
+            return
+        description = self.desc_entry.get().strip()
+        self.result = (start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'), description)
+        self.destroy()
+
+    def on_cancel(self):
+        self.result = None
+        self.destroy()
+
+def create_holidays_tab(notebook):
+    """Tab to view/add/edit/delete holiday date ranges used for delivery-date skip."""
+    holidays_tab = ttk.Frame(notebook)
+    notebook.add(holidays_tab, text="Holiday")
+
+    title_label = ttk.Label(holidays_tab, text="Holiday Blackout Dates", font=("Calibri", 16, "bold"))
+    title_label.pack(pady=5)
+
+    description_label = ttk.Label(
+        holidays_tab,
+        text="\u2139 Delivery dates that fall in these ranges are rolled forward to the next working day. "
+             "Add ranges as DD/MM/YYYY (single-day ranges: start = end).",
+        font=("Calibri", 12),
+        wraplength=700,
+        justify='center',
+    )
+    description_label.pack(pady=5)
+
+    tree_frame = ttk.Frame(holidays_tab)
+    tree_frame.pack(fill='both', expand=True)
+
+    tree = ttk.Treeview(
+        tree_frame,
+        columns=('Start', 'End', 'Description'),
+        show='headings',
+        selectmode='extended',
+    )
+    tree.heading('Start', text='Start date')
+    tree.heading('End', text='End date')
+    tree.heading('Description', text='Description')
+    tree.column('Start', width=120, anchor='center')
+    tree.column('End', width=120, anchor='center')
+    tree.column('Description', width=300, anchor='w')
+
+    vertical_scrollbar = ttk.Scrollbar(tree_frame, orient='vertical', command=tree.yview)
+    horizontal_scrollbar = ttk.Scrollbar(tree_frame, orient='horizontal', command=tree.xview)
+    tree.configure(yscrollcommand=vertical_scrollbar.set, xscrollcommand=horizontal_scrollbar.set)
+    tree.grid(row=0, column=0, sticky='nsew')
+    vertical_scrollbar.grid(row=0, column=1, sticky='ns')
+    horizontal_scrollbar.grid(row=1, column=0, sticky='ew')
+    tree_frame.grid_rowconfigure(0, weight=1)
+    tree_frame.grid_columnconfigure(0, weight=1)
+
+    def populate_tree():
+        ensure_holidays_table()
+        for item in tree.get_children():
+            tree.delete(item)
+        conn = sqlite3.connect(holidays_db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, start_date, end_date, description FROM holidays "
+            "ORDER BY start_date, end_date"
+        )
+        for row_id, start_s, end_s, desc in cursor.fetchall():
+            tree.insert(
+                '',
+                'end',
+                values=(format_date_display(start_s), format_date_display(end_s), desc or ''),
+                tags=(str(row_id),),
+            )
+        conn.close()
+
+    populate_tree()
+
+    def add_entry():
+        dialog = HolidayRangeDialog(root, "Add Holiday Range")
+        root.wait_window(dialog)
+        if dialog.result:
+            start_s, end_s, description = dialog.result
+            ensure_holidays_table()
+            conn = sqlite3.connect(holidays_db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO holidays (start_date, end_date, description) VALUES (?, ?, ?)",
+                (start_s, end_s, description),
+            )
+            conn.commit()
+            conn.close()
+            populate_tree()
+
+    def edit_entry():
+        selected = tree.selection()
+        if not selected:
+            messagebox.showinfo("No Selection", "Please select a holiday range to edit.")
+            return
+        if len(selected) > 1:
+            messagebox.showinfo("Multiple Selection", "Please select only one range to edit.")
+            return
+        item = tree.item(selected[0])
+        row_id = item['tags'][0]
+        values = item['values']
+        dialog = HolidayRangeDialog(root, "Edit Holiday Range", initial_values=values)
+        root.wait_window(dialog)
+        if dialog.result:
+            start_s, end_s, description = dialog.result
+            conn = sqlite3.connect(holidays_db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE holidays SET start_date = ?, end_date = ?, description = ? WHERE id = ?",
+                (start_s, end_s, description, row_id),
+            )
+            conn.commit()
+            conn.close()
+            populate_tree()
+
+    def delete_entry():
+        selected = tree.selection()
+        if not selected:
+            messagebox.showinfo("No Selection", "Please select one or more holiday ranges to delete.")
+            return
+        confirm = messagebox.askyesno(
+            "Confirm Deletion",
+            f"Delete {len(selected)} holiday range(s)? This cannot be undone.",
+        )
+        if not confirm:
+            return
+        ids = [tree.item(sel)['tags'][0] for sel in selected]
+        conn = sqlite3.connect(holidays_db_path)
+        cursor = conn.cursor()
+        for row_id in ids:
+            cursor.execute("DELETE FROM holidays WHERE id = ?", (row_id,))
+        conn.commit()
+        conn.close()
+        populate_tree()
+
+    tree.bind('<Double-1>', lambda event: edit_entry())
+
+    button_frame = ttk.Frame(holidays_tab)
+    button_frame.pack(pady=5)
+    ttk.Button(button_frame, text="Add", command=add_entry).pack(side='left', padx=5)
+    ttk.Button(button_frame, text="Edit", command=edit_entry).pack(side='left', padx=5)
+    ttk.Button(button_frame, text="Delete", command=delete_entry).pack(side='left', padx=5)
+
+    return holidays_tab, populate_tree
+
 def create_missing_contacts_tab(notebook):
     missing_tab = ttk.Frame(notebook)
     notebook.add(missing_tab, text="Missing Contacts")
@@ -2574,17 +2880,21 @@ def on_tab_selected(event):
         populate_clinicians_tree()
     elif selected_tab_text == "Required By Data":
         populate_required_by_tree()
+    elif selected_tab_text == "Holiday":
+        populate_holidays_tree()
 
 notebook.bind("<<NotebookTabChanged>>", on_tab_selected)
 
 # Ensure database tables exist
 ensure_customers_table()
+ensure_holidays_table()
 
 # Create tabs
 missing_tab, populate_tree = create_missing_contacts_tab(notebook)
 clinics_tab, populate_clinics_tree = create_clinics_tab(notebook)
 clinicians_tab, populate_clinicians_tree = create_clinicians_tab(notebook)
 required_by_tab, populate_required_by_tree = create_required_by_data_tab(notebook)
+holidays_tab, populate_holidays_tree = create_holidays_tab(notebook)
 analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
 
 # Start watching the Downloads folder in the background
