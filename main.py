@@ -74,7 +74,7 @@ BESPOKE_GROUPS = {
         "right t strap", "left t strap",
         "right y strap", "left y strap", "right double decker", "left double decker",
         "lining on steam", "lining tan plush", "lining black plush", "lining tan kip", "lining sheepskin",
-        "diabetic rim right", "diabetic rim left", " standard toe puff right", "standard toe puff left", "none toe puff right", "none toe puff left"
+        "diabetic rim right", "diabetic rim left", "standard toe puff right", "standard toe puff left", "none toe puff right", "none toe puff left"
     ],
     "Lasting": [
         "ankle height",
@@ -672,7 +672,7 @@ class PdfButtonHandler:
                 raise FileNotFoundError(error_msg)
             conn = sqlite3.connect(clinician_db_path)
             cursor = conn.cursor()
-            cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE \"Docuware Clinician Name\" = ?", (clinician,))
+            cursor.execute("SELECT \"NAV Contact No\" FROM clinician_contacts WHERE TRIM(LOWER(\"Docuware Clinician Name\")) = TRIM(LOWER(?))", (clinician,))
             clinician_result = cursor.fetchone()
             conn.close()
             prescriber = clinician_result[0] if clinician_result else None
@@ -685,26 +685,13 @@ class PdfButtonHandler:
                 self.root.after(0, self.append_and_show_info, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
                 add_missing_contact('clinician', clinician)
                 return False, None, [], log_file_path, False  # Early return on failure
-            # Define ignored dates as a set for fast lookup
-            ignored_dates = set()
-            for d in range(9, 23): # 9 to 22 inclusive
-                ignored_dates.add(datetime.date(2025, 12, d))
-            for d in range(24, 32): # 24 to 31 inclusive
-                ignored_dates.add(datetime.date(2025, 12, d))
-            ignored_dates.add(datetime.date(2026, 1, 1))
-            # Calculate both possible delivery dates
+            # Calculate both possible delivery dates (no holiday blackout)
             creation_dt = datetime.datetime.strptime(creation_date, '%Y-%m-%d').date()
             required_by_days = self.get_required_by_days(customer_no, model_id)
             default_dt = creation_dt + datetime.timedelta(days=required_by_days)
-            # Roll forward default_dt to next available day if it falls on an ignored date
-            while default_dt in ignored_dates:
-                default_dt += datetime.timedelta(days=1)
             pre_app_dt = None
             if pre_app_date:
                 pre_app_dt = datetime.datetime.strptime(pre_app_date, '%Y-%m-%d').date() - datetime.timedelta(days=3)
-                # Roll forward pre_app_dt to next available day if it falls on an ignored date
-                while pre_app_dt in ignored_dates:
-                    pre_app_dt += datetime.timedelta(days=1)
             if pre_app_dt and pre_app_dt < default_dt:
                 delivery_dt = pre_app_dt
             else:
@@ -944,7 +931,7 @@ class PdfButtonHandler:
                 patient_name = 'Unknown'
             print(f"Cleaned patient_name: '{patient_name}'")
             # Extract creation date
-            creation_date_str = fields_data.get('creation date', '28/04/2025')
+            creation_date_str = fields_data.get('creation date', datetime.date.today().strftime('%d/%m/%Y'))
             try:
                 day, month, year = creation_date_str.split('/')
                 day = int(day)

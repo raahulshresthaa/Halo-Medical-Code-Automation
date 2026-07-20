@@ -35,6 +35,10 @@ tariff_wales_customer_nos = {
     'GB-CUST02918'
 }
 
+# Shared socket type lists (bespoke A37A/A37B and modular B30/B31)
+TYPE_A_SOCKETS = ['5/16 round', '1/4 round', '3/16x9/16', 'rizzoli']
+TYPE_B_SOCKETS = ['5/16 backstop', '1/4 backstop']
+
 # Database path
 if getattr(sys, 'frozen', False):
     base_path = os.path.dirname(sys.executable)
@@ -194,11 +198,8 @@ def generate_bespoke_codes(self, content):
 
     # Sockets
     for side in ['left', 'right']:
-        type_a_sockets = ['5/16 round', '1/4 round', '1/16x9/16', 'rizzoli']
-        type_b_sockets = ['5/16 backstop', '1/4 backstop']
-
-        has_type_a = any(content_dict.get(f'{side} {socket}', '') == 'selected' for socket in type_a_sockets)
-        has_type_b = any(content_dict.get(f'{side} {socket}', '') == 'selected' for socket in type_b_sockets)
+        has_type_a = any(content_dict.get(f'{side} {socket}', '') == 'selected' for socket in TYPE_A_SOCKETS)
+        has_type_b = any(content_dict.get(f'{side} {socket}', '') == 'selected' for socket in TYPE_B_SOCKETS)
 
         if has_type_a:
             passed_codes['A37A'] += 1
@@ -349,7 +350,7 @@ def generate_insole_codes(self, content, return_dict=False):
 
     # Determine insole type early for medway logic
     insole_type = None
-    if content_dict.get('insole type tci', '') == 'selected' or content_dict.get('cradle', '') == 'selected':
+    if content_dict.get('insole type tci', '') == 'selected' or content_dict.get('insole type cradle', '') == 'selected':
         insole_type = 'tci'
     elif content_dict.get('insole type simple', '') == 'selected':
         insole_type = 'simple'
@@ -441,26 +442,38 @@ def generate_insole_codes(self, content, return_dict=False):
                 right_modifications_count += 1
                 passed_codes['BNS45'] += 1
 
-        # Postings
-        posting_keys_left = [
-            'left medial rearfoot', 'left lateral rearfoot',
-            'left medial forefoot', 'left lateral forefoot',
+        # Postings -> B56. Two Azure/form schemas exist:
+        #   A) "left medial rearfoot posting: selected" + separate "... height: 4"
+        #   B) "left medial rearfoot: selected" + "... posting: 4" (height on posting key)
+        # Count each side/position once if either the bare key or the "... posting" key is selected.
+        posting_positions = [
+            'medial rearfoot', 'lateral rearfoot',
+            'medial forefoot', 'lateral forefoot',
         ]
-        posting_keys_right = [
-            'right medial rearfoot', 'right lateral rearfoot',
-            'right medial forefoot', 'right lateral forefoot',
-        ]
+        # Kirby skive: logs often omit "posting"; main.py groups may include it.
+        kirby_positions = ['medial kirby skive', 'lateral kirby skive']
+
+        def _posting_selected(side, position):
+            bare = content_dict.get(f'{side} {position}', '').strip().lower()
+            with_suffix = content_dict.get(f'{side} {position} posting', '').strip().lower()
+            return bare == 'selected' or with_suffix == 'selected'
 
         left_postings_count = 0
         right_postings_count = 0
 
-        for key in posting_keys_left:
-            if content_dict.get(key, '') == 'selected':
+        for position in posting_positions:
+            if _posting_selected('left', position):
                 left_postings_count += 1
                 passed_codes['B56'] += 1
+            if _posting_selected('right', position):
+                right_postings_count += 1
+                passed_codes['B56'] += 1
 
-        for key in posting_keys_right:
-            if content_dict.get(key, '') == 'selected':
+        for position in kirby_positions:
+            if _posting_selected('left', position):
+                left_postings_count += 1
+                passed_codes['B56'] += 1
+            if _posting_selected('right', position):
                 right_postings_count += 1
                 passed_codes['B56'] += 1
 
@@ -803,10 +816,8 @@ def generate_modular_codes(self, content):
             passed_codes['B23'] += 1
     # Sockets
     for side in ['left', 'right']:
-        type_a_sockets = ['5/16 round', '1/4 round', '1/16x9/16', 'rizzoli']
-        type_b_sockets = ['5/16 backstop', '1/4 backstop']
-        has_type_a = any(content_dict.get(f'{side} {socket}', '') == 'selected' for socket in type_a_sockets)
-        has_type_b = any(content_dict.get(f'{side} {socket}', '') == 'selected' for socket in type_b_sockets)
+        has_type_a = any(content_dict.get(f'{side} {socket}', '') == 'selected' for socket in TYPE_A_SOCKETS)
+        has_type_b = any(content_dict.get(f'{side} {socket}', '') == 'selected' for socket in TYPE_B_SOCKETS)
         if has_type_a:
             passed_codes['B30'] += 1
         if has_type_b:
