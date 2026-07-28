@@ -43,7 +43,7 @@ VERSION = "7.1.9-alpha"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
-    "Insoles": "InsoleFullReaderV20",
+    "Insoles": "InsoleFullReaderV21",
     "AFOs": "AfoReaderV18",
     "Bespoke": "BespokeReaderFullV24",
     "Modular": "ModularReaderFullV15",
