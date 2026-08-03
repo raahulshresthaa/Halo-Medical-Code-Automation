@@ -73,6 +73,30 @@ def parse_content_dict(content):
             content_dict[key.strip().lower()] = value.strip().lower()
     return content_dict
 
+
+# Matches a code as <optional letters><number><optional letters>, e.g.
+# D1C -> ('D', '1', 'C'), DNS6 -> ('DNS', '6', ''), B43 -> ('B', '43', ''), P15 -> ('P', '15', '').
+_CODE_PARTS_RE = re.compile(r'^[A-Za-z]*?(\d+)([A-Za-z]*)$')
+
+
+def code_sort_key(code):
+    """Sort key ordering codes by NUMBER first, then the letter(s) after the number.
+
+    The leading letter is deliberately ignored, so the order is e.g.
+    D1C, D2A, D2B, DNS6, D8U, D10E, D10I, D12M, D14A, D14C, P15, B43.
+    Note this is a numeric sort - a plain string sort would wrongly put D10E
+    before D1C and D8U.
+
+    Codes with no number in them (e.g. 'WALES-AFO', 'TARIFF AFO') can't be
+    ordered this way, so they are grouped at the end in alphabetical order
+    rather than raising. The trailing `code` element keeps the sort stable and
+    deterministic if two codes share a number and suffix.
+    """
+    match = _CODE_PARTS_RE.match(str(code).strip())
+    if not match:
+        return (1, 0, '', str(code))
+    return (0, int(match.group(1)), match.group(2).upper(), str(code))
+
 def generate_bespoke_codes(self, content):
     """Generates codes based on the content for the Bespoke model, counting duplicates."""
     passed_codes = defaultdict(float)  # Use float to allow fractional counts
@@ -766,9 +790,17 @@ def generate_afo_codes(self, content):
             if code not in per_side_codes:
                 passed_codes[code] *= 2
 
-    # Format the passed codes with counts
+    # Format the passed codes with counts.
+    # Sorted by code number then the letter after it (see code_sort_key). The sort is applied
+    # to the code keys BEFORE the " x{count}" text is attached, so quantities can never affect
+    # the ordering. Codes with a count of 0 or less are skipped so a quantity-less code can
+    # never reach NAV. This step is presentation only - it changes neither which codes are
+    # emitted nor their quantities.
     formatted_passed_codes = []
-    for code, count in passed_codes.items():
+    for code in sorted(passed_codes, key=code_sort_key):
+        count = passed_codes[code]
+        if count <= 0:
+            continue
         if count > 1:
             formatted_passed_codes.append(f"{code} x{count}")
         else:
@@ -778,7 +810,7 @@ def generate_afo_codes(self, content):
         return ', '.join(formatted_passed_codes)
     else:
         return None
-    
+
 def generate_modular_codes(self, content):
     """Generates codes based on the content for the Modular model, with tariff logic."""
     passed_codes = defaultdict(int) # Use defaultdict to count occurrences
