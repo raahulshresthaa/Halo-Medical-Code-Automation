@@ -17,12 +17,10 @@ import re
 import tkinterdnd2
 from tkinterdnd2 import DND_FILES, TkinterDnD
 from collections import defaultdict
-import matplotlib
-matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import time
-from analysis_tab import create_analysis_tab
+# NOTE: matplotlib and analysis_tab are deliberately NOT imported here. Importing
+# matplotlib costs roughly 1.5s and nothing outside the Results Analysis tab uses it,
+# so it is imported lazily when that tab is first opened (see build_analysis_tab).
 from generate_code_logic import (
     generate_bespoke_codes,
     generate_insole_codes,
@@ -2867,11 +2865,45 @@ theme_combobox.bind('<<ComboboxSelected>>', change_theme)
 # ---------------------------
 # TABs
 
+# The Results Analysis tab is built the first time it is opened rather than at startup:
+# it imports matplotlib (~1.5s) and renders a chart read from result_logs/, which together
+# are the largest single cost when the app opens. Until then the notebook carries a
+# lightweight empty frame in its place.
+analysis_tab = None
+analysis_handles = None
+analysis_placeholder = None
+_building_analysis = False
+
+def build_analysis_tab():
+    """Swap the placeholder for the real Results Analysis tab. Only ever runs once."""
+    global analysis_tab, analysis_handles, analysis_placeholder, _building_analysis
+    if analysis_handles is not None:
+        return
+    _building_analysis = True
+    try:
+        # Deferred import - this is what pulls in matplotlib.
+        from analysis_tab import create_analysis_tab
+        # Build the real tab BEFORE dropping the placeholder, so a failure here leaves
+        # the placeholder in place rather than removing the tab altogether.
+        analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
+        if analysis_placeholder is not None:
+            notebook.forget(analysis_placeholder)
+            analysis_placeholder = None
+        notebook.select(analysis_tab)
+    finally:
+        _building_analysis = False
+
 # Bind the event to refresh when specific tabs are selected
 def on_tab_selected(event):
+    # Adding/removing tabs during the swap fires this event again; ignore that churn.
+    if _building_analysis:
+        return
     selected_tab_text = event.widget.tab(event.widget.index("current"), "text")
     if selected_tab_text == "Results Analysis":
-        analysis_handles["refresh_chart"]()
+        if analysis_handles is None:
+            build_analysis_tab()  # create_analysis_tab draws the chart itself
+        else:
+            analysis_handles["refresh_chart"]()
     elif selected_tab_text == "Missing Contacts":
         populate_tree()
     elif selected_tab_text == "Clinics":
@@ -2895,7 +2927,10 @@ clinics_tab, populate_clinics_tree = create_clinics_tab(notebook)
 clinicians_tab, populate_clinicians_tree = create_clinicians_tab(notebook)
 required_by_tab, populate_required_by_tree = create_required_by_data_tab(notebook)
 holidays_tab, populate_holidays_tree = create_holidays_tab(notebook)
-analysis_tab, analysis_handles = create_analysis_tab(notebook, style)
+# Placeholder for the lazily-built Results Analysis tab (see build_analysis_tab above).
+# It must be the LAST tab added, so the real tab lands in the same position when swapped in.
+analysis_placeholder = ttk.Frame(notebook)
+notebook.add(analysis_placeholder, text="Results Analysis")
 
 # Start watching the Downloads folder in the background
 watch_downloads_folder()
