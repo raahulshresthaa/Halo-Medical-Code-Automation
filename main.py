@@ -1005,6 +1005,13 @@ class PdfButtonHandler:
         before. Used by every entry point (upload button, drag-drop, Downloads watcher)
         so none of them can miss a second form.
         """
+        # Wipe the previous order off the panel straight away, so a failed run can never
+        # leave stale codes on screen looking like the new order's results.
+        self.root.after(0, clear_results_display)
+        # Multi-form runs collect with collect_only=True, which deliberately does not
+        # reset this flag, so clear it here for every run.
+        self.kicked_to_code_checker = False
+
         parts = split_multi_form_pdf(pdf_file_path)
         if not parts:
             self.process_pdf_and_call_api(pdf_file_path)
@@ -2843,6 +2850,22 @@ def close_loading_popup():
         pass  # Already destroyed (e.g. closed once by the cancel path and again by a finally block)
     root.attributes('-disabled', False)
     root.focus_force()
+
+def clear_results_display():
+    """Blank the results panel as soon as a new PDF starts processing.
+
+    display_results only clears the panel when results arrive, so an order that fails
+    before that point (bad AutoDocRef, clinic not found, NAV unreachable...) used to
+    leave the PREVIOUS order's codes on screen - easy to mistake for the new one.
+    """
+    for entry in (auto_doc_ref_entry, datetime_entry, clinic_entry):
+        entry.config(state=tk.NORMAL)
+        entry.delete(0, tk.END)
+        entry.config(state='readonly')
+    result_text.config(state=tk.NORMAL)
+    result_text.delete('1.0', tk.END)
+    result_text.config(state=tk.DISABLED)
+
 
 def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, messages=None):
     auto_doc_ref_entry.config(state=tk.NORMAL)
