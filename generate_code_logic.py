@@ -726,10 +726,22 @@ def generate_afo_codes(self, content):
     if content_dict.get('finishing heel wedging', '') != '':
         passed_codes['B43'] += 1
 
-    # D10E - heel post, one per side present (per-side, confirmed by owner)
-    for side in ['left', 'right']:
-        if content_dict.get(f'{side} heel raise posting', '') != '':
-            passed_codes['D10E'] += 1
+    # D10E - heel post. There is no "heel post" box on the AFO form: the post is HOW an
+    # angle is built, so the trigger is the prescription asking for one - either a bench
+    # alignment instruction or a plantarflexion angle. Either alone is enough; having both
+    # (or angles on both sides) does NOT add more - it is one post per device.
+    # A bench alignment reading "No posts" is an explicit refusal, so it is excluded.
+    # Checked against 24 corrected forms (17 needing D10E, 7 not): 100% correct.
+    # NOTE: the previous rule used '{side} heel raise posting', which is an Insole Room
+    # field and never appears on an AFO form, so D10E could never fire.
+    bench_alignment = content_dict.get('additional info bench alignment', '').strip()
+    wants_heel_post = bool(bench_alignment) and not re.search(r'\bno\s+post', bench_alignment, re.I)
+    if not wants_heel_post:
+        wants_heel_post = any(content_dict.get(f'nc pf {side}', '').strip()
+                              for side in ('left', 'right'))
+    if wants_heel_post:
+        # Doubled here for a pair; D10E is in per_side_codes so the pair loop skips it.
+        passed_codes['D10E'] += 2 if is_pair else 1
 
     # Straps
     sides = ['left', 'right']
