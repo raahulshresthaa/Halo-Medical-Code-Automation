@@ -723,8 +723,16 @@ def generate_afo_codes(self, content):
     if content_dict.get('finishing non slip sole', '') == 'selected':
         passed_codes['D10C'] += 1
 
-    if content_dict.get('finishing heel wedging', '') != '':
-        passed_codes['B43'] += 1
+    # B43 - REMOVED from AFO coding. B43 is a heel RAISE (see the insole logic, where
+    # 'heel raise' -> B43), not heel wedging. The old trigger below fired on
+    # 'finishing heel wedging', which is a mis-extraction: the reader picks up text from
+    # the form's "Shank to Vertical Alignment Angle (SVA)" area, so the field only ever
+    # holds "Vert" or "Sv". All 4 forms where it fired should NOT have been billed B43,
+    # and the one form that genuinely needed B43 x2 had the field empty - it asked for it
+    # in free text ("Please include 2 x 6mm internal heel raises"). Do not reinstate this
+    # without a real heel-raise source.
+    # if content_dict.get('finishing heel wedging', '') != '':
+    #     passed_codes['B43'] += 1
 
     # D10E - heel post. There is no "heel post" box on the AFO form: the post is HOW an
     # angle is built, so the trigger is the prescription asking for one - either a bench
