@@ -9,6 +9,7 @@ from ttkbootstrap.constants import *
 from PIL import Image, ImageTk
 import datetime
 import threading
+import tempfile
 import sys
 import sqlite3
 import json
@@ -29,6 +30,7 @@ from generate_code_logic import (
     generate_kafo_codes,
     generate_repairs_codes,
     generate_adapts_and_modifications_codes,
+    merge_code_strings,
     tariff_wales_customer_nos
 )
 from NavApi import create_sales_order, parse_pre_app_date
@@ -508,6 +510,83 @@ def log_holiday_adjustments(log_file_path, default_before, default_after, pre_ap
         except Exception as e:
             print(f"Warning: could not write holiday adjustment to log: {e}")
 
+def match_form_confirmation(form_confirmation, form_to_model):
+    """Match the extracted 'form confirmation' text to a reader model ID.
+
+    An exact match is too brittle: the reader picks up notes written on the page and
+    the casing varies, so the value arrives as e.g. "AFO Prescription form please code
+    other form". So look for the form name anywhere in the value, ignoring case.
+
+    The word boundary matters. "KAFO Prescription Form" contains the letters of
+    "AFO Prescription Form", so a plain substring test would read every KAFO as an AFO.
+    \\b prevents that - inside "KAFO" there is no boundary before "AFO". Longest names
+    are tried first as a second safeguard.
+
+    Returns the model ID, or None if nothing matched.
+    """
+    for name in sorted(form_to_model, key=len, reverse=True):
+        if re.search(r'\b' + re.escape(name), form_confirmation, re.IGNORECASE):
+            return form_to_model[name]
+    return None
+
+
+PAGES_PER_FORM = 2  # current AFO template: the prescription page + the annotations page
+
+
+def split_multi_form_pdf(pdf_file_path, pages_per_form=PAGES_PER_FORM):
+    """Split a PDF holding several stacked prescriptions into one temp PDF per form.
+
+    Clinics sometimes staple two prescriptions into a single PDF (giving 4 pages).
+    The Azure reader only ever looks at the first form, so the second device was
+    silently never coded or uploaded - a whole missing order, not just a missing code.
+
+    Returns a list of temp file paths, one per form, ONLY when the PDF clearly holds
+    more than one. Returns [] when it holds a single form (or is an unexpected length,
+    e.g. the older 3-page template) so the caller processes the original untouched.
+    The caller must delete the returned files.
+    """
+    try:
+        import PyPDF2  # imported lazily so it stays off the startup path
+        reader = PyPDF2.PdfReader(pdf_file_path)
+        total_pages = len(reader.pages)
+    except Exception as e:
+        print(f"Could not read PDF page count ({e}); processing as a single form.")
+        return []
+
+    # Only split a clean multiple of the form length. Anything else (a 3-page older
+    # template, an odd page count) is left alone rather than guessed at.
+    if total_pages <= pages_per_form or total_pages % pages_per_form != 0:
+        return []
+
+    parts = []
+    base = os.path.splitext(os.path.basename(pdf_file_path))[0]
+    temp_dir = tempfile.mkdtemp(prefix='halo_form_split_')
+    try:
+        for index in range(total_pages // pages_per_form):
+            writer = PyPDF2.PdfWriter()
+            for page_no in range(index * pages_per_form, (index + 1) * pages_per_form):
+                writer.add_page(reader.pages[page_no])
+            out_path = os.path.join(temp_dir, f"{base}_form{index + 1}.pdf")
+            with open(out_path, 'wb') as fh:
+                writer.write(fh)
+            parts.append(out_path)
+    except Exception as e:
+        print(f"Failed to split multi-form PDF ({e}); processing as a single form.")
+        for p in parts:
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+        try:
+            os.rmdir(temp_dir)
+        except OSError:
+            pass
+        return []
+
+    print(f"PDF contains {len(parts)} prescription forms - processing each separately.")
+    return parts
+
+
 # --- PdfButtonHandler Class Definition ---
 
 class PdfButtonHandler:
@@ -909,7 +988,7 @@ class PdfButtonHandler:
                 self.show_loading_popup()
 
                 # Start processing the PDF file in a separate thread
-                threading.Thread(target=self.process_pdf_and_call_api, args=(pdf_file_path,)).start()
+                threading.Thread(target=self.process_pdf_entry, args=(pdf_file_path,)).start()
 
             except Exception as e:
                 messagebox.showerror("Error", f"Error processing the file: {str(e)}")
@@ -918,8 +997,87 @@ class PdfButtonHandler:
         else:
             messagebox.showinfo("No PDF File Selected", "Please select a PDF file to process.")
 
-    def process_pdf_and_call_api(self, pdf_file_path, attempt=1):
-        self.kicked_to_code_checker = False
+    def process_pdf_entry(self, pdf_file_path):
+        """Entry point for a selected/dropped PDF.
+
+        Splits a stacked multi-form PDF and processes each form in turn. A single-form
+        PDF is passed straight through unchanged, so normal orders behave exactly as
+        before. Used by every entry point (upload button, drag-drop, Downloads watcher)
+        so none of them can miss a second form.
+        """
+        parts = split_multi_form_pdf(pdf_file_path)
+        if not parts:
+            self.process_pdf_and_call_api(pdf_file_path)
+            return
+
+        try:
+            # Read each form separately (their field names collide, so the extractions
+            # cannot just be merged), then combine into ONE order under one AutoDocRef.
+            collected = []
+            for index, part in enumerate(parts):
+                if processing_cancel_event.is_set():
+                    print("Cancelled - remaining forms in this PDF were not read.")
+                    return
+                print(f"--- reading form {index + 1} of {len(parts)} ---")
+                self.root.after(0, self.update_loading_message,
+                                f"Reading form {index + 1} of {len(parts)}")
+                form = self.process_pdf_and_call_api(part, collect_only=True)
+                if not form:
+                    # A form failed (bad confirmation, no data...). It has already shown
+                    # its own error, so stop rather than raise a half-complete order.
+                    note = (f"Form {index + 1} of {len(parts)} could not be read - "
+                            f"no order was raised for this PDF. Please handle it manually.")
+                    print(note)
+                    self.root.after(0, self.append_and_show_warning, "Multi-form PDF", note)
+                    return
+                collected.append(form)
+
+            if processing_cancel_event.is_set():
+                return
+
+            base = collected[0]
+            merged_codes = merge_code_strings([f.get('passed_codes') for f in collected])
+
+            # Rebuild the content: every form's extracted data, then the summed codes once.
+            sections = []
+            for index, form in enumerate(collected):
+                raw = (form['content'] or '').split('\n\nPassed code:\n')[0]
+                sections.append(f"=== FORM {index + 1} OF {len(collected)} ===\n{raw}\n"
+                                f"(this form's codes: {form.get('passed_codes') or 'none'})")
+            combined_content = "\n\n".join(sections)
+            if merged_codes:
+                combined_content += f"\n\nPassed code:\n{merged_codes}"
+
+            print(f"Combined codes from {len(collected)} forms: {merged_codes}")
+            self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
+                            f"This PDF held {len(collected)} prescription forms. They have been "
+                            f"combined into one order under {base['AutoDocRef']}. "
+                            f"Please Kick to Code Checker.")
+
+            self.process_api_call(
+                combined_content, base['logic_content'], base['AutoDocRef'], base['clinic'],
+                base['creation_date'], base['patient_name'], base['gender_full'],
+                base['order_category_code'], base['pre_app_date'])
+        finally:
+            self.root.after(0, self.close_loading_popup)
+            self.root.after(0, self.show_pending_warnings)
+            self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
+            temp_dir = os.path.dirname(parts[0])
+            for p in parts:
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
+            try:
+                os.rmdir(temp_dir)
+            except OSError:
+                pass
+
+    def process_pdf_and_call_api(self, pdf_file_path, attempt=1, collect_only=False):
+        # Keep the code-checker flag when collecting the 2nd+ form of a multi-form PDF,
+        # otherwise form 2 would clear the flag form 1 raised.
+        if not collect_only:
+            self.kicked_to_code_checker = False
         def azure_api_call():
             with open(pdf_file_path, "rb") as pdf_file:
                 poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
@@ -974,7 +1132,7 @@ class PdfButtonHandler:
                 'Repairs Form': MODEL_IDS['Repairs'],
                 'Adapts & Modifications': MODEL_IDS['A&M']
             }
-            correct_model_id = form_to_model.get(form_confirmation, None)
+            correct_model_id = match_form_confirmation(form_confirmation, form_to_model)
             if correct_model_id is None:
                 error_msg = f"Unknown form confirmation: {form_confirmation}"
                 self.root.after(0, messagebox.showerror, "Error", error_msg)
@@ -991,8 +1149,8 @@ class PdfButtonHandler:
                 else:
                     self.model_id_var.set(correct_model_id)
                     self.root.after(0, self.update_loading_message, f"Switching to model {correct_model_id}")
-                    self.process_pdf_and_call_api(pdf_file_path, attempt + 1)
-                    return
+                    return self.process_pdf_and_call_api(pdf_file_path, attempt + 1,
+                                                         collect_only=collect_only)
             # Proceed with normal processing if form confirmation matches
             content = self.parse_extracted_data(fields_data)
             print(f"Extracted content:\n{content}")
@@ -1161,6 +1319,23 @@ class PdfButtonHandler:
                 raise ValueError(logic_content)
             if self.cancelled_by_user():
                 return
+            if collect_only:
+                # Multi-form PDF: stop here and hand the prepared form back, so the caller
+                # can merge it with the other forms and raise ONE order (process_pdf_entry).
+                return {
+                    'content': content,
+                    'passed_codes': passed_codes,
+                    'logic_content': logic_content,
+                    'AutoDocRef': AutoDocRef,
+                    'clinic': clinic,
+                    'creation_date': creation_date,
+                    'patient_name': patient_name,
+                    'gender_full': gender_full,
+                    'order_category_code': order_category_code,
+                    'pre_app_date': pre_app_date,
+                    'fields_data': fields_data,
+                    'model_id': model_id,
+                }
             # Call process_api_call and capture its return values
             success, sales_order_no, messages, log_file_path, already_exists = self.process_api_call(content, logic_content, AutoDocRef, clinic, creation_date,
                                                                                     patient_name, gender_full, order_category_code, pre_app_date)
@@ -1184,7 +1359,9 @@ class PdfButtonHandler:
             self.root.after(0, messagebox.showerror, "Error", error_msg)
             print(error_msg)
         finally:
-            if attempt == 1:
+            # While collecting the forms of a multi-form PDF, leave the popup up and hold
+            # the warnings back - process_pdf_entry tidies up once after the single order.
+            if attempt == 1 and not collect_only:
                 self.root.after(0, self.close_loading_popup)
                 self.root.after(0, self.show_pending_warnings)
                 self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
@@ -2577,7 +2754,7 @@ def handle_drop(event):
             pdf_handler.upload_pdf_button.config(state='disabled')
             try:
                 show_loading_popup()
-                threading.Thread(target=pdf_handler.process_pdf_and_call_api, args=(pdf_file,)).start()
+                threading.Thread(target=pdf_handler.process_pdf_entry, args=(pdf_file,)).start()
             except Exception as e:
                 messagebox.showerror("Error", f"Error processing the file: {str(e)}")
                 pdf_handler.upload_pdf_button.config(state='normal')
@@ -2811,7 +2988,7 @@ def watch_downloads_folder():
                 known_downloads.add(newest_pdf)
                 pdf_handler.show_loading_popup()
                 pdf_handler.upload_pdf_button.config(state='disabled')
-                threading.Thread(target=pdf_handler.process_pdf_and_call_api, args=(pdf_path,)).start()
+                threading.Thread(target=pdf_handler.process_pdf_entry, args=(pdf_path,)).start()
     root.after(1000, watch_downloads_folder)
 
 auto_watch_check = ttk.Checkbutton(

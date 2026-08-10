@@ -97,6 +97,32 @@ def code_sort_key(code):
         return (1, 0, '', str(code))
     return (0, int(match.group(1)), match.group(2).upper(), str(code))
 
+
+def merge_code_strings(code_strings):
+    """Add up several "CODE xN, CODE xM" strings into one, in the standard order.
+
+    Used when a single PDF holds more than one prescription form and the results are
+    combined into one order. The forms' extractions cannot simply be merged - both use
+    the same field names, so they would overwrite each other - so each form's codes are
+    generated separately and the quantities are summed here.
+    """
+    totals = defaultdict(int)
+    for code_string in code_strings:
+        for part in (code_string or '').split(','):
+            part = part.strip()
+            if not part:
+                continue
+            match = re.match(r'^(.*?)\s*[xX]\s*(\d+)$', part)
+            if match:
+                totals[match.group(1).strip()] += int(match.group(2))
+            else:
+                totals[part] += 1
+    merged = []
+    for code in sorted(totals, key=code_sort_key):
+        count = totals[code]
+        merged.append(f"{code} x{count}" if count > 1 else code)
+    return ', '.join(merged)
+
 def generate_bespoke_codes(self, content):
     """Generates codes based on the content for the Bespoke model, counting duplicates."""
     passed_codes = defaultdict(float)  # Use float to allow fractional counts
