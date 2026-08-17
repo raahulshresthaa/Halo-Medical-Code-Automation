@@ -701,7 +701,22 @@ def generate_afo_codes(self, content):
         content_dict.get('afo/dafo', '') == 'selected'):
         passed_codes['D1C'] += 1
 
-    if content_dict.get('crow', '') == 'selected':
+    # DNS6 - CROW boot, or a Nora Lunairmed (A18) lining.
+    # The original 'crow' trigger is KEPT. No form in the sample has a CROW boot, so we
+    # cannot say it is wrong - only that it has never had the chance to fire. Nora
+    # Lunairmed is added alongside as a second, independent trigger.
+    # It is recorded two different ways, so both are checked: HC566422 ticked the box
+    # 'ptm nora lunairmed a18', while RR157819 typed it into 'additional info ptm'.
+    # The full phrase is matched rather than just "nora", so other Nora products do not
+    # trigger it (HC566422 also says "Internal 6 mm Nora DAFO", which is not this).
+    # Fires ONCE even if more than one of these is present. Device level, so the pair
+    # loop doubles it - both sample forms are pairs and want DNS6 x2.
+    nora_lunairmed = (
+        content_dict.get('ptm nora lunairmed a18', '') == 'selected'
+        or any(re.search(r'nora\s*lunairmed', value, re.IGNORECASE)
+               for key, value in content_dict.items() if key.startswith('additional info'))
+    )
+    if content_dict.get('crow', '') == 'selected' or nora_lunairmed:
         passed_codes['DNS6'] += 1
 
     if content_dict.get('clam shell', '') == 'selected':
