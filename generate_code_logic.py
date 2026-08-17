@@ -784,8 +784,23 @@ def generate_afo_codes(self, content):
     lateral_lining_used = False  # tracks whether a lateral full-part-lining box was ticked
     for side in sides:
         for position in positions:
-            if content_dict.get(f'{side} {position} straps slotted', '') == 'selected':
-                passed_codes['D10H'] += 1
+            # D10H - COMMENTED OUT. The cause of D10H is unknown.
+            # This slotted-strap trigger was added in commit 2011fb3 (11 Oct 2025), which
+            # mapped the form's Straps boxes onto codes by eye rather than against real
+            # billing corrections. The data does not support it:
+            #   - Only ST728904 has slotted straps, and its corrected codes contain NO D10H
+            #     (it wants D8H x2, which comes from sust tali - see below).
+            #   - The only form that DOES want D10H (M1422592, x1) has no slotted strap at all.
+            # So the rule fires only where it is wrong and misses the one case that wants it.
+            # It also double-counted: gathered per side but absent from per_side_codes, so a
+            # pair doubled it again (ST728904 was billed D10H x4).
+            # Across all 56 corrected rows D10H is wanted exactly once, with no derivable
+            # trigger. Do not reinstate without knowing what actually drives it.
+            # if content_dict.get(f'{side} {position} straps slotted', '') == 'selected':
+            #     passed_codes['D10H'] += 1
+            # NOTE: D14B comes from the same untested 2011fb3 batch and is likewise counted
+            # per side while missing from per_side_codes. It fires on none of the 41 logs, so
+            # it is dormant rather than proven wrong - worth checking before it ever does.
             if content_dict.get(f'{side} {position} straps df assist', '') == 'selected':
                 passed_codes['D14B'] += 1
             # Y-strap full-part lining box, per side/position (up to 4): each = D14A + P15.
@@ -825,12 +840,20 @@ def generate_afo_codes(self, content):
             if content_dict.get(f'{side} {pad}', '') == 'selected':
                 passed_codes['D14C'] += 1
 
+    # D8H - sustentaculum tali (Sust Tali) option, once per side selected.
+    # Counted from the left/right fields so a pair is already correct; D8H is
+    # in per_side_codes so the pair-doubling loop skips it (otherwise x4).
+    for side in sides:
+        if content_dict.get(f'{side} sust tali', '') == 'selected':
+            passed_codes['D8H'] += 1
+
     # Handle pairs by doubling codes if applicable.
     # Per-side codes are counted from both the left and right fields, so they are already
     # bilateral for a pair and must NOT be doubled again (that would double-count them).
     # D14A/P15 come from the per-side full-part-lining boxes; the device-level toe-strap
     # D14A is doubled manually above, so both are treated as per-side here.
-    per_side_codes = {'D14C', 'D12M', 'D10E', 'D14A', 'P15'}
+    # D8H is counted from the left/right sust tali fields and is already bilateral.
+    per_side_codes = {'D14C', 'D12M', 'D10E', 'D14A', 'P15', 'D8H'}
     if is_pair:
         for code in list(passed_codes.keys()):
             if code not in per_side_codes:
