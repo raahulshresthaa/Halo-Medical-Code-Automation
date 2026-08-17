@@ -1030,16 +1030,24 @@ class PdfButtonHandler:
                                 f"Reading form {index + 1} of {len(parts)}")
                 form = self.process_pdf_and_call_api(part, collect_only=True)
                 if not form:
-                    # A form failed (bad confirmation, no data...). It has already shown
-                    # its own error, so stop rather than raise a half-complete order.
-                    note = (f"Form {index + 1} of {len(parts)} could not be read - "
-                            f"no order was raised for this PDF. Please handle it manually.")
+                    # Usually a blank template stapled onto a real prescription (e.g. an
+                    # empty "Repeats Prescription Form"). Skip it and carry on - abandoning
+                    # the whole PDF would lose a perfectly good order.
+                    note = (f"Form {index + 1} of {len(parts)} in this PDF could not be read "
+                            f"(it may be blank) and has been skipped.")
                     print(note)
                     self.root.after(0, self.append_and_show_warning, "Multi-form PDF", note)
-                    return
+                    continue
                 collected.append(form)
 
             if processing_cancel_event.is_set():
+                return
+
+            if not collected:
+                note = ("No readable prescription form was found in this PDF. "
+                        "No order was raised - please handle it manually.")
+                print(note)
+                self.root.after(0, self.append_and_show_warning, "Multi-form PDF", note)
                 return
 
             base = collected[0]
@@ -1056,10 +1064,18 @@ class PdfButtonHandler:
                 combined_content += f"\n\nPassed code:\n{merged_codes}"
 
             print(f"Combined codes from {len(collected)} forms: {merged_codes}")
-            self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
-                            f"This PDF held {len(collected)} prescription forms. They have been "
-                            f"combined into one order under {base['AutoDocRef']}. "
-                            f"Please Kick to Code Checker.")
+            skipped = len(parts) - len(collected)
+            if len(collected) == 1:
+                note = (f"This PDF appeared to hold {len(parts)} forms, but only one could be "
+                        f"read, so the order under {base['AutoDocRef']} covers that form alone. "
+                        f"Please Kick to Code Checker.")
+            else:
+                note = (f"This PDF held {len(collected)} prescription forms. They have been "
+                        f"combined into one order under {base['AutoDocRef']}. "
+                        f"Please Kick to Code Checker.")
+                if skipped:
+                    note += f" ({skipped} further form(s) could not be read and were skipped.)"
+            self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", note)
 
             self.process_api_call(
                 combined_content, base['logic_content'], base['AutoDocRef'], base['clinic'],
