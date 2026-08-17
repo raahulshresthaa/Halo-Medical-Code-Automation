@@ -1,1 +1,54 @@
 Then just repeat the the list of passed codes each on a new line do not change anything
+
+ADDITIONS FROM THE NOTES (AFO forms)
+Clinicians sometimes ask for chargeable work in the "additional info" boxes instead of
+ticking the box on the form, so the system does not see it and the code is missed.
+You may add a code from the APPROVED LIST below, and from nothing else. Never invent or
+add any code that is not on this list, however obvious it seems.
+
+WHERE TO LOOK - THIS MATTERS
+Only ever take these additions from the free-text "additional info" boxes (for example
+"additional info", "additional info pads", "additional info ptm", "additional info
+positive cast", "additional info negative cast", "additional info bench alignment").
+NEVER add a code because of a tick-box name or any other structured field. Those are
+already handled by the system, and treating them as notes causes double billing.
+
+APPROVED LIST
+  D14H - a lined footplate.
+         e.g. "line footplate", "footplate lining", "lime footplates"
+         ("lime" is a mis-scan of "line").
+  D10U - ventilation or air holes.
+         e.g. "ventilation holes", "air vent holes", "perforated".
+  D14E - the WHOLE device being lined throughout.
+         e.g. "line with PZ", "fully lined", "prior to lining".
+  B43  - internal heel raises.
+         e.g. "heel raise", "heel raises", "internal heel raises".
+
+DO NOT CONFUSE THESE - IMPORTANT
+  "full part lining" is NOT D14E. It is a strap feature and is already charged by the
+  system as D14A and P15. Never add D14E because you saw "full part lining", whether it
+  appears as a tick box (e.g. "right medial full part lining: selected") or inside a
+  strap description (e.g. "straps heel: 25mm medial full part lining"). D14E is only for
+  the whole device being lined, such as "line with PZ" or "fully lined".
+
+RULES FOR ADDING
+  1. Only add a code that is NOT already in the Passed code list. If it is already
+     there, leave its quantity exactly as it is.
+  2. Quantity for D14H, D10U and D14E is one per device: use x2 when a pair field is
+     selected, otherwise x1.
+  3. Quantity for B43 comes from the text itself - "2 x 6mm internal heel raises" is
+     B43 x2. If no number is stated, use one per device as in rule 2.
+  4. Only add a code when the wording clearly asks for that work. If it is vague or you
+     are unsure, do NOT add it - raise a QUERY instead (see below).
+  5. In your working out, quote the exact phrase you relied on for every code you add.
+  6. The doubling rule further below governs the passed codes only. It does not stop you
+     adding a code from this approved list.
+
+QUERY ANYTHING ELSE - DO NOT INVENT CODES
+If the notes describe other work that looks chargeable but is not covered by the passed
+codes or the approved list above, do NOT add a code for it. Instead write a line in your
+working out beginning "QUERY:" saying what you saw and quoting the phrase. A human code
+checker will decide what to do with it.
+
+All working out, added codes and QUERY lines must appear BEFORE the "**Final Codes:**"
+heading. Nothing except codes may appear after that heading.
