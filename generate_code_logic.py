@@ -840,8 +840,15 @@ def generate_afo_codes(self, content):
     if content_dict.get('finishing perforated', '') == 'selected':
         passed_codes['D10U'] += 1
 
+    # A non-slip sole is D10G, one per device (the pair loop doubles it). This used to
+    # give D10C: across the 56 reviewed forms no reviewer has ever asked for D10C, and the
+    # one time the app produced it (DC499735) it was crossed out and D10G written in.
+    # DC499735 also wanted D10F, which AD044733 - the other sole form, which asks for a
+    # "walking sole" in its notes - did not. D10F is deliberately NOT added here: the site
+    # visit report describes it as a raise code, neither form mentions a raise, and it is
+    # worth about GBP110 a time. Needs a code checker's answer before anyone guesses.
     if content_dict.get('finishing non slip sole', '') == 'selected':
-        passed_codes['D10C'] += 1
+        passed_codes['D10G'] += 1
 
     # B43 - REMOVED from AFO coding. B43 is a heel RAISE (see the insole logic, where
     # 'heel raise' -> B43), not heel wedging. The old trigger below fired on

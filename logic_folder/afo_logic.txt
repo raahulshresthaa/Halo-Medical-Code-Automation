@@ -23,6 +23,10 @@ APPROVED LIST
          e.g. "line with PZ", "fully lined", "prior to lining".
   B43  - internal heel raises.
          e.g. "heel raise", "heel raises", "internal heel raises".
+  D10G - a walking sole or non-slip sole added to the bottom of the device.
+         e.g. "walking sole", "non slip sole", "walking sole please".
+         Only for a sole added UNDER the device. Never add it for a footplate, a
+         top cover, or a sole mentioned as part of the patient's own footwear.
 
 DO NOT CONFUSE THESE - IMPORTANT
   "full part lining" is NOT D14E. It is a strap feature and is already charged by the
@@ -34,8 +38,8 @@ DO NOT CONFUSE THESE - IMPORTANT
 RULES FOR ADDING
   1. Only add a code that is NOT already in the Passed code list. If it is already
      there, leave its quantity exactly as it is.
-  2. Quantity for D14H, D10U and D14E is one per device: use x2 when a pair field is
-     selected, otherwise x1.
+  2. Quantity for D14H, D10U, D14E and D10G is one per device: use x2 when a pair field
+     is selected, otherwise x1.
   3. Quantity for B43 comes from the text itself - "2 x 6mm internal heel raises" is
      B43 x2. If no number is stated, use one per device as in rule 2.
   4. Only add a code when the wording clearly asks for that work. If it is vague or you
