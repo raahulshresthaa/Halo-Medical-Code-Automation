@@ -780,20 +780,31 @@ def generate_afo_codes(self, content):
     if content_dict.get('crow', '') == 'selected' or nora_lunairmed:
         passed_codes['DNS6'] += 1
 
+    # A GRAFO or clam shell is built as TWO shells - a back shell and a front shell -
+    # where an ordinary AFO is one. That drives both D12M and D10I below.
+    two_shell_device = (content_dict.get('grafo', '') == 'selected'
+                        or content_dict.get('clam shell', '') == 'selected')
+
     if content_dict.get('clam shell', '') == 'selected':
         passed_codes['D1C'] += 1     # base code (was missing - clam shell is a solid AFO)
-        passed_codes['D12M'] += 1    # anterior-shell addition
 
-    # D12M - anterior / front shell addition (on top of any D1C base set above)
-    if content_dict.get('grafo', '') == 'selected':
-        passed_codes['D12M'] += 1
-    # nc ant shell: one D12M per side present (per-side, confirmed by owner)
-    for side in ['left', 'right']:
-        if content_dict.get(f'nc ant shell {side}', '') != '':
-            passed_codes['D12M'] += 1
+    # D12M - the anterior / front shell, charged once per device (on top of any D1C base
+    # set above). Three things point at the same shell: the GRAFO box, the clam shell box
+    # and the 'nc ant shell' height measurement, so they must not be added up - PP629803
+    # has the GRAFO box AND the measurement and is billed D12M x2, not x4.
+    # D12M is in per_side_codes below, so the blanket pair doubling skips it and the
+    # doubling is done here. ('nc ant shell' is always filled in for both sides or
+    # neither, so charging per device rather than per side changes nothing else.)
+    has_anterior_shell = two_shell_device or any(
+        content_dict.get(f'nc ant shell {side}', '') != '' for side in ('left', 'right'))
+    if has_anterior_shell:
+        passed_codes['D12M'] += 2 if is_pair else 1
 
+    # D10I - the transfer (decorative pattern) applied to the plastic. One per shell, so
+    # a two-shell device gets two. D10I is NOT in per_side_codes, so a pair doubles this
+    # again: ordinary AFO pair x2, GRAFO pair x4.
     if content_dict.get('transfer', '') != '':
-        passed_codes['D10I'] += 1
+        passed_codes['D10I'] += 2 if two_shell_device else 1
 
     # Additions logic
     if content_dict.get('additions tamarac', '') == 'selected':
