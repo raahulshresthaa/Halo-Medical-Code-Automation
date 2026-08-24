@@ -26,7 +26,7 @@ APPROVED LIST
 
 DO NOT CONFUSE THESE - IMPORTANT
   "full part lining" is NOT D14E. It is a strap feature and is already charged by the
-  system as D14A and P15. Never add D14E because you saw "full part lining", whether it
+  system as D14A. Never add D14E because you saw "full part lining", whether it
   appears as a tick box (e.g. "right medial full part lining: selected") or inside a
   strap description (e.g. "straps heel: 25mm medial full part lining"). D14E is only for
   the whole device being lined, such as "line with PZ" or "fully lined".

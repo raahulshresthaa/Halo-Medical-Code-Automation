@@ -749,8 +749,15 @@ def generate_afo_codes(self, content):
         return 'TARIFF AFO' if passed_codes['TARIFF AFO'] == 1 else f'TARIFF AFO x{passed_codes["TARIFF AFO"]}'
 
     # Non-tariff AFO type logic
-    # P15 - no longer a blanket default; it now comes only from the full-part-lining
-    # boxes (D14A + P15 per box), handled in the straps loop below.
+    # P15 - every AFO gets it, 2 per device (single -> x2, pair -> x4 via pair doubling
+    # below). A GRAFO gets half that, 1 per device.
+    # This is not conditional on anything on the form. Across the 56 reviewed forms in the
+    # corrections sheets, P15 has never once been crossed out. The five forms with no P15
+    # come from the July round, when the app produced no P15 at all and the reviewer had to
+    # write it on by hand 42 times; the August round, where the app supplied it, wanted it
+    # on 14 of 14. An earlier attempt to drive P15 off the full-part-lining boxes instead
+    # scored 11 of 37 against the reviewers, where this scores 32.
+    passed_codes['P15'] += 1 if content_dict.get('grafo', '') == 'selected' else 2
     # D8U - applied by default at 1 per device (single -> x1, pair -> x2 via pair doubling below)
     passed_codes['D8U'] += 1
 
@@ -868,7 +875,6 @@ def generate_afo_codes(self, content):
     sides = ['left', 'right']
     positions = ['medial', 'lateral']
 
-    lateral_lining_used = False  # tracks whether a lateral full-part-lining box was ticked
     for side in sides:
         for position in positions:
             # D10H - COMMENTED OUT. The cause of D10H is unknown.
@@ -890,17 +896,15 @@ def generate_afo_codes(self, content):
             # it is dormant rather than proven wrong - worth checking before it ever does.
             if content_dict.get(f'{side} {position} straps df assist', '') == 'selected':
                 passed_codes['D14B'] += 1
-            # Y-strap full-part lining box, per side/position (up to 4): each = D14A + P15.
-            # A LATERAL strap counts P15 x2 per strap (so left+right lateral = P15 x4);
-            # medial counts P15 x1. These are per-side (already bilateral for a pair) so
-            # D14A/P15 are in per_side_codes below and are NOT doubled again by the pair loop.
+            # Y-strap full-part lining box, per side/position (up to 4): each = D14A.
+            # These are per-side (already bilateral for a pair) so D14A is in
+            # per_side_codes below and is NOT doubled again by the pair loop.
+            # These boxes used to add P15 as well. They do not: P15 is a flat per-device
+            # default (see the top of this function), and adding the boxes on top
+            # over-bills - M1100442 has two boxes ticked and is billed P15 x4, which the
+            # default already gives.
             if content_dict.get(f'{side} {position} full part lining', '') == 'selected':
                 passed_codes['D14A'] += 1
-                if position == 'lateral':
-                    passed_codes['P15'] += 2
-                    lateral_lining_used = True
-                else:
-                    passed_codes['P15'] += 1
 
     # D14A - toe strap. Just D14A here (P15 comes only from the full-part lining boxes above).
     # `straps toe` is a single device-level field, so for a pair we double it manually here;
@@ -913,12 +917,8 @@ def generate_afo_codes(self, content):
     if content_dict.get('straps toe', '') != '':
         passed_codes['D14A'] += 2 if is_pair else 1
 
-    # Heel-strap text fallback for a lateral strap: if the `straps heel` free text mentions
-    # "lateral" and no lateral full-part-lining box was ticked, ensure P15 reflects a lateral
-    # strap regardless of which lining boxes are ticked - x4 for a pair, x2 for a mono - even
-    # if no lining boxes are ticked at all. (max() so it only ever raises P15, never lowers it.)
-    if not lateral_lining_used and 'lateral' in content_dict.get('straps heel', '').lower():
-        passed_codes['P15'] = max(passed_codes['P15'], 4 if is_pair else 2)
+    # (The `straps heel` "lateral" fallback that used to sit here raised P15 to x4. It went
+    # with the lining-box P15 rule - the flat default already gives x4 for a pair.)
 
     # pads - one D14C per mall/elongated pad, per side (arch/navicular pads do NOT count toward D14C)
     pad_types = ['lat mall pads', 'med mall pads', 'elongated pads']
@@ -937,10 +937,11 @@ def generate_afo_codes(self, content):
     # Handle pairs by doubling codes if applicable.
     # Per-side codes are counted from both the left and right fields, so they are already
     # bilateral for a pair and must NOT be doubled again (that would double-count them).
-    # D14A/P15 come from the per-side full-part-lining boxes; the device-level toe-strap
-    # D14A is doubled manually above, so both are treated as per-side here.
+    # D14A comes from the per-side full-part-lining boxes; the device-level toe-strap D14A
+    # is doubled manually above, so it is treated as per-side here.
     # D8H is counted from the left/right sust tali fields and is already bilateral.
-    per_side_codes = {'D14C', 'D12M', 'D10E', 'D14A', 'P15', 'D8H'}
+    # P15 is NOT here: it is a flat per-device default, so a pair must double it to x4.
+    per_side_codes = {'D14C', 'D12M', 'D10E', 'D14A', 'D8H'}
     if is_pair:
         for code in list(passed_codes.keys()):
             if code not in per_side_codes:
