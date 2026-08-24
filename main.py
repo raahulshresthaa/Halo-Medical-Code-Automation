@@ -31,6 +31,8 @@ from generate_code_logic import (
     generate_repairs_codes,
     generate_adapts_and_modifications_codes,
     merge_code_strings,
+    parse_content_dict,
+    detect_missed_pair,
     tariff_wales_customer_nos
 )
 from NavApi import create_sales_order, parse_pre_app_date
@@ -39,7 +41,7 @@ import requests.exceptions
 import urllib.parse
 
 # Version number
-VERSION = "7.1.12-alpha"
+VERSION = "7.1.13-alpha"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
@@ -1205,6 +1207,16 @@ class PdfButtonHandler:
                 if filled_sections:
                     sections_str = ', '.join(filled_sections)
                     self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", f"Additional info has value in: {sections_str}. Please Kick to Code Checker.")
+            if model_id == MODEL_IDS['AFOs']:
+                # The codes have already been doubled as a pair (see detect_missed_pair in
+                # generate_code_logic). Tell the code checker, because these checks spot a
+                # tick box that looks misread - they don't prove what was ordered.
+                missed_pair_reason = detect_missed_pair(parse_content_dict(content), content)
+                if missed_pair_reason:
+                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
+                                    f"Treated as a PAIR even though the Pair box is not ticked: "
+                                    f"{missed_pair_reason}. Quantities have been doubled. "
+                                    f"Please Kick to Code Checker.")
             AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
             clinic = fields_data.get('Clinic', 'N/A')
             # Extract and clean patient name

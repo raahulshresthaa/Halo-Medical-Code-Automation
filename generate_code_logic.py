@@ -98,6 +98,61 @@ def code_sort_key(code):
     return (0, int(match.group(1)), match.group(2).upper(), str(code))
 
 
+# A field belonging to one side is written either side-first ("right arch pads") or
+# side-last ("nc pf right"). Both shapes have to be handled or the count comes out low.
+def _side_fields(content_dict, side):
+    """The set of field names filled in for one side, with the side word stripped off."""
+    names = set()
+    for key, value in content_dict.items():
+        if not str(value).strip():
+            continue
+        if key.startswith(side + ' '):
+            names.add(key[len(side) + 1:])
+        elif key.endswith(' ' + side):
+            names.add(key[:-(len(side) + 1)])
+    return names
+
+
+# 3 or more matched fields means a pair. On the 40 AFO forms on file, genuine single-leg
+# forms score 0 or 1 and the one misread pair scores 13, so the line sits in a wide gap.
+MIRRORED_FIELD_PAIR_THRESHOLD = 3
+
+
+def detect_missed_pair(content_dict, content=''):
+    """Spot a pair whose Pair tick box was not read correctly.
+
+    The form has three boxes - Pair, Rt and Lt. The reader can put the tick on the wrong
+    one (F1460463 was read as 'afo rt' when the work ticket said "HARD PR GRAFO'S"), and
+    because is_pair doubles nearly every AFO code, that halves the whole order.
+
+    Two independent checks, either of which is enough:
+      1. the same field is filled in for BOTH sides several times over - a brace made for
+         one leg only ever has that leg's measurements filled in;
+      2. "PR CASTS" (PR = pair) appears in the text - rarer, but it catches a pair that
+         has barely any measurements on it, which check 1 would miss. It has to be read
+         from the raw text: the reader writes "Article Number ::" and puts the value on
+         the NEXT line, so parse_content_dict drops it.
+
+    Returns a short reason for the code checker, or None if nothing looks wrong. This
+    only ever reports a MISSED pair; it can't tell that a ticked Pair box is wrong.
+    """
+    # Nothing to spot if the form already says it's a pair. Checked here rather than at
+    # each call site so a caller can't forget it and warn on every genuine pair.
+    if (content_dict.get('pair', '') == 'selected'
+            or content_dict.get('afo pair', '') == 'selected'):
+        return None
+
+    matched = _side_fields(content_dict, 'left') & _side_fields(content_dict, 'right')
+    if len(matched) >= MIRRORED_FIELD_PAIR_THRESHOLD:
+        return (f"{len(matched)} measurements are filled in for both legs "
+                f"({', '.join(sorted(matched)[:4])}...), but the form is not marked as a pair")
+
+    if re.search(r'\bPR\s+CASTS\b', content or '', re.IGNORECASE):
+        return "the form says 'PR CASTS' (PR = pair), but it is not marked as a pair"
+
+    return None
+
+
 def merge_code_strings(code_strings):
     """Add up several "CODE xN, CODE xM" strings into one, in the standard order.
 
@@ -672,6 +727,12 @@ def generate_afo_codes(self, content):
 
     # Check if it's a pair for AFO
     is_pair = content_dict.get('pair', '') == 'selected' or content_dict.get('afo pair', '') == 'selected'
+
+    # The Pair tick box is not always read correctly, and is_pair doubles nearly every
+    # code below, so a wrong reading halves the whole order. Fall back to the rest of the
+    # form. main.py runs the same check to warn the code checker.
+    if not is_pair and detect_missed_pair(content_dict, content):
+        is_pair = True
 
     # Wales Tariff for AFO
     if customer_no in tariff_wales_customer_nos:
