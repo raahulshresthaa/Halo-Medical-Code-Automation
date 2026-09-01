@@ -74,6 +74,44 @@ def parse_content_dict(content):
     return content_dict
 
 
+def parse_order_quantity(content_dict):
+    """Return how many of this device to make. Missing or junk values count as 1.
+
+    A pair is still quantity 1 (one pair). Quantity 2 means two copies of the
+    whole prescription, not 'it is a pair'.
+    """
+    raw = content_dict.get('order quantity', '').strip().lower()
+    if not raw:
+        return 1
+    raw = raw.replace('x', '').strip()
+    try:
+        qty = int(float(raw))
+    except ValueError:
+        print(f"Could not parse order quantity '{content_dict.get('order quantity', '')}'; treating as 1")
+        return 1
+    if qty < 1:
+        return 1
+    return qty
+
+
+def apply_order_quantity(passed_codes, content_dict):
+    """Multiply every code by order quantity when it is greater than 1.
+
+    Mutates passed_codes in place and returns it. Quantity 1, missing, or
+    unparseable is a no-op. Call this once on the finished code dict of the
+    outermost generator (after pair/tariff logic, after any nested insole
+    merge) so nested generate_insole_codes(..., return_dict=True) does not
+    apply it as well.
+    """
+    order_qty = parse_order_quantity(content_dict)
+    print(f"Order quantity: {order_qty}")
+    if order_qty > 1:
+        print(f"Order quantity {order_qty}: multiplying all codes")
+        for code in list(passed_codes.keys()):
+            passed_codes[code] *= order_qty
+    return passed_codes
+
+
 # Matches a code as <optional letters><number><optional letters>, e.g.
 # D1C -> ('D', '1', 'C'), DNS6 -> ('DNS', '6', ''), B43 -> ('B', '43', ''), P15 -> ('P', '15', '').
 _CODE_PARTS_RE = re.compile(r'^[A-Za-z]*?(\d+)([A-Za-z]*)$')
@@ -415,6 +453,8 @@ def generate_bespoke_codes(self, content):
     for code, count in insole_passed.items():
         passed_codes[code] += count
 
+    apply_order_quantity(passed_codes, content_dict)
+
     # Format output
     formatted_passed_codes = []
     for code, count in passed_codes.items():
@@ -698,6 +738,10 @@ def generate_insole_codes(self, content, return_dict=False):
                     if code in passed_codes:
                         passed_codes[code] *= 2
 
+    # Nested calls (bespoke/modular) apply quantity once on the merged order.
+    if not return_dict:
+        apply_order_quantity(passed_codes, content_dict)
+
     if return_dict:
         return passed_codes
 
@@ -739,6 +783,7 @@ def generate_afo_codes(self, content):
         passed_codes['WALES-AFO'] += 1
         if is_pair:
             passed_codes['WALES-AFO'] *= 2
+        apply_order_quantity(passed_codes, content_dict)
         return 'WALES-AFO' if passed_codes['WALES-AFO'] == 1 else f'WALES-AFO x{passed_codes["WALES-AFO"]}'
 
     # --- Tariff AFO Check ---
@@ -746,6 +791,7 @@ def generate_afo_codes(self, content):
         passed_codes['TARIFF AFO'] += 1
         if is_pair:
             passed_codes['TARIFF AFO'] *= 2
+        apply_order_quantity(passed_codes, content_dict)
         return 'TARIFF AFO' if passed_codes['TARIFF AFO'] == 1 else f'TARIFF AFO x{passed_codes["TARIFF AFO"]}'
 
     # Non-tariff AFO type logic
@@ -954,6 +1000,8 @@ def generate_afo_codes(self, content):
             if code not in per_side_codes:
                 passed_codes[code] *= 2
 
+    apply_order_quantity(passed_codes, content_dict)
+
     # Format the passed codes with counts.
     # Sorted by code number then the letter after it (see code_sort_key). The sort is applied
     # to the code keys BEFORE the " x{count}" text is attached, so quantities can never affect
@@ -1096,6 +1144,7 @@ def generate_modular_codes(self, content):
     insole_passed = generate_insole_codes(self, content, return_dict=True)
     for code, count in insole_passed.items():
         passed_codes[code] += count
+    apply_order_quantity(passed_codes, content_dict)
     # Format output
     formatted_passed_codes = []
     for code, count in passed_codes.items():
