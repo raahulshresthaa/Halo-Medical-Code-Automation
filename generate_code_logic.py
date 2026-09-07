@@ -960,26 +960,32 @@ def generate_afo_codes(self, content):
             # it is dormant rather than proven wrong - worth checking before it ever does.
             if content_dict.get(f'{side} {position} straps df assist', '') == 'selected':
                 passed_codes['D14B'] += 1
-            # Y-strap full-part lining box, per side/position (up to 4): each = D14A.
-            # These are per-side (already bilateral for a pair) so D14A is in
-            # per_side_codes below and is NOT doubled again by the pair loop.
-            # These boxes used to add P15 as well. They do not: P15 is a flat per-device
-            # default (see the top of this function), and adding the boxes on top
-            # over-bills - M1100442 has two boxes ticked and is billed P15 x4, which the
-            # default already gives.
-            if content_dict.get(f'{side} {position} full part lining', '') == 'selected':
-                passed_codes['D14A'] += 1
+            # (The full-part-lining boxes used to add a D14A each, and a P15 each, here.
+            # Both are now counted per device instead - see the D14A block just below and
+            # the P15 default at the top of this function.)
 
-    # D14A - toe strap. Just D14A here (P15 comes only from the full-part lining boxes above).
-    # `straps toe` is a single device-level field, so for a pair we double it manually here;
-    # D14A is in per_side_codes below (for the per-side lining boxes) and so is skipped by the
-    # blanket pair-doubling loop.
-    # NOTE: the date/number values seen in `straps toe` in the logs come from a stamp applied
-    # AFTER the app has processed a form, so the live app never sees them - the field is clean
-    # at processing time, hence a plain non-empty check is safe here.
-    # (The old straps-calf/straps-heel rule was the wrong trigger and was removed.)
-    if content_dict.get('straps toe', '') != '':
-        passed_codes['D14A'] += 2 if is_pair else 1
+    # D14A - one per device if ANY full-part-lining box is ticked, plus one more per device
+    # for a toe strap.
+    #
+    # Counting the lining boxes individually was wrong. Across the 16 corrected forms that
+    # have a lining box, the checker asks for one D14A per device however many boxes are
+    # ticked: two boxes on a pair -> 2, ONE box on a pair -> 2 (PA211363), one box on a
+    # single -> 1, two boxes on the same leg of a single -> 1 (RB049195). RG706379 is the
+    # lone exception, wanting none.
+    # Counting the boxes scored 22 of 37 against the checkers; this scores 28.
+    #
+    # A date in `straps toe` is a stamp applied to the paperwork AFTER the app has seen it,
+    # so a live form never carries one - but the logs do, and it must not be read as a strap.
+    lining_box_ticked = any(
+        content_dict.get(f'{side} {position} full part lining', '') == 'selected'
+        for side in sides for position in positions)
+    toe_strap = content_dict.get('straps toe', '').strip()
+    toe_strap_real = bool(toe_strap) and not re.match(
+        r'^\s*\d{1,2}\s*[/-]\s*\d{1,2}\s*[/-]\s*\d{2,4}\s*$', toe_strap)
+    d14a_per_device = (1 if lining_box_ticked else 0) + (1 if toe_strap_real else 0)
+    if d14a_per_device:
+        # D14A is in per_side_codes, so the pair loop skips it and the doubling is done here.
+        passed_codes['D14A'] += d14a_per_device * (2 if is_pair else 1)
 
     # (The `straps heel` "lateral" fallback that used to sit here raised P15 to x4. It went
     # with the lining-box P15 rule - the flat default already gives x4 for a pair.)
