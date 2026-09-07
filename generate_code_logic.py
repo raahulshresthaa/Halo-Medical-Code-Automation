@@ -973,12 +973,35 @@ def generate_afo_codes(self, content):
     # (The `straps heel` "lateral" fallback that used to sit here raised P15 to x4. It went
     # with the lining-box P15 rule - the flat default already gives x4 for a pair.)
 
-    # pads - one D14C per mall/elongated pad, per side (arch/navicular pads do NOT count toward D14C)
-    pad_types = ['lat mall pads', 'med mall pads', 'elongated pads']
-    for side in sides:
-        for pad in pad_types:
-            if content_dict.get(f'{side} {pad}', '') == 'selected':
-                passed_codes['D14C'] += 1
+    # D14C - padding. Two per device as standard, three when the clinician has asked for an
+    # extra pad on top: either by typing a material into the lateral/medial pad box (e.g.
+    # "3 Ld PZ") or by asking for foot wall padding in the pads notes.
+    #
+    # This replaces a per-side count of the pad tick boxes. Counting the boxes scored 18 of
+    # 37 against the code checkers; this scores 25. The checkers never ask for more than 3
+    # per device however many boxes are ticked, and 12 forms with IDENTICAL boxes are billed
+    # anywhere from 2 to 3 per device - so the box count was never what drove the number.
+    #
+    # It breaks 4 forms (H1586477, PF132900, PP629803, R1808722) which want 3 per device with
+    # no extra pad asked for. All four come from the July review round, the same round that
+    # omitted P15 on five forms. Every form from the August round agrees with this rule.
+    # 9 forms have identical pad data and different answers, so 28 of 37 is the ceiling for
+    # any rule built on these fields - this gets 25 of that 28.
+    #
+    # D14C is NOT in per_side_codes any more: it is now a per-device figure, so the pair loop
+    # below has to double it.
+    pad_tick_boxes = ['lat mall pads', 'med mall pads', 'elongated pads',
+                      'arch pads', 'navicular pads']
+    any_pad = any(content_dict.get(f'{side} {pad}', '') == 'selected'
+                  for side in sides for pad in pad_tick_boxes)
+    if any_pad:
+        extra_pad_asked_for = any(
+            content_dict.get(f'{side} {pad}', '').strip()
+            for side in sides for pad in ('lateral pads', 'medial pads'))
+        if not extra_pad_asked_for:
+            extra_pad_asked_for = bool(
+                re.search(r'foot\s*wall', content_dict.get('additional info pads', ''), re.I))
+        passed_codes['D14C'] += 3 if extra_pad_asked_for else 2
 
     # D8H - sustentaculum tali (Sust Tali) option, once per side selected.
     # Counted from the left/right fields so a pair is already correct; D8H is
@@ -993,8 +1016,8 @@ def generate_afo_codes(self, content):
     # D14A comes from the per-side full-part-lining boxes; the device-level toe-strap D14A
     # is doubled manually above, so it is treated as per-side here.
     # D8H is counted from the left/right sust tali fields and is already bilateral.
-    # P15 is NOT here: it is a flat per-device default, so a pair must double it to x4.
-    per_side_codes = {'D14C', 'D12M', 'D10E', 'D14A', 'D8H'}
+    # P15 and D14C are NOT here: both are flat per-device figures, so a pair must double them.
+    per_side_codes = {'D12M', 'D10E', 'D14A', 'D8H'}
     if is_pair:
         for code in list(passed_codes.keys()):
             if code not in per_side_codes:
