@@ -907,18 +907,29 @@ def generate_afo_codes(self, content):
     # if content_dict.get('finishing heel wedging', '') != '':
     #     passed_codes['B43'] += 1
 
-    # D10E - heel post. There is no "heel post" box on the AFO form: the post is HOW an
-    # angle is built, so the trigger is the prescription asking for one - either a bench
-    # alignment instruction or a plantarflexion angle. Either alone is enough; having both
-    # (or angles on both sides) does NOT add more - it is one post per device.
-    # A bench alignment reading "No posts" is an explicit refusal, so it is excluded.
-    # Checked against 24 corrected forms (17 needing D10E, 7 not): 100% correct.
-    # NOTE: the previous rule used '{side} heel raise posting', which is an Insole Room
-    # field and never appears on an AFO form, so D10E could never fire.
+    # D10E - heel post. There is no "heel post" box on the AFO form: the post is HOW the
+    # ankle angle is built at the bench, so the trigger is the prescription needing one.
+    #
+    # The negative cast section has three ankle-position boxes and the clinician picks one:
+    #   nc 90       - already at 90 degrees, so nothing to post
+    #   nc as cast  - left where the cast is, so the angle is built at the bench -> POST
+    #   nc pf       - a plantarflexion angle to set                              -> POST
+    # A bench alignment instruction also means a post, unless it says "No posts", which is
+    # an explicit refusal.
+    #
+    # Any one of these alone is enough; having several (or angles on both sides) does NOT
+    # add more - it is one post per device.
+    #
+    # 'nc as cast' was missing until 7 Sep 2026, which is why HS039892 and ST728904 came out
+    # with no D10E. With it the rule is right on 13 of 13 of the September forms and 23 of 24
+    # older ones (RR157819 is the lone exception).
     bench_alignment = content_dict.get('additional info bench alignment', '').strip()
     wants_heel_post = bool(bench_alignment) and not re.search(r'\bno\s+post', bench_alignment, re.I)
     if not wants_heel_post:
         wants_heel_post = any(content_dict.get(f'nc pf {side}', '').strip()
+                              for side in ('left', 'right'))
+    if not wants_heel_post:
+        wants_heel_post = any(content_dict.get(f'nc as cast {side}', '') == 'selected'
                               for side in ('left', 'right'))
     if wants_heel_post:
         # Doubled here for a pair; D10E is in per_side_codes so the pair loop skips it.
