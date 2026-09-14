@@ -746,7 +746,14 @@ class PdfButtonHandler:
             return f"Error: {str(e)}", ai_input
         
     def get_required_by_days(self, customer_no, model_id):
-        """Retrieve the appropriate required_by_days from the release_times database based on Sell_to_Customer_No and model_id."""
+        """Retrieve the appropriate required_by_days from the release_times database based on Sell_to_Customer_No and model_id.
+
+        One day is taken off whatever the lead time works out to, so the standard
+        14/28 day turnarounds are requested for delivery on day 13/27. The subtraction
+        is applied AFTER the database lookup on purpose: every clinic in
+        release_times currently stores the same 14/28 figures as the defaults below,
+        so changing only the defaults would have had no effect on any real order.
+        """
         try:
             if model_id == MODEL_IDS['Insoles']:
                 column = 'Insoles_required_by'
@@ -763,13 +770,12 @@ class PdfButtonHandler:
             cursor.execute(f"SELECT {column} FROM release_times WHERE Sell_to_Customer_No = ?", (customer_no,))
             result = cursor.fetchone()
             conn.close()
-            if result:
-                return int(result[0])
-            else:
-                return default_days  # Default based on column if no record is found
+            days = int(result[0]) if result else default_days
         except Exception as e:
             print(f"Error retrieving required_by_days: {e}")
-            return 14  # Default to 14 days on error
+            days = 14  # Default to 14 days on error
+        # Never let the subtraction drive the lead time to zero or negative.
+        return max(days - 1, 1)
 
     def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code, pre_app_date, header_fields=None):
         try:
@@ -880,6 +886,8 @@ class PdfButtonHandler:
             else:
                 delivery_dt = default_dt
             request_delivery_date = delivery_dt.strftime('%Y-%m-%d')
+            global last_requested_delivery_date
+            last_requested_delivery_date = request_delivery_date
             log_holiday_adjustments(
                 log_file_path,
                 default_before,
@@ -2824,6 +2832,13 @@ for model_name, model_id_value in MODEL_IDS.items():
 processing_cancel_event = threading.Event()
 nav_upload_locked = threading.Event()
 
+# The requested delivery date worked out for the order on screen, so the "Copy Delivery
+# Date" button can offer it. It is not printed in the results panel (unlike the sales order
+# number, which that button scrapes out of the text), so it is kept here instead. Cleared
+# by clear_results_display when a new PDF starts, so a failed order can never leave the
+# previous form's date behind to be copied by mistake.
+last_requested_delivery_date = None
+
 def request_cancel_processing():
     """Called when the user clicks X on the loading popup."""
     global base_message
@@ -2886,6 +2901,8 @@ def clear_results_display():
     before that point (bad AutoDocRef, clinic not found, NAV unreachable...) used to
     leave the PREVIOUS order's codes on screen - easy to mistake for the new one.
     """
+    global last_requested_delivery_date
+    last_requested_delivery_date = None
     for entry in (auto_doc_ref_entry, datetime_entry, clinic_entry):
         entry.config(state=tk.NORMAL)
         entry.delete(0, tk.END)
@@ -2977,6 +2994,21 @@ def copy_sales_order_number():
                 return
     messagebox.showinfo("No SO Number", "No sales order number found in the results.")
 
+def copy_requested_delivery_date():
+    """Copy the requested delivery date worked out for the order on screen.
+
+    Taken from last_requested_delivery_date rather than scraped out of the results panel,
+    because the date is sent to NAV but never printed on screen.
+    """
+    if not last_requested_delivery_date:
+        messagebox.showinfo("No Delivery Date",
+                            "No requested delivery date found. Process a form first.")
+        return
+    display_date = format_date_display(last_requested_delivery_date)
+    root.clipboard_clear()
+    root.clipboard_append(display_date)
+    messagebox.showinfo("Copied", f"Requested Delivery Date {display_date} copied to clipboard.")
+
 # Instantiate PdfButtonHandler
 pdf_handler = PdfButtonHandler(
     root=root,
@@ -3055,6 +3087,9 @@ copy_codes_button.pack(pady=2)
 
 copy_so_button = ttk.Button(main_tab, text="Copy SO Number", command=copy_sales_order_number)
 copy_so_button.pack(pady=2)
+
+copy_delivery_date_button = ttk.Button(main_tab, text="Copy Delivery Date", command=copy_requested_delivery_date)
+copy_delivery_date_button.pack(pady=2)
 
 upload_pdf_button = ttk.Button(main_tab, text="Upload PDF", command=pdf_handler.upload_pdf_file)
 upload_pdf_button.pack(pady=2)
