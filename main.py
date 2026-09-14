@@ -561,12 +561,44 @@ def match_form_confirmation(form_confirmation, form_to_model):
 PAGES_PER_FORM = 2  # current AFO template: the prescription page + the annotations page
 
 
-def split_multi_form_pdf(pdf_file_path, pages_per_form=PAGES_PER_FORM):
-    """Split a PDF holding several stacked prescriptions into one temp PDF per form.
+def print_extracted_fields(fields_data, limit=120):
+    """Print everything Azure read from a PDF, so a failed read can be diagnosed from the
+    terminal. Until now these failures only showed a popup, and the terminal went quiet
+    straight after 'Using model ID', with nothing to say what had gone wrong."""
+    if not fields_data:
+        print("  Azure read no fields at all from this PDF.")
+        return
+    print(f"  What Azure did read ({len(fields_data)} field(s)):")
+    for name, value in fields_data.items():
+        # Only line breaks are flattened. Spacing is left exactly as read - a doubled space
+        # inside a title is one of the things that stops it matching.
+        text = str(value).replace('\r', ' ').replace('\n', ' ')
+        if len(text) > limit:
+            text = text[:limit] + '...'
+        print(f"    {name}: {text}")
 
-    Clinics sometimes staple two prescriptions into a single PDF (giving 4 pages).
+# The title of an AFO form, as it appears in the PDF's own text.
+# - (?<![Kk]) so a KAFO form is not taken for an AFO.
+# - No \b before "AFO": the PDF text runs neighbouring words together, so the title really
+#   arrives as "FixedTypeAFO Prescription Form" and a word boundary would never match it.
+# - \s+ because the gaps between the words are sometimes two spaces.
+AFO_TITLE = re.compile(r'(?<![Kk])AFO\s+Prescription\s+Form', re.IGNORECASE)
+
+
+def split_multi_form_pdf(pdf_file_path, pages_per_form=PAGES_PER_FORM):
+    """Split a PDF holding several stacked AFO prescriptions into one temp PDF per form.
+
+    Clinics sometimes staple two AFO prescriptions into a single PDF (giving 4 pages).
     The Azure reader only ever looks at the first form, so the second device was
     silently never coded or uploaded - a whole missing order, not just a missing code.
+
+    ONLY AFO PDFs are split. This was first written for any PDF with an even page count,
+    which also caught every bespoke and modular PDF: those are a footwear form followed by
+    an insole form, and the footwear reader is built to read BOTH halves together as one
+    order. Split in two, each half failed to read ("Form 1 of 2 in this PDF could not be
+    read"). So a PDF is only split when its first page is an AFO form. A PDF with no
+    readable text (a scan) is never split either, which is how every PDF was handled
+    before the splitter existed.
 
     Returns a list of temp file paths, one per form, ONLY when the PDF clearly holds
     more than one. Returns [] when it holds a single form (or is an unexpected length,
@@ -579,6 +611,22 @@ def split_multi_form_pdf(pdf_file_path, pages_per_form=PAGES_PER_FORM):
         total_pages = len(reader.pages)
     except Exception as e:
         print(f"Could not read PDF page count ({e}); processing as a single form.")
+        return []
+
+    print(f"PDF has {total_pages} page(s)")
+
+    try:
+        first_page_text = reader.pages[0].extract_text() or ''
+    except Exception as e:
+        print(f"Could not read the first page's text ({e}); processing as a single form.")
+        return []
+    if not AFO_TITLE.search(first_page_text):
+        if total_pages > pages_per_form:
+            # Say so, because this is the decision that sent bespoke forms down the wrong path
+            # before - it should be visible in the terminal, not only in the outcome.
+            reason = ("its first page has no readable text (a scan?)" if not first_page_text.strip()
+                      else "its first page is not an AFO form")
+            print(f"Not splitting: {reason}, so the {total_pages} pages are read as one form.")
         return []
 
     # Only split a clean multiple of the form length. Anything else (a 3-page older
@@ -1167,13 +1215,19 @@ class PdfButtonHandler:
                     raise RuntimeError(f"Network error during Azure API call: {str(e)}")
             self.root.after(0, self.update_loading_message, "Please wait, calculating the codes")
             fields_data = self.extract_fields_from_result(result)
+            print(f"Azure read {len(fields_data)} field(s) from the PDF using {model_id}")
             order_category_code = determine_order_category_code(model_id, fields_data)
             if not fields_data:
                 raise ValueError("No data extracted from the PDF.")
             # Check form confirmation
             form_confirmation = fields_data.get('form confirmation', '').strip()
+            # repr() so doubled spaces or words run together are visible - either one stops
+            # the title matching a form type.
+            print(f"Form confirmation read from the PDF: {form_confirmation!r}")
             if not form_confirmation:
                 error_msg = "No form confirmation found in the extracted data."
+                print(f"ERROR - {error_msg}")
+                print_extracted_fields(fields_data)
                 self.root.after(0, messagebox.showerror, "Error", error_msg)
                 self.root.after(0, self.close_loading_popup)
                 self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
@@ -1194,6 +1248,10 @@ class PdfButtonHandler:
             correct_model_id = match_form_confirmation(form_confirmation, form_to_model)
             if correct_model_id is None:
                 error_msg = f"Unknown form confirmation: {form_confirmation}"
+                print(f"ERROR - {error_msg}")
+                print("  None of the known form titles were found in it:")
+                for known_title in form_to_model:
+                    print(f"    {known_title!r}")
                 self.root.after(0, messagebox.showerror, "Error", error_msg)
                 self.root.after(0, self.close_loading_popup)
                 self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
@@ -1201,11 +1259,14 @@ class PdfButtonHandler:
             if correct_model_id != model_id:
                 if attempt >= 2:
                     error_msg = f"Form confirmation '{form_confirmation}' does not match the selected model after switching."
+                    print(f"ERROR - {error_msg} (read with {model_id}, title belongs to {correct_model_id})")
                     self.root.after(0, messagebox.showerror, "Error", error_msg)
                     self.root.after(0, self.close_loading_popup)
                     self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
                     return
                 else:
+                    print(f"The title belongs to {correct_model_id}, not {model_id} - "
+                          f"switching reader and reading the PDF again.")
                     self.model_id_var.set(correct_model_id)
                     self.root.after(0, self.update_loading_message, f"Switching to model {correct_model_id}")
                     return self.process_pdf_and_call_api(pdf_file_path, attempt + 1,
@@ -1426,7 +1487,11 @@ class PdfButtonHandler:
         except Exception as e:
             error_msg = f"Error processing the PDF file: {str(e)}"
             self.root.after(0, messagebox.showerror, "Error", error_msg)
-            print(error_msg)
+            print(f"ERROR - {error_msg}")
+            # The message alone (e.g. just "'clinic'" for a missing key) says nothing about
+            # where it failed, so print the full traceback with file and line numbers too.
+            import traceback
+            traceback.print_exc()
         finally:
             # While collecting the forms of a multi-form PDF, leave the popup up and hold
             # the warnings back - process_pdf_entry tidies up once after the single order.
