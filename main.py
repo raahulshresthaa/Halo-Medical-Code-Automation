@@ -2680,8 +2680,10 @@ ensure_result_logs_folder_exists()
 # Load and set the custom window icon (top-left)
 icon_path = os.path.join(os.getcwd(), 'images', 'halo_simple_logo.ico')
 
-# Define the path for the logo file
-logo_file_path = os.path.join(os.getcwd(), 'images', 'Medfac Logo_FINAL.png')
+# Define the path for the logo file.
+# Transparent version, 1200x300 - exactly the 4:1 the display resize below expects, so it
+# is a clean half-size downscale with no distortion.
+logo_file_path = os.path.join(os.getcwd(), 'images', 'MedfacLogoTransparrent.png')
 
 # Function to load and resize the icon image
 def load_icon_image(icon_path, size=(32, 32)):
