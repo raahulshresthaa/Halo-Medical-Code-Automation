@@ -888,6 +888,7 @@ class PdfButtonHandler:
             request_delivery_date = delivery_dt.strftime('%Y-%m-%d')
             global last_requested_delivery_date
             last_requested_delivery_date = request_delivery_date
+            self.root.after(0, set_delivery_date_display, request_delivery_date)
             log_holiday_adjustments(
                 log_file_path,
                 default_before,
@@ -2684,7 +2685,8 @@ scaling_factor = root.tk.call('tk', 'scaling')
 print(f"Scaling factor: {scaling_factor}")
 
 # Adjust the window size based on the scaling factor
-base_width = 600
+# Widened from 600 when the Requested Delivery box made a fourth column in the info frame.
+base_width = 800
 base_height = 700
 adjusted_width = int(base_width * scaling_factor)
 adjusted_height = int(base_height * scaling_factor)
@@ -2763,6 +2765,10 @@ clinic_label = ttk.Label(info_frame, text='Clinic:', font=label_font)
 clinic_entry = ttk.Entry(info_frame, width=30)
 datetime_label = ttk.Label(info_frame, text='Date and Time:', font=label_font)
 datetime_entry = ttk.Entry(info_frame, width=30)
+# Filled in later than the other three: the delivery date is not known until after the
+# codes are displayed, so set_delivery_date_display writes it when it has been worked out.
+delivery_date_label = ttk.Label(info_frame, text='Requested Delivery:', font=label_font)
+delivery_date_entry = ttk.Entry(info_frame, width=30)
 
 auto_doc_ref_label.grid(row=0, column=0, padx=5, pady=5)
 auto_doc_ref_entry.grid(row=1, column=0, padx=5, pady=5)
@@ -2770,6 +2776,8 @@ clinic_label.grid(row=0, column=1, padx=5, pady=5)
 clinic_entry.grid(row=1, column=1, padx=5, pady=5)
 datetime_label.grid(row=0, column=2, padx=5, pady=5)
 datetime_entry.grid(row=1, column=2, padx=5, pady=5)
+delivery_date_label.grid(row=0, column=3, padx=5, pady=5)
+delivery_date_entry.grid(row=1, column=3, padx=5, pady=5)
 
 # Create a frame to hold the result text widget
 result_frame = ttk.Frame(main_tab)
@@ -2903,7 +2911,7 @@ def clear_results_display():
     """
     global last_requested_delivery_date
     last_requested_delivery_date = None
-    for entry in (auto_doc_ref_entry, datetime_entry, clinic_entry):
+    for entry in (auto_doc_ref_entry, datetime_entry, clinic_entry, delivery_date_entry):
         entry.config(state=tk.NORMAL)
         entry.delete(0, tk.END)
         entry.config(state='readonly')
@@ -2912,21 +2920,40 @@ def clear_results_display():
     result_text.config(state=tk.DISABLED)
 
 
+def set_info_entry(entry, text):
+    """Show text in one of the read-only info boxes, from the start, cut off with '...'.
+
+    Without this, Entry.insert leaves the cursor at the end of the text, so a value too
+    long for the box scrolls to show its TAIL - a long clinic name would appear to start
+    mid-word. The text is trimmed to the box's own width so the ellipsis is always visible.
+
+    Nothing reads these boxes back (the copy buttons work from the results panel and from
+    last_requested_delivery_date), so shortening what is displayed loses nothing.
+    """
+    text = '' if text is None else str(text)
+    width = int(entry.cget('width'))
+    if len(text) > width:
+        text = text[:max(width - 3, 1)] + '...'
+    entry.config(state=tk.NORMAL)
+    entry.delete(0, tk.END)
+    entry.insert(0, text)
+    entry.icursor(0)
+    entry.xview_moveto(0)
+    entry.config(state='readonly')
+
+def set_delivery_date_display(date_str):
+    """Write the requested delivery date into its box once it has been worked out.
+
+    Separate from display_results because that runs earlier, before the date exists.
+    Always call it on the main thread (root.after) - the worker thread must not touch
+    tkinter widgets directly.
+    """
+    set_info_entry(delivery_date_entry, format_date_display(date_str) if date_str else '')
+
 def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, messages=None):
-    auto_doc_ref_entry.config(state=tk.NORMAL)
-    auto_doc_ref_entry.delete(0, tk.END)
-    auto_doc_ref_entry.insert(0, AutoDocRef)
-    auto_doc_ref_entry.config(state='readonly')
-
-    datetime_entry.config(state=tk.NORMAL)
-    datetime_entry.delete(0, tk.END)
-    datetime_entry.insert(0, formatted_datetime)
-    datetime_entry.config(state='readonly')
-
-    clinic_entry.config(state=tk.NORMAL)
-    clinic_entry.delete(0, tk.END)
-    clinic_entry.insert(0, clinic if clinic else "N/A")
-    clinic_entry.config(state='readonly')
+    set_info_entry(auto_doc_ref_entry, AutoDocRef)
+    set_info_entry(datetime_entry, formatted_datetime)
+    set_info_entry(clinic_entry, clinic if clinic else "N/A")
 
     result_text.config(state=tk.NORMAL)
     result_text.delete('1.0', tk.END)
