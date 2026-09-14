@@ -2,6 +2,32 @@
 import os
 import openai
 import base64
+
+
+def _enable_dpi_awareness():
+    """Tell Windows this app handles its own scaling. MUST run before tkinter starts.
+
+    Without it Python runs DPI-unaware: Windows renders the window at 96 dpi and then
+    stretches the bitmap to the display's scaling, which is why the app looks soft or
+    blurred on a laptop set to 125%/150%. It also makes tk's own 'scaling' value a guess
+    rather than a measurement, so window sizes and font sizes drift apart.
+
+    Silently does nothing off Windows, or on Windows too old for the call.
+    """
+    try:
+        import ctypes
+        try:
+            # Windows 8.1+: 1 = system DPI aware, which is what tk can actually honour.
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        except (AttributeError, OSError):
+            # Vista to Windows 8.
+            ctypes.windll.user32.SetProcessDPIAware()
+    except Exception as e:
+        print(f"Could not set DPI awareness (not fatal): {e}")
+
+
+_enable_dpi_awareness()
+
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, Toplevel
 import ttkbootstrap as ttk
@@ -2684,15 +2710,59 @@ root.update_idletasks()
 scaling_factor = root.tk.call('tk', 'scaling')
 print(f"Scaling factor: {scaling_factor}")
 
-# Adjust the window size based on the scaling factor
+# Window size. The wanted size is scaled from a base, but it is then capped so it can
+# never be bigger than the screen it opens on - the old code asked for 800x700 * scaling
+# unconditionally, which is taller than a 1366x768 laptop and a small box on a 4K monitor.
 # Widened from 600 when the Requested Delivery box made a fourth column in the info frame.
 base_width = 800
 base_height = 700
-adjusted_width = int(base_width * scaling_factor)
-adjusted_height = int(base_height * scaling_factor)
+wanted_width = int(base_width * scaling_factor)
+wanted_height = int(base_height * scaling_factor)
 
-# Set the window size and position (starting at 100px from top and 100px from left)
-root.geometry(f"{adjusted_width}x{adjusted_height}+100+100")
+def get_work_area():
+    """The usable part of the screen - i.e. the desktop MINUS the taskbar.
+
+    winfo_screenheight() reports the whole display, so centring on it pushes the bottom of
+    the window behind the taskbar. Windows exposes the real figure through
+    SystemParametersInfo(SPI_GETWORKAREA), which also copes with the taskbar being docked
+    to the side or top. Falls back to the full screen anywhere that call is unavailable.
+
+    Returns (left, top, width, height).
+    """
+    try:
+        import ctypes
+        from ctypes import wintypes
+        rect = wintypes.RECT()
+        SPI_GETWORKAREA = 0x0030
+        if ctypes.windll.user32.SystemParametersInfoW(SPI_GETWORKAREA, 0, ctypes.byref(rect), 0):
+            return (rect.left, rect.top,
+                    rect.right - rect.left, rect.bottom - rect.top)
+    except Exception as e:
+        print(f"Could not read the screen work area, using the full screen: {e}")
+    return 0, 0, root.winfo_screenwidth(), root.winfo_screenheight()
+
+
+work_x, work_y, work_width, work_height = get_work_area()
+
+# geometry() sizes the CONTENT of the window; the title bar and borders sit outside it and
+# still take room on screen. Allow for them so the bottom edge stays clear of the taskbar.
+frame_allowance = int(40 * scaling_factor)
+
+adjusted_width = min(wanted_width, work_width)
+adjusted_height = min(wanted_height, work_height - frame_allowance)
+
+# Below this the buttons at the bottom start to get cut off. Kept under the smallest
+# screen we expect (1024x768) so the window is still movable on one.
+root.minsize(min(700, adjusted_width), min(560, adjusted_height))
+
+# Centre inside the work area rather than the whole screen, so a docked taskbar cannot
+# clip the bottom. Vertically it sits slightly above centre, which looks more natural.
+pos_x = work_x + max((work_width - adjusted_width) // 2, 0)
+pos_y = work_y + max((work_height - frame_allowance - adjusted_height) // 3, 0)
+root.geometry(f"{adjusted_width}x{adjusted_height}+{pos_x}+{pos_y}")
+print(f"Screen {root.winfo_screenwidth()}x{root.winfo_screenheight()}, "
+      f"usable {work_width}x{work_height} at +{work_x}+{work_y} "
+      f"-> window {adjusted_width}x{adjusted_height} at +{pos_x}+{pos_y}")
 
 # Load and set the custom window icon (top-left)
 icon_image = load_icon_image(icon_path, size=(32, 32))
@@ -2779,13 +2849,36 @@ datetime_entry.grid(row=1, column=2, padx=5, pady=5)
 delivery_date_label.grid(row=0, column=3, padx=5, pady=5)
 delivery_date_entry.grid(row=1, column=3, padx=5, pady=5)
 
+# Bottom-anchored rows are packed FIRST so they claim their space before the results box
+# does. Pack hands out space in call order, so anything packed after a greedy widget is
+# what gets squeezed - which is why the Upload PDF and Exit buttons used to vanish off the
+# bottom on a short screen. The theme bar goes down first, then the buttons above it, and
+# the results box then takes whatever is left.
+bottom_frame = ttk.Frame(main_tab)
+bottom_frame.pack(side='bottom', fill='x', padx=10, pady=10)
+
+controls_frame = ttk.Frame(main_tab)
+controls_frame.pack(side='bottom', fill='x')
+
+# Select Form Type sits above the buttons and must never be squeezed out - picking the
+# wrong reader is worse than a cramped window. Created and packed here with the other
+# bottom-anchored rows; its label and radio buttons are added further down.
+model_frame = ttk.Frame(main_tab)
+model_frame.pack(side='bottom', pady=10)
+
 # Create a frame to hold the result text widget
 result_frame = ttk.Frame(main_tab)
-result_frame.pack(pady=10, anchor='center')
+# expand/fill so the results box grows and shrinks with the window instead of forcing a
+# fixed height. Packed after the bottom rows above, so it only ever takes what is spare.
+result_frame.pack(pady=10, padx=10, fill='both', expand=True)
 
 # Create a text widget inside result_frame
 result_text = tk.Text(result_frame, wrap='word', height=24, width=80)
-result_text.grid(row=0, column=0)
+result_text.grid(row=0, column=0, sticky='nsew')
+
+# Let the text widget absorb the frame's space rather than sitting at its natural size.
+result_frame.grid_rowconfigure(0, weight=1)
+result_frame.grid_columnconfigure(0, weight=1)
 
 # Vertical scrollbar for result_text
 result_scrollbar = ttk.Scrollbar(result_frame, orient='vertical', command=result_text.yview)
@@ -2818,9 +2911,7 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 # Model IDs (using the centralized dictionary)
 model_id_var = tk.StringVar(value=MODEL_IDS['Insoles'])  # Default to Insoles
 
-model_frame = ttk.Frame(main_tab)
-model_frame.pack(pady=10)
-
+# model_frame itself is created and packed further up, with the other bottom-anchored rows.
 model_label = ttk.Label(model_frame, text='Select Form Type:', font=label_font)
 model_label.pack(side='left', padx=(0, 2))
 
@@ -3101,38 +3192,38 @@ def watch_downloads_folder():
                 threading.Thread(target=pdf_handler.process_pdf_entry, args=(pdf_path,)).start()
     root.after(1000, watch_downloads_folder)
 
+# These live in controls_frame (packed side='bottom' further up) so they keep their space
+# on a short screen instead of being pushed off the bottom.
 auto_watch_check = ttk.Checkbutton(
-    main_tab,
+    controls_frame,
     text="Auto-detect new PDF in Downloads (beta)",
     variable=auto_watch_var,
     command=on_auto_watch_toggled
 )
 auto_watch_check.pack(pady=5)
 
-copy_codes_button = ttk.Button(main_tab, text="Copy to Clipboard", command=copy_final_codes)
+copy_codes_button = ttk.Button(controls_frame, text="Copy to Clipboard", command=copy_final_codes)
 copy_codes_button.pack(pady=2)
 
-copy_so_button = ttk.Button(main_tab, text="Copy SO Number", command=copy_sales_order_number)
+copy_so_button = ttk.Button(controls_frame, text="Copy SO Number", command=copy_sales_order_number)
 copy_so_button.pack(pady=2)
 
-copy_delivery_date_button = ttk.Button(main_tab, text="Copy Delivery Date", command=copy_requested_delivery_date)
+copy_delivery_date_button = ttk.Button(controls_frame, text="Copy Delivery Date", command=copy_requested_delivery_date)
 copy_delivery_date_button.pack(pady=2)
 
-upload_pdf_button = ttk.Button(main_tab, text="Upload PDF", command=pdf_handler.upload_pdf_file)
+upload_pdf_button = ttk.Button(controls_frame, text="Upload PDF", command=pdf_handler.upload_pdf_file)
 upload_pdf_button.pack(pady=2)
 
 pdf_handler.set_upload_pdf_button(upload_pdf_button)
 
-exit_button = ttk.Button(main_tab, text="Exit", command=root.quit)
+exit_button = ttk.Button(controls_frame, text="Exit", command=root.quit)
 exit_button.pack(pady=2)
 
 # Make 'X' button trigger the same action as the "Exit" button
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
-# The bottom frame for theme selection
-bottom_frame = ttk.Frame(main_tab)
-bottom_frame.pack(side='bottom', fill='x', padx=10, pady=10)
-
+# The theme row. bottom_frame itself is created and packed further up, with the other
+# bottom-anchored rows, so that it claims its space before the results box does.
 theme_label = ttk.Label(bottom_frame, text='Theme:')
 theme_label.pack(side='left', padx=(0, 5))
 
