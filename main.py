@@ -67,7 +67,7 @@ import requests.exceptions
 import urllib.parse
 
 # Version number
-VERSION = "7.1.14-alpha"
+VERSION = "7.1.14"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
@@ -2593,8 +2593,17 @@ def edit_clinician_prescriber(tree):
     return missing_tab, populate_tree  # Return both the tab and the populate function
 
 
-# Define the list of available themes
-theme_list = ['lumen', 'darkly', 'solar', 'cyborg', 'simplex', 'vapor']
+# The colours offered in the Theme box, and the ttkbootstrap theme each one actually uses.
+# Users pick a plain colour name; the ttkbootstrap name is what gets applied and saved, so
+# settings.txt keeps working and is readable by anyone who knows ttkbootstrap.
+THEME_CHOICES = {
+    'Grey': 'darkly',
+    'White': 'simplex',
+    'Black': 'cyborg',
+}
+# The other way round, for showing the saved theme in the box at startup.
+THEME_DISPLAY_NAMES = {value: name for name, value in THEME_CHOICES.items()}
+theme_list = list(THEME_CHOICES)
 
 # Function to load the saved theme setting
 def load_theme_setting():
@@ -2603,7 +2612,9 @@ def load_theme_setting():
         try:
             with open(settings_file, 'r') as f:
                 theme = f.read().strip()
-                if theme in theme_list:
+                # Anything not on the list - including lumen, solar and vapor, which used
+                # to be offered - falls back to the default.
+                if theme in THEME_CHOICES.values():
                     return theme
                 else:
                     return 'simplex'  # Default theme if saved theme is invalid
@@ -2700,10 +2711,10 @@ def load_icon_image(icon_path, size=(32, 32)):
 root = TkinterDnD.Tk()
 
 # Apply ttkbootstrap style to the root window
-style = ttk.Style('lumen')  # You can set a default theme here
+style = ttk.Style('simplex')  # Replaced on the next line by the saved theme
 style.theme_use(selected_theme)
 
-root.title("Medfac Code Automation V2 - PDF Processing")
+root.title("Medfac Code Automation - PDF Processing")
 
 # Force Tkinter to calculate window size and layout before setting position
 root.update_idletasks()
@@ -2783,9 +2794,14 @@ def apply_bg_recursively(widget, bg_color):
         apply_bg_recursively(child, bg_color)
 
 def change_theme(event):
-    selected_theme = theme_var.get()
+    # The box shows a colour name; translate it back to the ttkbootstrap theme.
+    selected_theme = THEME_CHOICES.get(theme_var.get(), 'simplex')
     style.theme_use(selected_theme)
     save_theme_setting(selected_theme)
+    # ttkbootstrap draws a coloured ring around whatever holds keyboard focus, so after
+    # picking a theme the box keeps a highlight until something else is clicked. Hand
+    # focus back to the window so it clears straight away.
+    root.focus_set()
 
     # (After setting style.theme_use and saving your settings, etc.)
 
@@ -2822,9 +2838,6 @@ try:
 except Exception as e:
     messagebox.showerror("Error", f"Error loading logo: {str(e)}")
 
-# Title label in main_tab
-title_label = ttk.Label(main_tab, text="Code Automation Program V2", font=("Calibri", 16, "bold"))
-title_label.pack(pady=5)
 
 # Info frame in main_tab
 info_frame = ttk.Frame(main_tab)
@@ -3198,7 +3211,7 @@ def watch_downloads_folder():
 # on a short screen instead of being pushed off the bottom.
 auto_watch_check = ttk.Checkbutton(
     controls_frame,
-    text="Auto-detect new PDF in Downloads (beta)",
+    text="Auto-detect new PDF in Downloads",
     variable=auto_watch_var,
     command=on_auto_watch_toggled
 )
@@ -3229,9 +3242,10 @@ root.protocol("WM_DELETE_WINDOW", on_closing)
 theme_label = ttk.Label(bottom_frame, text='Theme:')
 theme_label.pack(side='left', padx=(0, 5))
 
-theme_var = tk.StringVar(value=selected_theme)
+theme_var = tk.StringVar(value=THEME_DISPLAY_NAMES.get(selected_theme, 'White'))
+# width is in characters and "White" is the longest option, so 6 is enough.
 theme_combobox = ttk.Combobox(
-    bottom_frame, textvariable=theme_var, values=theme_list, state='readonly'
+    bottom_frame, textvariable=theme_var, values=theme_list, state='readonly', width=6
 )
 theme_combobox.pack(side='left')
 
