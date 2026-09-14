@@ -652,9 +652,8 @@ class PdfButtonHandler:
         )
 
         # Configure text tags for result_text
-        self.result_text.tag_configure('success', foreground='green', font=('Calibri', 12, 'bold'))
-        self.result_text.tag_configure('error', foreground='red', font=('Calibri', 12, 'bold'))
-        self.result_text.tag_configure('info', foreground='blue', font=('Calibri', 12, 'bold'))
+        # success/error/info fonts and colours, chosen to be readable on the current theme.
+        configure_result_tags(self.result_text)
 
     def normalise(self, s):
         return " ".join(s.lower().strip().split())
@@ -2034,11 +2033,11 @@ def create_required_by_data_tab(notebook):
     notebook.add(required_by_tab, text="Required By Data")
 
     # Title label
-    title_label = ttk.Label(required_by_tab, text="Required By Data", font=("Calibri", 16, "bold"))
+    title_label = ttk.Label(required_by_tab, text="Required By Data", font=FONT_PAGE_TITLE)
     title_label.pack(pady=5)
 
     # Description label with information symbol
-    description_label = ttk.Label(required_by_tab, text="\u2139 You can change the reqired by date for different clinics here.", font=("Calibri", 12))
+    description_label = ttk.Label(required_by_tab, text="\u2139 You can change the reqired by date for different clinics here.", font=FONT_PAGE_INTRO)
     description_label.pack(pady=5)
 
     # Frame for Treeview and scrollbars
@@ -2212,14 +2211,14 @@ def create_holidays_tab(notebook):
     holidays_tab = ttk.Frame(notebook)
     notebook.add(holidays_tab, text="Holiday")
 
-    title_label = ttk.Label(holidays_tab, text="Holiday Blackout Dates", font=("Calibri", 16, "bold"))
+    title_label = ttk.Label(holidays_tab, text="Holiday Blackout Dates", font=FONT_PAGE_TITLE)
     title_label.pack(pady=5)
 
     description_label = ttk.Label(
         holidays_tab,
         text="\u2139 Delivery dates that fall in these ranges are rolled forward to the next working day. "
              "Add ranges as DD/MM/YYYY (single-day ranges: start = end).",
-        font=("Calibri", 12),
+        font=FONT_PAGE_INTRO,
         wraplength=700,
         justify='center',
     )
@@ -2347,17 +2346,17 @@ def create_missing_contacts_tab(notebook):
     notebook.add(missing_tab, text="Missing Contacts")
 
     # Existing title label
-    label = ttk.Label(missing_tab, text="Missing Clinics and Clinicians", font=("Calibri", 16, "bold"))
+    label = ttk.Label(missing_tab, text="Missing Clinics and Clinicians", font=FONT_PAGE_TITLE)
     label.pack(pady=5)
 
     # Add description label with information symbol
-    description_label = ttk.Label(missing_tab, text="\u2139 Unrecognised Clinics or Clinicians appear here, where you can edit and update the Contact number.", font=("Calibri", 12))
+    description_label = ttk.Label(missing_tab, text="\u2139 Unrecognised Clinics or Clinicians appear here, where you can edit and update the Contact number.", font=FONT_PAGE_INTRO)
     description_label.pack(pady=5)
 
     # Define a custom style for the Treeview with larger font and increased row height
     style = ttk.Style()
-    style.configure("Custom.Treeview", font=("Calibri", 14), rowheight=30)  # Larger font and row height for rows
-    style.configure("Custom.Treeview.Heading", font=("Calibri", 14, "bold"))  # Larger font for headings
+    style.configure("Custom.Treeview", font=FONT_TABLE, rowheight=table_row_height())  # row height follows the font and display scaling
+    style.configure("Custom.Treeview.Heading", font=FONT_TABLE_HEADING)
 
     # Frame for Treeview and scrollbars
     tree_frame = ttk.Frame(missing_tab)
@@ -2467,11 +2466,11 @@ def create_clinics_tab(notebook):
     notebook.add(clinics_tab, text="Clinics")
 
     # Existing title label
-    label = ttk.Label(clinics_tab, text="Clinics Database", font=("Calibri", 16, "bold"))
+    label = ttk.Label(clinics_tab, text="Clinics Database", font=FONT_PAGE_TITLE)
     label.pack(pady=5)
 
     # Add description label with information symbol
-    description_label = ttk.Label(clinics_tab, text="\u2139 This is the Clinics database, the clinic names come from Docuware. You can edit the Clinic Number here.", font=("Calibri", 12))
+    description_label = ttk.Label(clinics_tab, text="\u2139 This is the Clinics database, the clinic names come from Docuware. You can edit the Clinic Number here.", font=FONT_PAGE_INTRO)
     description_label.pack(pady=5)
 
     # Create Treeview
@@ -2531,11 +2530,11 @@ def create_clinicians_tab(notebook):
     notebook.add(clinicians_tab, text="Clinicians")
 
     # Existing title label
-    label = ttk.Label(clinicians_tab, text="Clinicians Database", font=("Calibri", 16, "bold"))
+    label = ttk.Label(clinicians_tab, text="Clinicians Database", font=FONT_PAGE_TITLE)
     label.pack(pady=5)
 
     # Add description label with information symbol
-    description_label = ttk.Label(clinicians_tab, text="\u2139 This is the Clinicians database, the clinic names come from Docuware. You can edit the Customer Number here.", font=("Calibri", 12))
+    description_label = ttk.Label(clinicians_tab, text="\u2139 This is the Clinicians database, the clinic names come from Docuware. You can edit the Customer Number here.", font=FONT_PAGE_INTRO)
     description_label.pack(pady=5)
 
     # Create Treeview
@@ -2803,15 +2802,154 @@ def change_theme(event):
     # focus back to the window so it clears straight away.
     root.focus_set()
 
-    # (After setting style.theme_use and saving your settings, etc.)
-
-# Reconfigure the analysis frame's background
+    # Reconfigure the analysis frame's background
     style.configure("Analysis.TFrame", background=style.colors.bg)
 
-# Then re-draw the chart with new colors
+    # theme_use() rebuilds every ttk style from scratch, which throws away the fonts and
+    # the result colours set below - so put them back after every switch.
+    refresh_theme_visuals()
 
-# Define the custom font for labels (if not already defined)
-label_font = ('Calibri', 11)
+
+# ---------------------------------------------------------------------------------------
+# Visual design - fonts, colours and the pieces that have to follow the theme
+# ---------------------------------------------------------------------------------------
+import tkinter.font as tkfont
+
+# Segoe UI is the Windows system typeface and ships with every Windows since Vista, so it is
+# always present on the office PCs and the VM. Deliberately NOT "Segoe UI Variable", which is
+# Windows 11 only.
+UI_FONT = 'Segoe UI'
+UI_FONT_SEMIBOLD = 'Segoe UI Semibold'
+
+FONT_BODY = (UI_FONT, 10)
+FONT_SMALL = (UI_FONT, 9)
+FONT_CAPTION = (UI_FONT_SEMIBOLD, 9)          # the small headings above the info boxes
+FONT_RESULTS = (UI_FONT, 11)
+FONT_RESULTS_BOLD = (UI_FONT_SEMIBOLD, 11)
+FONT_PAGE_TITLE = (UI_FONT_SEMIBOLD, 15)      # "Clinics Database" etc. on the other tabs
+FONT_PAGE_INTRO = (UI_FONT, 10)               # the one-line explanation under those titles
+FONT_TABLE = (UI_FONT, 10)
+FONT_TABLE_HEADING = (UI_FONT_SEMIBOLD, 10)
+FONT_LOADING = (UI_FONT_SEMIBOLD, 11)
+
+# Still used by "Select Form Type:".
+label_font = FONT_BODY
+
+# The results box writes green/red/blue messages. These are picked by hand rather than taken
+# from the theme, because the themes' own "danger" and "info" colours are purple on some of
+# them (White's danger is #9a479e, Black's info is #9933cc) - an error must stay red. Each pair
+# is readable on its own background: the light set on White, the dark set on Grey and Black.
+RESULT_COLOURS = {
+    'light': {'success': '#2e7d32', 'error': '#c62828', 'info': '#1565c0'},
+    'dark': {'success': '#66bb6a', 'error': '#ef5350', 'info': '#64b5f6'},
+}
+
+# The logo's lettering is dark navy, which almost vanishes on the Grey and Black themes. Dark
+# themes get a copy in this light ink instead - same shape and edges, only the colour changes.
+LOGO_LIGHT_INK = (236, 239, 243)
+# Width at 100% Windows scaling. It is scaled up with the display, so the logo keeps the same
+# size next to the text on every screen instead of shrinking on high-DPI ones.
+LOGO_WIDTH_AT_100_PERCENT = 340
+TK_SCALING_AT_100_PERCENT = 96 / 72
+
+logo_label = None
+
+
+def is_dark_theme():
+    return style.theme.type == 'dark'
+
+
+def table_row_height():
+    """Row height that fits the table font at this display's scaling, rather than a fixed
+    pixel count that clips text on high-DPI screens."""
+    return tkfont.Font(font=FONT_TABLE).metrics('linespace') + 8
+
+
+def apply_ui_fonts():
+    """Put the app's typeface on every ttk widget in every tab. Needs re-running after each
+    theme change - theme_use() wipes it (checked: the font reads back empty straight after)."""
+    style.configure('.', font=FONT_BODY)
+    # A little more room inside buttons and tabs, so they read as controls rather than boxes
+    # hugging their text.
+    style.configure('TButton', font=FONT_BODY, padding=(14, 6))
+    style.configure('TNotebook.Tab', font=FONT_BODY, padding=(14, 6))
+    style.configure('Custom.Treeview', font=FONT_TABLE, rowheight=table_row_height())
+    style.configure('Custom.Treeview.Heading', font=FONT_TABLE_HEADING)
+    # The plain style too. Only Missing Contacts uses Custom.Treeview - Clinics, Clinicians,
+    # Required By Data and Holiday use the default, whose rows are sized for a smaller font and
+    # cut the bottoms off letters like g, p and y ("Kingston" showed as "Kinqston").
+    style.configure('Treeview', font=FONT_TABLE, rowheight=table_row_height())
+    style.configure('Treeview.Heading', font=FONT_TABLE_HEADING)
+
+
+def configure_result_tags(text_widget=None):
+    """Fonts and colours for the message styles in the results box, for the current theme."""
+    widget = text_widget if text_widget is not None else result_text
+    colours = RESULT_COLOURS['dark' if is_dark_theme() else 'light']
+    # Centred like the codes above them - left-aligned status lines under centred results looked
+    # jumbled. justify only affects how a line is drawn, never the text copied out of the box.
+    widget.tag_configure('success', foreground=colours['success'], font=FONT_RESULTS_BOLD,
+                         justify='center')
+    widget.tag_configure('error', foreground=colours['error'], font=FONT_RESULTS_BOLD,
+                         justify='center')
+    widget.tag_configure('info', foreground=colours['info'], font=FONT_RESULTS_BOLD,
+                         justify='center')
+    widget.tag_configure('bold', font=FONT_RESULTS_BOLD)
+    widget.tag_configure('warning', justify='center', foreground=colours['error'],
+                         font=FONT_RESULTS_BOLD)
+
+
+def build_logo_images():
+    """Return the logo as (dark lettering, light lettering) images at the display's scale."""
+    source = Image.open(logo_file_path).convert('RGBA')
+    width = int(LOGO_WIDTH_AT_100_PERCENT * scaling_factor / TK_SCALING_AT_100_PERCENT)
+    height = round(source.height * width / source.width)
+    dark_lettering = source.resize((width, height), Image.LANCZOS)
+    light_lettering = Image.new('RGBA', dark_lettering.size, LOGO_LIGHT_INK + (255,))
+    light_lettering.putalpha(dark_lettering.getchannel('A'))
+    return ImageTk.PhotoImage(dark_lettering), ImageTk.PhotoImage(light_lettering)
+
+
+def update_logo_for_theme():
+    if logo_label is not None:
+        logo_label.configure(image=root.logo_light if is_dark_theme() else root.logo_dark)
+
+
+def apply_title_bar_theme():
+    """Make the Windows title bar dark on the Grey and Black themes, light on White.
+
+    Otherwise a dark app sits under a bright white title bar. Uses the DWM attribute Windows
+    10 (build 18985+) and 11 provide; on anything older this quietly does nothing.
+    """
+    try:
+        import ctypes
+        root.update_idletasks()
+        hwnd = ctypes.windll.user32.GetParent(root.winfo_id())
+        value = ctypes.c_int(1 if is_dark_theme() else 0)
+        # 20 is DWMWA_USE_IMMERSIVE_DARK_MODE; earlier Windows 10 builds used 19.
+        for attribute in (20, 19):
+            if ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value)) == 0:
+                break
+        # Ask Windows to redraw the frame now, not on the next resize.
+        SWP_NOSIZE, SWP_NOMOVE, SWP_NOZORDER, SWP_FRAMECHANGED = 0x1, 0x2, 0x4, 0x20
+        ctypes.windll.user32.SetWindowPos(
+            hwnd, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED)
+    except Exception as e:
+        print(f"Could not match the title bar to the theme (not fatal): {e}")
+
+
+def refresh_theme_visuals():
+    apply_ui_fonts()
+    configure_result_tags()
+    update_logo_for_theme()
+    apply_title_bar_theme()
+
+
+# Classic tk widgets (the results box, the theme dropdown's list) read fonts from the option
+# database rather than from ttk styles.
+root.option_add('*Font', FONT_BODY)
+apply_ui_fonts()
 
 # ---------------------------------------------------------------------
 # Create a Notebook so we can have 2 tabs: Main PDF Processing + Search
@@ -2825,44 +2963,41 @@ notebook.pack(expand=True, fill='both')
 main_tab = ttk.Frame(notebook)
 notebook.add(main_tab, text="Main PDF Processing")
 
-# Load the logo image
+# Load the logo image - both colourways up front, then show the one that suits the theme.
 try:
-    logo_img = Image.open(logo_file_path)
-    logo_img = logo_img.resize((600, 150), Image.LANCZOS)
-    logo_photo = ImageTk.PhotoImage(logo_img)
-    root.logo_photo = logo_photo  # Keep a reference to prevent GC
-
-    # Place the logo in the main_tab
-    logo_label = ttk.Label(main_tab, image=logo_photo)
-    logo_label.pack(pady=10)
+    root.logo_dark, root.logo_light = build_logo_images()  # kept on root so they are not GC'd
+    logo_label = ttk.Label(main_tab, image=root.logo_dark)
+    logo_label.pack(pady=(14, 6))
+    update_logo_for_theme()
 except Exception as e:
     messagebox.showerror("Error", f"Error loading logo: {str(e)}")
 
 
-# Info frame in main_tab
+# Info frame in main_tab. It spans the full width, lined up with the results box below, and
+# the four boxes share that width equally as the window is resized.
 info_frame = ttk.Frame(main_tab)
-info_frame.pack(pady=10)
+info_frame.pack(fill='x', padx=5, pady=(6, 0))
 
 # Create labels and entries for AutoDocRef, Clinic, Date/Time
-auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef:', font=label_font)
+auto_doc_ref_label = ttk.Label(info_frame, text='AutoDocRef', font=FONT_CAPTION)
 auto_doc_ref_entry = ttk.Entry(info_frame, width=30)
-clinic_label = ttk.Label(info_frame, text='Clinic:', font=label_font)
+clinic_label = ttk.Label(info_frame, text='Clinic', font=FONT_CAPTION)
 clinic_entry = ttk.Entry(info_frame, width=30)
-datetime_label = ttk.Label(info_frame, text='Date and Time:', font=label_font)
+datetime_label = ttk.Label(info_frame, text='Date and Time', font=FONT_CAPTION)
 datetime_entry = ttk.Entry(info_frame, width=30)
 # Filled in later than the other three: the delivery date is not known until after the
 # codes are displayed, so set_delivery_date_display writes it when it has been worked out.
-delivery_date_label = ttk.Label(info_frame, text='Requested Delivery:', font=label_font)
+delivery_date_label = ttk.Label(info_frame, text='Requested Delivery', font=FONT_CAPTION)
 delivery_date_entry = ttk.Entry(info_frame, width=30)
 
-auto_doc_ref_label.grid(row=0, column=0, padx=5, pady=5)
-auto_doc_ref_entry.grid(row=1, column=0, padx=5, pady=5)
-clinic_label.grid(row=0, column=1, padx=5, pady=5)
-clinic_entry.grid(row=1, column=1, padx=5, pady=5)
-datetime_label.grid(row=0, column=2, padx=5, pady=5)
-datetime_entry.grid(row=1, column=2, padx=5, pady=5)
-delivery_date_label.grid(row=0, column=3, padx=5, pady=5)
-delivery_date_entry.grid(row=1, column=3, padx=5, pady=5)
+for column, (caption, box) in enumerate((
+        (auto_doc_ref_label, auto_doc_ref_entry),
+        (clinic_label, clinic_entry),
+        (datetime_label, datetime_entry),
+        (delivery_date_label, delivery_date_entry))):
+    info_frame.grid_columnconfigure(column, weight=1, uniform='info_boxes')
+    caption.grid(row=0, column=column, sticky='w', padx=5, pady=(0, 3))
+    box.grid(row=1, column=column, sticky='ew', padx=5)
 
 # Bottom-anchored rows are packed FIRST so they claim their space before the results box
 # does. Pack hands out space in call order, so anything packed after a greedy widget is
@@ -2885,10 +3020,13 @@ model_frame.pack(side='bottom', pady=10)
 result_frame = ttk.Frame(main_tab)
 # expand/fill so the results box grows and shrinks with the window instead of forcing a
 # fixed height. Packed after the bottom rows above, so it only ever takes what is spare.
-result_frame.pack(pady=10, padx=10, fill='both', expand=True)
+result_frame.pack(pady=(12, 4), padx=10, fill='both', expand=True)
 
-# Create a text widget inside result_frame
-result_text = tk.Text(result_frame, wrap='word', height=24, width=80)
+# Create a text widget inside result_frame. padx/pady give the text a margin inside the box
+# so it no longer runs into the border, and spacing1/3 add a little air between lines. Colours
+# are left alone on purpose: ttkbootstrap sets them, and they must keep following the theme.
+result_text = tk.Text(result_frame, wrap='word', height=24, width=80,
+                      font=FONT_RESULTS, padx=14, pady=10, spacing1=2, spacing3=2)
 result_text.grid(row=0, column=0, sticky='nsew')
 
 # Let the text widget absorb the frame's space rather than sitting at its natural size.
@@ -2927,9 +3065,11 @@ result_text.dnd_bind('<<Drop>>', handle_drop)
 model_id_var = tk.StringVar(value=MODEL_IDS['Insoles'])  # Default to Insoles
 
 # model_frame itself is created and packed further up, with the other bottom-anchored rows.
-model_label = ttk.Label(model_frame, text='Select Form Type:', font=label_font)
-model_label.pack(side='left', padx=(0, 2))
+model_label = ttk.Label(model_frame, text='Select Form Type', font=FONT_CAPTION)
+model_label.pack(side='left', padx=(0, 14))
 
+# The gap goes AFTER each option, so an option's name no longer runs straight into the next
+# option's circle - with 2px each side they read as one crowded line.
 for model_name, model_id_value in MODEL_IDS.items():
     radio_button = ttk.Radiobutton(
         model_frame,
@@ -2937,7 +3077,7 @@ for model_name, model_id_value in MODEL_IDS.items():
         variable=model_id_var,
         value=model_id_value
     )
-    radio_button.pack(side='left', padx=2)
+    radio_button.pack(side='left', padx=(0, 14))
 
 # The loading popup and associated functions
 # Cancellation of in-flight order processing. The X button on the loading popup requests a
@@ -2986,7 +3126,7 @@ def show_loading_popup():
     loading_popup.grab_set()
 
     base_message = "Please wait, reading the file"
-    loading_label = ttk.Label(loading_popup, text=f"{base_message}\n", font=("Calibri", 12, "bold"))
+    loading_label = ttk.Label(loading_popup, text=f"{base_message}\n", font=FONT_LOADING)
     loading_label.pack(expand=True, pady=20)
 
     dot_index = 0
@@ -3017,13 +3157,51 @@ def clear_results_display():
     """
     global last_requested_delivery_date
     last_requested_delivery_date = None
+    # Through set_info_entry, so the full text it remembers for re-fitting is cleared too -
+    # otherwise resizing the window would bring back the previous order's values.
     for entry in (auto_doc_ref_entry, datetime_entry, clinic_entry, delivery_date_entry):
-        entry.config(state=tk.NORMAL)
-        entry.delete(0, tk.END)
-        entry.config(state='readonly')
+        set_info_entry(entry, '')
     result_text.config(state=tk.NORMAL)
     result_text.delete('1.0', tk.END)
     result_text.config(state=tk.DISABLED)
+
+
+# The full, untrimmed value of each info box, so a box can be re-fitted when the window is
+# resized: widening the window then shows more of a long clinic name instead of keeping the
+# '...' it was cut to when the window was smaller.
+_info_entry_full_text = {}
+
+
+def _fit_text_to_entry(entry, text):
+    """Cut text with '...' so it fits the box as drawn, measured in real pixels.
+
+    The boxes stretch with the window, so a fixed character count no longer matches their
+    size. Before the window has been drawn a box has no width yet, so fall back to its
+    character width then.
+    """
+    available = entry.winfo_width()
+    if available <= 1:
+        width = int(entry.cget('width'))
+        return text if len(text) <= width else text[:max(width - 3, 1)] + '...'
+    font = tkfont.Font(font=style.lookup('TEntry', 'font') or FONT_BODY)
+    # Leave room for the box's border and the padding ttkbootstrap puts inside it.
+    available -= 2 * int(font.measure('0')) + 8
+    if font.measure(text) <= available:
+        return text
+    ellipsis = '...'
+    while text and font.measure(text + ellipsis) > available:
+        text = text[:-1]
+    return text.rstrip() + ellipsis
+
+
+def _draw_info_entry(entry):
+    text = _fit_text_to_entry(entry, _info_entry_full_text.get(entry, ''))
+    entry.config(state=tk.NORMAL)
+    entry.delete(0, tk.END)
+    entry.insert(0, text)
+    entry.icursor(0)
+    entry.xview_moveto(0)
+    entry.config(state='readonly')
 
 
 def set_info_entry(entry, text):
@@ -3031,21 +3209,23 @@ def set_info_entry(entry, text):
 
     Without this, Entry.insert leaves the cursor at the end of the text, so a value too
     long for the box scrolls to show its TAIL - a long clinic name would appear to start
-    mid-word. The text is trimmed to the box's own width so the ellipsis is always visible.
+    mid-word. The text is trimmed to the box's width so the ellipsis is always visible.
 
     Nothing reads these boxes back (the copy buttons work from the results panel and from
     last_requested_delivery_date), so shortening what is displayed loses nothing.
     """
-    text = '' if text is None else str(text)
-    width = int(entry.cget('width'))
-    if len(text) > width:
-        text = text[:max(width - 3, 1)] + '...'
-    entry.config(state=tk.NORMAL)
-    entry.delete(0, tk.END)
-    entry.insert(0, text)
-    entry.icursor(0)
-    entry.xview_moveto(0)
-    entry.config(state='readonly')
+    _info_entry_full_text[entry] = '' if text is None else str(text)
+    _draw_info_entry(entry)
+
+
+def _refit_info_entries(event=None):
+    for entry in _info_entry_full_text:
+        _draw_info_entry(entry)
+
+
+# after_idle, because when the frame reports its new size the boxes inside it have not been
+# resized yet - measuring straight away would fit the text to the old width.
+info_frame.bind('<Configure>', lambda event: root.after_idle(_refit_info_entries))
 
 def set_delivery_date_display(date_str):
     """Write the requested delivery date into its box once it has been worked out.
@@ -3065,7 +3245,7 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, message
     result_text.delete('1.0', tk.END)
 
     result_text.tag_configure('center', justify='center')
-    result_text.tag_configure('bold', font=('Calibri', 12, 'bold'))
+    configure_result_tags()  # 'bold' and 'warning', in the current theme's colours
 
     lines = price_codes.split('\n')
     for line in lines:
@@ -3081,7 +3261,6 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, message
 
     if messages:
         result_text.insert(tk.END, "\n\n")
-        result_text.tag_configure('warning', justify='center', foreground='red', font=('Calibri', 12, 'bold'))
         result_text.insert(tk.END, messages, 'warning')
 
     result_text.see(tk.END)
@@ -3207,40 +3386,42 @@ def watch_downloads_folder():
                 threading.Thread(target=pdf_handler.process_pdf_entry, args=(pdf_path,)).start()
     root.after(1000, watch_downloads_folder)
 
-# These live in controls_frame (packed side='bottom' further up) so they keep their space
-# on a short screen instead of being pushed off the bottom.
-auto_watch_check = ttk.Checkbutton(
-    controls_frame,
-    text="Auto-detect new PDF in Downloads",
-    variable=auto_watch_var,
-    command=on_auto_watch_toggled
-)
-auto_watch_check.pack(pady=5)
+# The action buttons, in one row inside controls_frame (packed side='bottom' further up, so
+# they keep their space on a short screen). They used to be a tall stack of five buttons, each
+# a different width - now they share one width and sit side by side, in the same left-to-right
+# order as the old top-to-bottom stack so nothing moves in people's heads.
+button_row = ttk.Frame(controls_frame)
+button_row.pack(pady=(2, 10))
 
-copy_codes_button = ttk.Button(controls_frame, text="Copy to Clipboard", command=copy_final_codes)
-copy_codes_button.pack(pady=2)
-
-copy_so_button = ttk.Button(controls_frame, text="Copy SO Number", command=copy_sales_order_number)
-copy_so_button.pack(pady=2)
-
-copy_delivery_date_button = ttk.Button(controls_frame, text="Copy Delivery Date", command=copy_requested_delivery_date)
-copy_delivery_date_button.pack(pady=2)
-
-upload_pdf_button = ttk.Button(controls_frame, text="Upload PDF", command=pdf_handler.upload_pdf_file)
-upload_pdf_button.pack(pady=2)
+copy_codes_button = ttk.Button(button_row, text="Copy to Clipboard", command=copy_final_codes)
+copy_so_button = ttk.Button(button_row, text="Copy SO Number", command=copy_sales_order_number)
+copy_delivery_date_button = ttk.Button(button_row, text="Copy Delivery Date", command=copy_requested_delivery_date)
+upload_pdf_button = ttk.Button(button_row, text="Upload PDF", command=pdf_handler.upload_pdf_file)
 
 pdf_handler.set_upload_pdf_button(upload_pdf_button)
 
-exit_button = ttk.Button(controls_frame, text="Exit", command=root.quit)
-exit_button.pack(pady=2)
+# Exit is muted and set apart with a gap, so it is not mistaken for - or clicked instead of -
+# Upload PDF beside it. Filled rather than outlined: outline text is unreadable on Grey.
+exit_button = ttk.Button(button_row, text="Exit", command=root.quit, bootstyle='secondary')
+
+for column, button in enumerate((copy_codes_button, copy_so_button,
+                                 copy_delivery_date_button, upload_pdf_button)):
+    button_row.grid_columnconfigure(column, uniform='action_buttons')
+    button.grid(row=0, column=column, padx=4, sticky='ew')
+# An empty column of fixed width is the gap before Exit. Padding on Exit itself would not do:
+# it would widen every button, because they are all sized as one uniform group.
+button_row.grid_columnconfigure(4, minsize=24)
+button_row.grid_columnconfigure(5, uniform='action_buttons')
+exit_button.grid(row=0, column=5, padx=4, sticky='ew')
 
 # Make 'X' button trigger the same action as the "Exit" button
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
-# The theme row. bottom_frame itself is created and packed further up, with the other
-# bottom-anchored rows, so that it claims its space before the results box does.
-theme_label = ttk.Label(bottom_frame, text='Theme:')
-theme_label.pack(side='left', padx=(0, 5))
+# The footer: settings on the left (theme, and auto-detect, which is a setting rather than an
+# action), version on the right. bottom_frame itself is created and packed further up, with the
+# other bottom-anchored rows, so that it claims its space before the results box does.
+theme_label = ttk.Label(bottom_frame, text='Theme')
+theme_label.pack(side='left', padx=(0, 6))
 
 theme_var = tk.StringVar(value=THEME_DISPLAY_NAMES.get(selected_theme, 'White'))
 # width is in characters and "White" is the longest option, so 6 is enough.
@@ -3249,11 +3430,19 @@ theme_combobox = ttk.Combobox(
 )
 theme_combobox.pack(side='left')
 
+auto_watch_check = ttk.Checkbutton(
+    bottom_frame,
+    text="Auto-detect new PDF in Downloads",
+    variable=auto_watch_var,
+    command=on_auto_watch_toggled
+)
+auto_watch_check.pack(side='left', padx=(22, 0))
+
 spacer = ttk.Frame(bottom_frame)
 spacer.pack(side='left', expand=True, fill='x')
 
 version_label = ttk.Label(
-    bottom_frame, text=f"Version {VERSION}", font=("Calibri", 10)
+    bottom_frame, text=f"Version {VERSION}", font=FONT_SMALL
 )
 version_label.pack(side='right')
 
@@ -3331,6 +3520,31 @@ notebook.add(analysis_placeholder, text="Results Analysis")
 
 # Start watching the Downloads folder in the background
 watch_downloads_folder()
+
+# Match the title bar to the saved theme once the window exists on screen - before that there
+# is no window frame for Windows to recolour.
+root.after(50, apply_title_bar_theme)
+
+
+def set_minimum_window_width():
+    """Stop the window being narrowed past the widest row that cannot shrink.
+
+    The action buttons sit side by side, as do the form-type choices and the tabs. Narrower
+    than the widest of those and the last ones fall off the right-hand edge - with the buttons
+    that is Exit. Worked out from the laid-out widgets, so it stays right whatever the display
+    scaling. Never set wider than the screen, so the window still fits on a small one.
+    """
+    root.update_idletasks()
+    tab_font = tkfont.Font(font=FONT_BODY)
+    tabs_width = sum(tab_font.measure(notebook.tab(tab, 'text')) + 2 * 14 + 6
+                     for tab in notebook.tabs())
+    widest_row = max(button_row.winfo_reqwidth(), model_frame.winfo_reqwidth(), tabs_width)
+    minimum_width = min(widest_row + 50, work_width)
+    current_min_width, current_min_height = root.minsize()
+    root.minsize(max(current_min_width, minimum_width), current_min_height)
+
+
+set_minimum_window_width()
 
 # Start the GUI event loop
 root.mainloop()
