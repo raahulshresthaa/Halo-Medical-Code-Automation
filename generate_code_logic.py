@@ -689,10 +689,12 @@ def generate_insole_codes(self, content, return_dict=False):
                     passed_codes['B41'] += 1
                 elif addition_str == 'heel pad':
                     passed_codes['B41'] += 1
+                # Morton's and reverse Morton's are B41 (confirmed 21 Sep 2026). They were
+                # B56 until then.
                 elif addition_str == "mortons extension":
-                    passed_codes['B56'] += 1
+                    passed_codes['B41'] += 1
                 elif addition_str == "reverse mortons extension":
-                    passed_codes['B56'] += 1
+                    passed_codes['B41'] += 1
                 elif addition_str == 'met bar':
                     passed_codes['B41'] += 1
                 elif addition_str == 'met dome':
