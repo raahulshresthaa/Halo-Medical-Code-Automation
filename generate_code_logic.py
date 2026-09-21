@@ -7,6 +7,11 @@ import sqlite3
 import os
 import sys
 
+# Basingstoke joined the tariff lists on 21 Sep 2026. Only the tariffs whose rules are confirmed
+# are wired in so far: modular, bespoke shoe/boot, simple insole, TCI'S (TCI insoles only) and
+# plain AFO. Jointed AFO, repair, adapt and socket/T-strap are waiting on a code checker.
+BASINGSTOKE = 'GB-CUST01895'
+
 # Define the tariff customer number sets outside the functions
 tariff_tci_customer_nos = {
     'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02090',
@@ -14,7 +19,8 @@ tariff_tci_customer_nos = {
 }
 tariff_simple_customer_nos = {
     'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02090',
-    'GB-CUST02295', 'GB-CUST02496', 'GB-CUST02554', 'GB-CUST02583'
+    'GB-CUST02295', 'GB-CUST02496', 'GB-CUST02554', 'GB-CUST02583',
+    BASINGSTOKE,
 }
 tariff_polyprop_customer_nos = {
     'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02090',
@@ -24,11 +30,20 @@ tariff_bespoke_customer_nos = {
     'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554'
 }
 tariff_afo_customer_nos = {
-    'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554'
+    'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554',
+    BASINGSTOKE,
 }
 tariff_modular_customer_nos = {
-    'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554'
+    'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554',
+    BASINGSTOKE,
 }
+# Clinics whose bespoke tariff is split into TARIFF BESPOKE SHOE / TARIFF BESPOKE BOOT by style,
+# instead of the single TARIFF BESPOKE the older tariff clinics use.
+tariff_bespoke_shoe_boot_customer_nos = {BASINGSTOKE}
+# Clinics that get TARIFF TCI'S for a TCI insole only. The older TCI list above is a catch-all
+# (any insole not caught by Polyprop or Simple gets TCI'S); whether Basingstoke's poly, carbon,
+# hand mould and cradle insoles should too is not confirmed, so they get normal codes for now.
+tariff_tci_only_customer_nos = {BASINGSTOKE}
 tariff_wales_customer_nos = {
     'GB-CUST02743', 'GB-CUST02756', 'GB-CUST02766', 'GB-CUST02781',
     'GB-CUST02805', 'GB-CUST02830', 'GB-CUST02916', 'GB-CUST02917',
@@ -228,14 +243,16 @@ def generate_bespoke_codes(self, content):
     # Track if tariffs were added
     bespoke_tariff_added = False
 
+    # Tariffs are ONE code for the pair of shoes (confirmed 21 Sep 2026). They were x2 - one per
+    # shoe - from 16 Sep 2025 until then.
     # Wales Tariff Check for Bespoke
     if customer_no in tariff_wales_customer_nos:
-        passed_codes['WALES-BESPOKE'] += 2
+        passed_codes['WALES-BESPOKE'] += 1
         bespoke_tariff_added = True
 
     # Bespoke Tariff Check
     if customer_no in tariff_bespoke_customer_nos:
-        passed_codes['TARIFF BESPOKE'] += 2
+        passed_codes['TARIFF BESPOKE'] += 1
         bespoke_tariff_added = True
 
     # Define style sets
@@ -261,6 +278,15 @@ def generate_bespoke_codes(self, content):
         passed_codes['A1B'] += 1
     else:
         passed_codes['A1A'] += 1  # Default to A1A if no style matches
+
+    # Shoe/boot tariff, one code for the pair. The A1A styles are the boots and the A1B styles
+    # the shoes; an unknown style counts as a boot, the same as the A1A default above.
+    if customer_no in tariff_bespoke_shoe_boot_customer_nos:
+        if style in a1b_styles:
+            passed_codes['TARIFF BESPOKE SHOE'] += 1
+        else:
+            passed_codes['TARIFF BESPOKE BOOT'] += 1
+        bespoke_tariff_added = True
 
     # Add logic for 'pop cast'
     if content_dict.get('pop cast', '') == 'selected':
@@ -547,6 +573,14 @@ def generate_insole_codes(self, content, return_dict=False):
         for code in list(passed_codes.keys()):
             if code != 'TARIFF TCI\'S':
                 del passed_codes[code]
+
+    # 4) TCI'S for a TCI insole only (see tariff_tci_only_customer_nos). The TCI box itself, not
+    #    insole_type, because insole_type also counts a cradle as 'tci'. Poly and carbon bases
+    #    are left out too - both are unconfirmed, so they fall through to the normal codes.
+    elif (customer_no in tariff_tci_only_customer_nos
+          and content_dict.get('insole type tci', '') == 'selected'
+          and not (selected_base and (selected_base == 'poly' or 'carbon' in selected_base))):
+        passed_codes['TARIFF TCI\'S'] += 2 if is_pair else 1
 
     # If no tariff matched, proceed with normal logic
     else:
@@ -1071,13 +1105,15 @@ def generate_modular_codes(self, content):
     customer_no = get_customer_no(clinic_name)
     # Track if tariffs were added
     modular_tariff_added = False
+    # Tariffs are ONE code for the pair of shoes (confirmed 21 Sep 2026). They were x2 - one per
+    # shoe - from 3 Oct 2025 until then.
     # Wales Tariff Check for Modular
     if customer_no in tariff_wales_customer_nos:
-        passed_codes['WALES-MODULAR'] += 2
+        passed_codes['WALES-MODULAR'] += 1
         modular_tariff_added = True
     # Modular Tariff Check (other clinics)
     if customer_no in tariff_modular_customer_nos:
-        passed_codes['TARIFF MODULAR'] += 2
+        passed_codes['TARIFF MODULAR'] += 1
         modular_tariff_added = True
     # Style Checks
     style_value = content_dict.get('styles', '')
