@@ -3142,6 +3142,14 @@ result_text.drop_target_register(DND_FILES)
 def handle_drop(event):
     files = root.tk.splitlist(event.data)
     pdf_files = [f for f in files if f.lower().endswith('.pdf')]
+    # One at a time. Dragging several files in one go used to start them all at once, sharing
+    # the results panel, the loading popup and the reader choice, so they could mix each other
+    # up. (A second drop while one is processing is already blocked - the window is disabled.)
+    if len(pdf_files) > 1:
+        messagebox.showinfo("One PDF at a time",
+                            f"{len(pdf_files)} PDFs were dropped at once. Nothing has been "
+                            f"processed - please drop them one at a time.")
+        return
     if pdf_files:
         for pdf_file in pdf_files:
             pdf_handler.upload_pdf_button.config(state='disabled')
