@@ -7,10 +7,78 @@ import sqlite3
 import os
 import sys
 
-# Basingstoke joined the tariff lists on 21 Sep 2026. Only the tariffs whose rules are confirmed
-# are wired in so far: modular, bespoke shoe/boot, simple insole, TCI'S (TCI insoles only) and
-# plain AFO. Jointed AFO, repair, adapt and socket/T-strap are waiting on a code checker.
+# Basingstoke (added Sep 2026) has its own tariff rules, from "Basingstoke Tariff and Coded
+# prices.xlsx". Unlike the other tariff clinics, whose tariff codes cover everything, Basingstoke
+# pays its tariff PLUS any code the sheet does not mark "Included in Tariff". Repairs, adapts
+# and helmets are not wired in yet.
 BASINGSTOKE = 'GB-CUST01895'
+
+# The codes this app can produce that Basingstoke is charged ON TOP of a tariff - the ones the
+# sheet leaves blank rather than marking "Included in Tariff". Anything else on a Basingstoke
+# tariff order is dropped: codes the sheet marks included, codes not on the sheet at all (VELCRO,
+# TWIST FASTEN, D10U, D1K...), and P15, which is the AFO's slip pad and so covered by it.
+# The socket and strap codes (A37A/B, A38, A39, A40, B30, B31, B33, B34, B8) are left out too -
+# for Basingstoke they are replaced by TARIFF SOCKET/TSTRAP.
+BASINGSTOKE_EXTRAS = {
+    # bespoke
+    'A1K', 'A6', 'A8', 'A12A', 'A13A', 'A15', 'A18A', 'A20', 'A23', 'A24', 'A25',
+    # modular
+    'BNS62', 'B14', 'B23', 'B24',
+    # insole
+    'BNS45', 'B54A', 'B54B',
+    # AFO
+    'D12M', 'D14A', 'D14H', 'D14E', 'D10G', 'DNS6', 'D10A', 'D14B',
+}
+
+
+def is_tariff_code(code):
+    return code.startswith('TARIFF') or code.startswith('WALES-')
+
+
+def keep_tariff_and_extras(passed_codes, customer_no):
+    """On a tariff order, drop every code the tariff covers. Mutates passed_codes.
+
+    The other tariff clinics' tariffs cover everything, so only the tariff codes are kept.
+    Basingstoke also keeps its BASINGSTOKE_EXTRAS.
+    """
+    for code in list(passed_codes):
+        if is_tariff_code(code):
+            continue
+        if customer_no == BASINGSTOKE and code in BASINGSTOKE_EXTRAS:
+            continue
+        del passed_codes[code]
+    return passed_codes
+
+
+def _code_name(code_line):
+    """'D14H x2' -> 'D14H'."""
+    return re.sub(r'\s*[xX]\s*\d+(\.\d+)?\s*$', '', code_line.strip()).strip()
+
+
+def drop_codes_covered_by_tariff(passed_codes_str, final_codes, customer_no):
+    """Remove codes the AI step added on top of a tariff, where the tariff covers them.
+
+    After the rules, the AI step may add codes it finds in the notes (on AFOs: D14H, D10U,
+    D14E, B43, D10G). It knows nothing about tariffs, so a tariff AFO with "line footplate" in
+    the notes came back with D14H. Codes the rules produced are never touched - only codes
+    that were NOT in the passed codes, and only on an order that has a tariff code.
+
+    Returns (kept_codes, removed_codes).
+    """
+    passed_names = {_code_name(part) for part in (passed_codes_str or '').split(',') if part.strip()}
+    if not any(is_tariff_code(name) for name in passed_names):
+        return list(final_codes), []
+    kept, removed = [], []
+    for line in final_codes:
+        name = _code_name(line)
+        added_by_ai = name not in passed_names
+        covered = not (customer_no == BASINGSTOKE and name in BASINGSTOKE_EXTRAS)
+        if added_by_ai and covered and not is_tariff_code(name):
+            removed.append(line)
+        else:
+            kept.append(line)
+    return kept, removed
+
 
 # Define the tariff customer number sets outside the functions
 tariff_tci_customer_nos = {
@@ -19,8 +87,7 @@ tariff_tci_customer_nos = {
 }
 tariff_simple_customer_nos = {
     'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02090',
-    'GB-CUST02295', 'GB-CUST02496', 'GB-CUST02554', 'GB-CUST02583',
-    BASINGSTOKE,
+    'GB-CUST02295', 'GB-CUST02496', 'GB-CUST02554', 'GB-CUST02583'
 }
 tariff_polyprop_customer_nos = {
     'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02090',
@@ -30,8 +97,7 @@ tariff_bespoke_customer_nos = {
     'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554'
 }
 tariff_afo_customer_nos = {
-    'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554',
-    BASINGSTOKE,
+    'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554'
 }
 tariff_modular_customer_nos = {
     'GB-CUST01700', 'GB-CUST01940', 'GB-CUST01981', 'GB-CUST02554',
@@ -40,10 +106,6 @@ tariff_modular_customer_nos = {
 # Clinics whose bespoke tariff is split into TARIFF BESPOKE SHOE / TARIFF BESPOKE BOOT by style,
 # instead of the single TARIFF BESPOKE the older tariff clinics use.
 tariff_bespoke_shoe_boot_customer_nos = {BASINGSTOKE}
-# Clinics that get TARIFF TCI'S for a TCI insole only. The older TCI list above is a catch-all
-# (any insole not caught by Polyprop or Simple gets TCI'S); whether Basingstoke's poly, carbon,
-# hand mould and cradle insoles should too is not confirmed, so they get normal codes for now.
-tariff_tci_only_customer_nos = {BASINGSTOKE}
 tariff_wales_customer_nos = {
     'GB-CUST02743', 'GB-CUST02756', 'GB-CUST02766', 'GB-CUST02781',
     'GB-CUST02805', 'GB-CUST02830', 'GB-CUST02916', 'GB-CUST02917',
@@ -461,18 +523,20 @@ def generate_bespoke_codes(self, content):
         elif content_dict.get(f'{side} spur retaining strap', '') == 'selected' or content_dict.get(f'{side} heel retaining strap', '') == 'selected':
             passed_codes['A40'] += 2
 
+    # Basingstoke: one TARIFF SOCKET/TSTRAP per shoe that has any socket or strap. It replaces
+    # the socket and strap codes above, which keep_tariff_and_extras then drops.
+    if customer_no == BASINGSTOKE:
+        strap_fields = ['t strap', 'y strap', 'double decker', 'spur retaining strap',
+                        'heel retaining strap']
+        for side in ['left', 'right']:
+            if any(content_dict.get(f'{side} {name}', '') == 'selected'
+                   for name in TYPE_A_SOCKETS + TYPE_B_SOCKETS + strap_fields):
+                passed_codes['TARIFF SOCKET/TSTRAP'] += 1
+
     # --- Final Filtering Step ---
-    bespoke_filter_codes = {
-        'A1B', 'A1A', 'A1K', 'A22', 'A23', 'A24', 'A25',
-        'TWIST FASTEN', 'A18A', 'A6', 'A15', 'A16', 'A37A',
-        'A37B', 'A31', 'A19', 'A26', 'A8', 'A13A', 'A12A',
-        'A39', 'A38', 'A40', 'B54B'
-    }
-    # If bespoke tariff selected, remove bespoke_filter_codes
+    # A tariff covers the shoe codes. The insole codes are added below and have their own tariff.
     if bespoke_tariff_added:
-        for c in bespoke_filter_codes:
-            if c in passed_codes:
-                del passed_codes[c]
+        keep_tariff_and_extras(passed_codes, customer_no)
 
     # Call insole logic and update passed_codes
     insole_passed = generate_insole_codes(self, content, return_dict=True)
@@ -574,15 +638,8 @@ def generate_insole_codes(self, content, return_dict=False):
             if code != 'TARIFF TCI\'S':
                 del passed_codes[code]
 
-    # 4) TCI'S for a TCI insole only (see tariff_tci_only_customer_nos). The TCI box itself, not
-    #    insole_type, because insole_type also counts a cradle as 'tci'. Poly and carbon bases
-    #    are left out too - both are unconfirmed, so they fall through to the normal codes.
-    elif (customer_no in tariff_tci_only_customer_nos
-          and content_dict.get('insole type tci', '') == 'selected'
-          and not (selected_base and (selected_base == 'poly' or 'carbon' in selected_base))):
-        passed_codes['TARIFF TCI\'S'] += 2 if is_pair else 1
-
-    # If no tariff matched, proceed with normal logic
+    # If no tariff matched, proceed with normal logic. Basingstoke always comes this way - its
+    # tariff is applied after the normal codes are worked out, further down.
     else:
         # Base logic using selected_base
         if selected_base:
@@ -774,6 +831,23 @@ def generate_insole_codes(self, content, return_dict=False):
                     if code in passed_codes:
                         passed_codes[code] *= 2
 
+    # Basingstoke insole tariff: a simple or TCI insole gets its tariff (1 each, x2 for a pair)
+    # plus the extras the sheet charges on top (BNS45). Poly, carbon, hand mould and cradle
+    # insoles are charged on normal codes with no tariff (confirmed Sep 2026), so they are left
+    # as worked out above. The TCI box is read directly, because insole_type also counts a
+    # cradle as 'tci'.
+    if customer_no == BASINGSTOKE:
+        moulded_base = bool(selected_base) and (selected_base == 'poly' or 'carbon' in selected_base)
+        basingstoke_tariff = None
+        if not moulded_base:
+            if insole_type == 'simple':
+                basingstoke_tariff = 'TARIFF SIMPLE INSOLE'
+            elif content_dict.get('insole type tci', '') == 'selected':
+                basingstoke_tariff = "TARIFF TCI'S"
+        if basingstoke_tariff:
+            keep_tariff_and_extras(passed_codes, customer_no)
+            passed_codes[basingstoke_tariff] += 2 if is_pair else 1
+
     # Nested calls (bespoke/modular) apply quantity once on the merged order.
     if not return_dict:
         apply_order_quantity(passed_codes, content_dict)
@@ -829,6 +903,14 @@ def generate_afo_codes(self, content):
             passed_codes['TARIFF AFO'] *= 2
         apply_order_quantity(passed_codes, content_dict)
         return 'TARIFF AFO' if passed_codes['TARIFF AFO'] == 1 else f'TARIFF AFO x{passed_codes["TARIFF AFO"]}'
+
+    # Basingstoke: TARIFF AFO, or TARIFF AFO - JOINTED when the hinged box is ticked, one per
+    # device. Unlike the tariff above it does not return here - the normal codes are still
+    # worked out, and the extras Basingstoke pays on top are kept at the end of this function.
+    # The pair loop below doubles the tariff code like any other.
+    if customer_no == BASINGSTOKE:
+        jointed = content_dict.get('afo hinged', '') == 'selected'
+        passed_codes['TARIFF AFO - JOINTED' if jointed else 'TARIFF AFO'] += 1
 
     # Non-tariff AFO type logic
     # P15 - every AFO gets it, 2 per device (single -> x2, pair -> x4 via pair doubling
@@ -1076,6 +1158,9 @@ def generate_afo_codes(self, content):
             if code not in per_side_codes:
                 passed_codes[code] *= 2
 
+    if customer_no == BASINGSTOKE:
+        keep_tariff_and_extras(passed_codes, customer_no)
+
     apply_order_quantity(passed_codes, content_dict)
 
     # Format the passed codes with counts.
@@ -1208,16 +1293,18 @@ def generate_modular_codes(self, content):
                 passed_codes['B3'] += 2
             else:
                 passed_codes['B4'] += 2
+    # Basingstoke: one TARIFF SOCKET/TSTRAP per shoe that has any socket or strap. It replaces
+    # the socket and strap codes above, which keep_tariff_and_extras then drops.
+    if customer_no == BASINGSTOKE:
+        strap_fields = ['t strap', 'y strap', 'doubledecker', 'heel retaining', 'spur retaining']
+        for side in ['left', 'right']:
+            if any(content_dict.get(f'{side} {name}', '') == 'selected'
+                   for name in TYPE_A_SOCKETS + TYPE_B_SOCKETS + strap_fields):
+                passed_codes['TARIFF SOCKET/TSTRAP'] += 1
     # --- Final Filtering Step ---
-    modular_filter_codes = {
-        '6MM', 'PATTERN', 'BNS62', 'MODULAR SHOES', 'MODULAR BOOTS',
-        'MODULAR SPORTS', 'TWIST FASTEN', 'VELCRO', 'B34', 'B33', 'B8',
-        'B30', 'B31', 'B25', 'B17', 'B18', 'B19'
-    }
+    # A tariff covers the shoe codes. The insole codes are added below and have their own tariff.
     if modular_tariff_added:
-        for c in modular_filter_codes:
-            if c in passed_codes:
-                del passed_codes[c]
+        keep_tariff_and_extras(passed_codes, customer_no)
     # Call insole logic and update passed_codes
     insole_passed = generate_insole_codes(self, content, return_dict=True)
     for code, count in insole_passed.items():

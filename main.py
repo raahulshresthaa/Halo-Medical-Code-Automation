@@ -59,7 +59,10 @@ from generate_code_logic import (
     merge_code_strings,
     parse_content_dict,
     detect_missed_pair,
-    tariff_wales_customer_nos
+    tariff_wales_customer_nos,
+    get_customer_no,
+    drop_codes_covered_by_tariff,
+    BASINGSTOKE,
 )
 from NavApi import create_sales_order, parse_pre_app_date
 import concurrent.futures
@@ -870,6 +873,19 @@ class PdfButtonHandler:
                 final_codes = []
                 print("No final codes found in the response.")
                 self.root.after(0, lambda: self.append_to_result_text("No final codes found in the response.", 'error'))
+            # The AI step can add codes from the notes, but knows nothing about tariffs. Take off
+            # any it added that the clinic's tariff already covers - from the codes sent to NAV
+            # AND from the text shown and logged, so Copy to Clipboard matches what was uploaded.
+            if final_codes:
+                passed_codes_text = content.rsplit('Passed code:\n', 1)[1] if 'Passed code:\n' in content else ''
+                final_codes, removed_codes = drop_codes_covered_by_tariff(
+                    passed_codes_text, final_codes, get_customer_no(clinic.strip()))
+                if removed_codes:
+                    note = (f"Removed {', '.join(removed_codes)} - added from the notes, but "
+                            f"already covered by this clinic's tariff.")
+                    print(note)
+                    price_codes = (price_codes.rsplit('**Final Codes:**', 1)[0].rstrip()
+                                   + f"\n\n{note}\n\n**Final Codes:**\n" + '\n'.join(final_codes))
             model_id = self.model_id_var.get()
             form_type_for_filename = get_form_type_from_model_id(model_id)
             current_datetime = datetime.datetime.now()
@@ -1442,6 +1458,13 @@ class PdfButtonHandler:
                     print("No passed codes generated.")
             else:
                 raise ValueError(f"Unknown model ID '{model_id}'.")
+            # Basingstoke's insole tariff works differently from the other clinics' (the tariff
+            # plus extras on top), so a code checker looks at every one. Covers insole forms and
+            # the insole part of a bespoke or modular order.
+            if (passed_codes and re.search(r"TARIFF (SIMPLE INSOLE|TCI'S)", passed_codes)
+                    and get_customer_no(clinic.strip()) == BASINGSTOKE):
+                self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
+                                "Basingstoke insole tariff. Please Kick to Code Checker.")
             logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
             print(f"Logic file path: {logic_file_path}")
             logic_content = self.read_logic_file(logic_file_path)
