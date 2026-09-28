@@ -476,6 +476,30 @@ def parse_user_date(date_str):
             continue
     return None
 
+def correct_creation_date_year(read_date, today=None):
+    """Put right a creation date whose year can't be true, keeping the day and month.
+
+    Forms are processed within weeks of being written, so a creation date more than a year old,
+    or months in the future, means the year was misread - usually a 2-digit year with digits
+    missing ("1/9/20" for 1/9/2026). The day and month are kept and the year becomes this year, or
+    last year if this year would put the date in the future. Anything plausible is returned
+    unchanged, including forms from last year being re-run. A date only a few weeks ahead is left
+    alone too: that is more likely a slip in the day or month, and moving it back a whole year
+    would make it worse.
+    """
+    today = today or datetime.date.today()
+    if today - datetime.timedelta(days=366) <= read_date <= today + datetime.timedelta(days=60):
+        return read_date
+    for year in (today.year, today.year - 1):
+        try:
+            candidate = read_date.replace(year=year)
+        except ValueError:  # 29 February in a non-leap year
+            candidate = read_date.replace(year=year, day=28)
+        if candidate <= today:
+            return candidate
+    return read_date
+
+
 def format_date_display(iso_or_date):
     """Format YYYY-MM-DD or date as DD/MM/YYYY for the UI."""
     if isinstance(iso_or_date, datetime.date):
@@ -1371,7 +1395,18 @@ class PdfButtonHandler:
                     year = int('20' + year)
                 else:
                     year = int(year)
-                creation_date = datetime.date(year, month, day).strftime('%Y-%m-%d')
+                read_date = datetime.date(year, month, day)
+                checked_date = correct_creation_date_year(read_date)
+                if checked_date != read_date:
+                    # e.g. JW1570: Azure read "1/9/20" - the "26" was cut off - and the order went
+                    # to NAV dated 2020, with the wrong price and delivery date.
+                    note = (f"The creation date was read as '{creation_date_str}', which gives "
+                            f"{format_date_display(read_date)} - the year looks wrong, so "
+                            f"{format_date_display(checked_date)} has been used instead. "
+                            f"Please Kick to Code Checker.")
+                    print(f"WARNING - {note}")
+                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", note)
+                creation_date = checked_date.strftime('%Y-%m-%d')
                 print(f"Extracted creation_date: {creation_date}")
             except (ValueError, AttributeError):
                 creation_date = datetime.date.today().strftime('%Y-%m-%d')
