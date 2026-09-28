@@ -3458,48 +3458,84 @@ downloads_username = None
 def on_auto_watch_toggled():
     """Handle the auto-watch checkbox toggle: prompt for username when enabled."""
     global downloads_username  # Access the global username variable
+    # Forget the old folder straight away, and only store the new one once it has been checked.
+    # The watcher keeps ticking while the username prompt is open, and with the switch already
+    # on it used to check the OLD folder - so after one failure, every attempt to switch back on
+    # failed again before the new name could even be typed in.
+    downloads_username = None
     if auto_watch_var.get():  # If the checkbox is checked (turned on)
         # Prompt user for their username
         username = simpledialog.askstring("Username Required", "Please enter your firstname.lastname for the Downloads folder path:")
         if username:  # If a username was provided
-            downloads_username = username  # Store it globally
+            username = username.strip()
             # Construct the network path using the username
-            downloads_folder = f"\\\\halo-dc\\folderredirects$\\{downloads_username}\\Downloads"
+            downloads_folder = f"\\\\halo-dc\\folderredirects$\\{username}\\Downloads"
             if os.path.isdir(downloads_folder):  # Check if the folder exists
                 # Gather all current PDFs to mark them as already seen
-                existing_pdfs = {
-                    f for f in os.listdir(downloads_folder)
-                    if f.lower().endswith('.pdf')
-                }
-                known_downloads.update(existing_pdfs)  # Update the set of known files
+                try:
+                    existing_pdfs = {
+                        f for f in os.listdir(downloads_folder)
+                        if f.lower().endswith('.pdf')
+                    }
+                    known_downloads.update(existing_pdfs)  # Update the set of known files
+                    downloads_username = username  # Checked - the watcher can start now
+                except OSError as e:
+                    messagebox.showwarning("Warning", f"Could not read the Downloads folder at {downloads_folder}:\n{e}")
+                    auto_watch_var.set(False)
             else:  # If the folder doesn’t exist
                 messagebox.showwarning("Warning", f"Downloads folder not found at {downloads_folder}")
                 auto_watch_var.set(False)  # Disable auto-watch
-        else:  # If user cancels or enters nothing
-            messagebox.showwarning("Warning", "Username is required for auto-watch feature.")
-            auto_watch_var.set(False)  # Disable auto-watch
+        else:  # Cancelled or left blank - just switch back off, no need to say so
+            auto_watch_var.set(False)
+
+def stop_auto_watch(reason):
+    """Switch auto-detect OFF and say why, so the switch never shows 'on' while nothing is
+    being watched. It used to stop silently and leave the box ticked."""
+    global downloads_username
+    auto_watch_var.set(False)
+    downloads_username = None
+    print(f"Auto-detect switched OFF: {reason}")
+    messagebox.showwarning("Auto-detect switched off", reason)
+
 
 def watch_downloads_folder():
-    if auto_watch_var.get() and downloads_username is not None:  # Only proceed if username is set
-        downloads_folder = f"\\\\halo-dc\\folderredirects$\\{downloads_username}\\Downloads"
-        print(f"Checking folder: {downloads_folder}")
-        if not os.path.exists(downloads_folder):
-            print(f"Folder does not exist: {downloads_folder}")
-            messagebox.showwarning("Warning", f"Downloads folder not found at {downloads_folder}")
-            return
-        pdf_files = [f for f in os.listdir(downloads_folder) if f.lower().endswith('.pdf')]
-        print(f"Found {len(pdf_files)} PDF files")
-        if pdf_files:
-            pdf_files.sort(key=lambda f: os.path.getmtime(os.path.join(downloads_folder, f)))
-            newest_pdf = pdf_files[-1]
-            pdf_path = os.path.join(downloads_folder, newest_pdf)
-            if newest_pdf not in known_downloads:
-                print(f"Processing new PDF: {pdf_path}")
-                known_downloads.add(newest_pdf)
-                pdf_handler.show_loading_popup()
-                pdf_handler.upload_pdf_button.config(state='disabled')
-                threading.Thread(target=pdf_handler.process_pdf_entry, args=(pdf_path,)).start()
-    root.after(1000, watch_downloads_folder)
+    """Checks the Downloads folder once a second. Always reschedules itself (the finally), so
+    one bad check can never stop it for good."""
+    try:
+        if auto_watch_var.get() and downloads_username is not None:  # Only proceed if username is set
+            downloads_folder = f"\\\\halo-dc\\folderredirects$\\{downloads_username}\\Downloads"
+            print(f"Checking folder: {downloads_folder}")
+            if not os.path.isdir(downloads_folder):
+                stop_auto_watch(f"The Downloads folder can't be reached:\n{downloads_folder}\n\n"
+                                f"Switch auto-detect back on once the network is back.")
+                return
+            # Wait while a form is still being processed - starting another one now would run
+            # two at once. The new PDF is not marked as seen, so the next check picks it up.
+            if str(pdf_handler.upload_pdf_button.cget('state')) == 'disabled':
+                return
+            try:
+                pdf_files = [f for f in os.listdir(downloads_folder) if f.lower().endswith('.pdf')]
+                print(f"Found {len(pdf_files)} PDF files")
+                if pdf_files:
+                    pdf_files.sort(key=lambda f: os.path.getmtime(os.path.join(downloads_folder, f)))
+            except OSError as e:
+                # Usually a file deleted or renamed between listing and reading it, or a brief
+                # network blip. Skip this check - the next one a second later will be fine.
+                print(f"Auto-detect: skipped one check ({e})")
+                return
+            if pdf_files:
+                newest_pdf = pdf_files[-1]
+                pdf_path = os.path.join(downloads_folder, newest_pdf)
+                if newest_pdf not in known_downloads:
+                    print(f"Processing new PDF: {pdf_path}")
+                    known_downloads.add(newest_pdf)
+                    pdf_handler.show_loading_popup()
+                    pdf_handler.upload_pdf_button.config(state='disabled')
+                    threading.Thread(target=pdf_handler.process_pdf_entry, args=(pdf_path,)).start()
+    except Exception as e:
+        print(f"Auto-detect: unexpected error, skipped one check ({e})")
+    finally:
+        root.after(1000, watch_downloads_folder)
 
 # The action buttons, in one row inside controls_frame (packed side='bottom' further up, so
 # they keep their space on a short screen). They used to be a tall stack of five buttons, each
@@ -3545,11 +3581,14 @@ theme_combobox = ttk.Combobox(
 )
 theme_combobox.pack(side='left')
 
+# An on/off switch rather than a tick box, so it is obvious at a glance whether auto-detect is
+# running. Green when on. It switches itself off if the Downloads folder can't be reached.
 auto_watch_check = ttk.Checkbutton(
     bottom_frame,
     text="Auto-detect new PDF in Downloads",
     variable=auto_watch_var,
-    command=on_auto_watch_toggled
+    command=on_auto_watch_toggled,
+    bootstyle='success-round-toggle'
 )
 auto_watch_check.pack(side='left', padx=(22, 0))
 
