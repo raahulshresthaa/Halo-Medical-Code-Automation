@@ -310,8 +310,15 @@ def determine_order_category_code(model_id, fields_data):
         elif fields_data.get('insole type hand mould', '').lower() == 'selected':
             insole_type = 'handmould'
         
-        base = fields_data.get('base', '').strip().lower()
-        if base in ('polypropylene', 'carbon fibre'):
+        # Hand mould, polypropylene and carbon insoles are moulded. The base is read from the
+        # tick-box fields ('base poly', 'base carbon 1.5mm', 'base carbon 3mm'): this used to look
+        # for a single 'base' field, which the reader never produces, so until Sep 2026 every one
+        # of these went to NAV as MILLED INSOLES.
+        moulded_base = (fields_data.get('base poly', '').lower() == 'selected'
+                        or any(value.lower() == 'selected'
+                               for key, value in fields_data.items()
+                               if key.lower().startswith('base carbon')))
+        if insole_type == 'handmould' or moulded_base:
             return 'MOULDED INSOLE'
         elif insole_type == 'simple':
             return 'SIMPLE INSOLE'
@@ -1233,6 +1240,7 @@ class PdfButtonHandler:
             fields_data = self.extract_fields_from_result(result)
             print(f"Azure read {len(fields_data)} field(s) from the PDF using {model_id}")
             order_category_code = determine_order_category_code(model_id, fields_data)
+            print(f"Order category: {order_category_code}")
             if not fields_data:
                 raise ValueError("No data extracted from the PDF.")
             # Check form confirmation
