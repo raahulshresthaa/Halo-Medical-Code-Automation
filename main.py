@@ -879,7 +879,6 @@ class PdfButtonHandler:
             else:
                 final_codes = []
                 print("No final codes found in the response.")
-                self.root.after(0, lambda: self.append_to_result_text("No final codes found in the response.", 'error'))
             # The AI step can add codes from the notes, but knows nothing about tariffs. Take off
             # any it added that the clinic's tariff already covers - from the codes sent to NAV
             # AND from the text shown and logged, so Copy to Clipboard matches what was uploaded.
@@ -905,6 +904,18 @@ class PdfButtonHandler:
             combined_messages = '\n'.join(messages) if messages else None
             self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes, combined_messages)
             log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages, ai_input)
+            # No codes back from the AI step (an OpenAI error or timeout, or a reply with no
+            # Final Codes). The order still goes to NAV, but with no code lines, so it must be
+            # obvious. Scheduled AFTER display_results - that clears the results box, and used to
+            # wipe the old "No final codes" line before anyone could see it.
+            if not final_codes:
+                no_codes_message = ("The AI step returned no codes, so this order will be uploaded "
+                                    "to NAV with NO code lines. Please Kick to Code Checker.")
+                print(f"ERROR - {no_codes_message}")
+                self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", no_codes_message)
+                if log_file_path:
+                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"\n[ERROR] {no_codes_message}\n")
             if AutoDocRef == 'N/A':
                 message = "No AutoDocRef found in the extracted data. Please kick to query."
                 self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
