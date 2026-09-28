@@ -1112,8 +1112,7 @@ class PdfButtonHandler:
                 messagebox.showerror("Error", f"Error processing the file: {str(e)}")
                 self.upload_pdf_button.config(state='normal')  # Re-enable the upload button
                 self.close_loading_popup()  # Ensure the loading pop-up is closed if an error occurs
-        else:
-            messagebox.showinfo("No PDF File Selected", "Please select a PDF file to process.")
+        # Cancelled the file picker - nothing to do, and no need to say so.
 
     def process_pdf_entry(self, pdf_file_path):
         """Entry point for a selected/dropped PDF.
@@ -3452,48 +3451,97 @@ auto_watch_var = tk.BooleanVar(value=False)
 
 # We'll track which files we've seen so we don't re-process them
 known_downloads = set()
-# Store the username for the network Downloads folder path, initially None
-downloads_username = None
+# The Downloads folder being watched, once one has been found and checked. None while off.
+watched_downloads_folder = None
+
+# Where Downloads is redirected to on the deployed VM, named after the user's firstname.lastname.
+REDIRECTED_DOWNLOADS = "\\\\halo-dc\\folderredirects$\\{}\\Downloads"
+
+
+def windows_downloads_folder():
+    """The current user's Downloads folder, as Windows itself reports it (the same answer File
+    Explorer uses). Follows folder redirection, so on the VM this should be the halo-dc share and
+    on a local PC it is C:\\Users\\<name>\\Downloads. None if Windows can't say."""
+    try:
+        import ctypes
+        import uuid
+        from ctypes import wintypes
+
+        class GUID(ctypes.Structure):
+            _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD),
+                        ("Data3", wintypes.WORD), ("Data4", ctypes.c_ubyte * 8)]
+
+        folder_id = uuid.UUID('{374DE290-123F-4565-9164-39C4925E467B}')  # FOLDERID_Downloads
+        guid = GUID(folder_id.fields[0], folder_id.fields[1], folder_id.fields[2],
+                    (ctypes.c_ubyte * 8)(*folder_id.bytes[8:]))
+        path = ctypes.c_wchar_p()
+        if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(path)) != 0:
+            return None
+        try:
+            return path.value
+        finally:
+            ctypes.windll.ole32.CoTaskMemFree(path)
+    except Exception as e:
+        print(f"Could not ask Windows for the Downloads folder: {e}")
+        return None
+
+
+def find_downloads_folder():
+    """Work out which Downloads folder to watch without asking, where possible.
+
+    1. The folder Windows reports (works here and, if Downloads is redirected, on the VM).
+    2. The VM's halo-dc share under the Windows login name, in case that is firstname.lastname.
+    3. Only if neither exists: ask for firstname.lastname, as it used to every time.
+    Returns the folder, or None if none was found or the question was cancelled.
+    """
+    candidates = [windows_downloads_folder(),
+                  REDIRECTED_DOWNLOADS.format(os.environ.get('USERNAME', ''))]
+    for folder in candidates:
+        if folder and os.path.isdir(folder):
+            return folder
+    username = simpledialog.askstring(
+        "Username Required",
+        "Your Downloads folder could not be found automatically.\n"
+        "Please enter your firstname.lastname:")
+    if not username or not username.strip():
+        return None  # Cancelled - just switch back off, no need to say so
+    folder = REDIRECTED_DOWNLOADS.format(username.strip())
+    if not os.path.isdir(folder):
+        messagebox.showwarning("Warning", f"Downloads folder not found at {folder}")
+        return None
+    return folder
+
 
 def on_auto_watch_toggled():
-    """Handle the auto-watch checkbox toggle: prompt for username when enabled."""
-    global downloads_username  # Access the global username variable
+    """Switching auto-detect on: find the Downloads folder and mark the PDFs already in it as
+    seen, so only new ones are processed."""
+    global watched_downloads_folder
     # Forget the old folder straight away, and only store the new one once it has been checked.
-    # The watcher keeps ticking while the username prompt is open, and with the switch already
-    # on it used to check the OLD folder - so after one failure, every attempt to switch back on
-    # failed again before the new name could even be typed in.
-    downloads_username = None
-    if auto_watch_var.get():  # If the checkbox is checked (turned on)
-        # Prompt user for their username
-        username = simpledialog.askstring("Username Required", "Please enter your firstname.lastname for the Downloads folder path:")
-        if username:  # If a username was provided
-            username = username.strip()
-            # Construct the network path using the username
-            downloads_folder = f"\\\\halo-dc\\folderredirects$\\{username}\\Downloads"
-            if os.path.isdir(downloads_folder):  # Check if the folder exists
-                # Gather all current PDFs to mark them as already seen
-                try:
-                    existing_pdfs = {
-                        f for f in os.listdir(downloads_folder)
-                        if f.lower().endswith('.pdf')
-                    }
-                    known_downloads.update(existing_pdfs)  # Update the set of known files
-                    downloads_username = username  # Checked - the watcher can start now
-                except OSError as e:
-                    messagebox.showwarning("Warning", f"Could not read the Downloads folder at {downloads_folder}:\n{e}")
-                    auto_watch_var.set(False)
-            else:  # If the folder doesn’t exist
-                messagebox.showwarning("Warning", f"Downloads folder not found at {downloads_folder}")
-                auto_watch_var.set(False)  # Disable auto-watch
-        else:  # Cancelled or left blank - just switch back off, no need to say so
-            auto_watch_var.set(False)
+    # The watcher keeps ticking while any prompt is open, and with the switch already on it used
+    # to check the OLD folder - so after one failure, every attempt to switch back on failed again.
+    watched_downloads_folder = None
+    if not auto_watch_var.get():
+        return
+    folder = find_downloads_folder()
+    if folder is None:
+        auto_watch_var.set(False)
+        return
+    try:
+        known_downloads.update(f for f in os.listdir(folder) if f.lower().endswith('.pdf'))
+    except OSError as e:
+        messagebox.showwarning("Warning", f"Could not read the Downloads folder at {folder}:\n{e}")
+        auto_watch_var.set(False)
+        return
+    watched_downloads_folder = folder  # Checked - the watcher can start now
+    print(f"Auto-detect ON, watching: {folder}")
+
 
 def stop_auto_watch(reason):
     """Switch auto-detect OFF and say why, so the switch never shows 'on' while nothing is
     being watched. It used to stop silently and leave the box ticked."""
-    global downloads_username
+    global watched_downloads_folder
     auto_watch_var.set(False)
-    downloads_username = None
+    watched_downloads_folder = None
     print(f"Auto-detect switched OFF: {reason}")
     messagebox.showwarning("Auto-detect switched off", reason)
 
@@ -3502,8 +3550,8 @@ def watch_downloads_folder():
     """Checks the Downloads folder once a second. Always reschedules itself (the finally), so
     one bad check can never stop it for good."""
     try:
-        if auto_watch_var.get() and downloads_username is not None:  # Only proceed if username is set
-            downloads_folder = f"\\\\halo-dc\\folderredirects$\\{downloads_username}\\Downloads"
+        if auto_watch_var.get() and watched_downloads_folder is not None:
+            downloads_folder = watched_downloads_folder
             print(f"Checking folder: {downloads_folder}")
             if not os.path.isdir(downloads_folder):
                 stop_auto_watch(f"The Downloads folder can't be reached:\n{downloads_folder}\n\n"
