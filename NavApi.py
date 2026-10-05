@@ -125,7 +125,7 @@ def work_order_adapts_and_modifications(auto_doc_ref):
     target_text = "Refer to Prescription form " + auto_doc_ref
     return target_operation, target_text
 
-def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None):
+def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None, external_document_no=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
     error_messages = []
@@ -202,7 +202,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             "Pad_No": auto_doc_ref,
             "Patient_Name": patient_name if patient_name else "Unknown",
             "Patient_Gender": gender,
-            "External_Document_No": f"DNI/{auto_doc_ref}" # DNI Calculation
+            # Worked out per clinic by external_document_number() in generate_code_logic.py.
+            "External_Document_No": external_document_no or f"DNI/{auto_doc_ref}"
         }
         print(f"Requested_Delivery_Date: {request_delivery_date}")
         print(f"Original_Order_Date: {original_order_date}")

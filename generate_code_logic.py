@@ -112,6 +112,26 @@ tariff_wales_customer_nos = {
     'GB-CUST02918'
 }
 
+# External document number - what goes in NAV's External Document No. field, per clinic, from
+# "clinic processes 31-7-26 - order numbers.xlsx" (Tracy, Oct 2026). Most clinics want
+# DNI/<pad or ADR number>, which is the default. These want the pad/ADR number on its own.
+# Still to come: blanket order numbers (BT/SH/Comm paeds, Moulsham Grange, Polyclinic) and
+# numbers written on the form (Basingstoke, ENH - Lister, Ealing, Hackney Ark) - see errors.md.
+external_doc_ref_only_customer_nos = {
+    'GB-CUST01587',  # Wembley
+    'GB-CUST01957',  # Oaktree
+    'GB-CUST02063',  # Peacock
+    'GB-CUST02554',  # Bury CDC
+}
+
+
+def external_document_number(customer_no, auto_doc_ref):
+    """The External Document No. to send to NAV for this clinic's order."""
+    if customer_no in external_doc_ref_only_customer_nos:
+        return auto_doc_ref
+    return f"DNI/{auto_doc_ref}"
+
+
 # Shared socket type lists (bespoke A37A/A37B and modular B30/B31)
 TYPE_A_SOCKETS = ['5/16 round', '1/4 round', '3/16x9/16', 'rizzoli']
 TYPE_B_SOCKETS = ['5/16 backstop', '1/4 backstop']

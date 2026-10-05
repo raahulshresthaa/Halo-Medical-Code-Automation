@@ -62,6 +62,7 @@ from generate_code_logic import (
     tariff_wales_customer_nos,
     get_customer_no,
     drop_codes_covered_by_tariff,
+    external_document_number,
     BASINGSTOKE,
 )
 from NavApi import create_sales_order, parse_pre_app_date
@@ -716,6 +717,11 @@ class PdfButtonHandler:
         self.upload_pdf_button = None
         self.kicked_to_code_checker = False
         self.pending_warnings = []
+        # The warnings raised for the order on screen: short kick reasons, and any other
+        # warnings. Kept so display_results can show them under Final Codes after it clears the
+        # box - most are raised before the codes arrive, and used to be wiped, so they never
+        # reached Copy to Clipboard. results_shown says whether the codes are on screen yet.
+        self.reset_order_warnings()
 
         # Read Azure credentials from files
         self.endpoint = self.read_azure_credential_file('azure_endpoint.txt', 'Azure Endpoint')
@@ -736,6 +742,13 @@ class PdfButtonHandler:
         # Configure text tags for result_text
         # success/error/info fonts and colours, chosen to be readable on the current theme.
         configure_result_tags(self.result_text)
+
+    def reset_order_warnings(self):
+        """Start a new order with no kicks or warnings recorded."""
+        self.kicked_to_code_checker = False
+        self.kick_reasons = []
+        self.order_warnings = []
+        self.results_shown = False
 
     def normalise(self, s):
         return " ".join(s.lower().strip().split())
@@ -936,7 +949,8 @@ class PdfButtonHandler:
                 no_codes_message = ("The AI step returned no codes, so this order will be uploaded "
                                     "to NAV with NO code lines. Please Kick to Code Checker.")
                 print(f"ERROR - {no_codes_message}")
-                self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", no_codes_message)
+                self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", no_codes_message,
+                                "No codes from the AI - sent to NAV with no code lines")
                 if log_file_path:
                     with open(log_file_path, 'a', encoding='utf-8') as f:
                         f.write(f"\n[ERROR] {no_codes_message}\n")
@@ -976,12 +990,13 @@ class PdfButtonHandler:
                 if log_file_path:
                     with open(log_file_path, 'a', encoding='utf-8') as f:
                         f.write(f"\n[ERROR] {message}\n")
-                self.root.after(0, self.append_and_show_info, "Customer Not Found", "The clinic sell to order number has not been found in the database.\nAdded to missing contacts for review.")
+                self.root.after(0, self.append_and_show_info, "Customer Not Found", f"No sell-to number for clinic '{clinic}'. Added to missing contacts for review.")
                 add_missing_contact('clinic', clinic)
                 return False, None, [], log_file_path, False  # Early return on failure
             # Check if Wales clinic and show popup
             if customer_no in tariff_wales_customer_nos:
-                self.root.after(0, self.append_and_show_warning, "Wales Clinic", "Wales clinic: kick to code checker")
+                self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
+                                "Wales clinic.", "Wales clinic")
             if not os.path.exists(clinician_db_path):
                 error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
                 print(error_msg)
@@ -998,7 +1013,7 @@ class PdfButtonHandler:
                 if log_file_path:
                     with open(log_file_path, 'a', encoding='utf-8') as f:
                         f.write(f"\n[ERROR] {message}\n")
-                self.root.after(0, self.append_and_show_info, "Prescriber Not Found", "Prescriber number not found. Added to missing contacts for review.")
+                self.root.after(0, self.append_and_show_info, "Prescriber Not Found", f"No prescriber number for clinician '{clinician}'. Added to missing contacts for review.")
                 add_missing_contact('clinician', clinician)
                 return False, None, [], log_file_path, False  # Early return on failure
             # Calculate both possible delivery dates; roll past user-configured holidays
@@ -1048,22 +1063,75 @@ class PdfButtonHandler:
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
     def append_and_show_info(self, title, message):
-        """Append info message to result_text and show pop-up."""
+        """Append info message to result_text and queue it for the end-of-order pop-up."""
         self.append_to_result_text(f"{title}: {message}", 'info')
-        messagebox.showinfo(title, message)
+        self.pending_warnings.append((title, message, 'info'))
 
-    def append_and_show_warning(self, title, message):
-        """Append warning message to result_text and show pop-up."""
-        self.append_to_result_text(f"{title}: {message}", 'warning')
+    def append_and_show_warning(self, title, message, short=None):
+        """Record a warning for the order on screen and queue its pop-up.
+
+        A kick gives a SHORT reason as well as the full pop-up message. The short reasons are
+        what go in the results box and Copy to Clipboard, as one numbered list under a single
+        "Kicked to Code Checker:" heading - that text is stamped on the paperwork, so it has to
+        be brief. Other warnings keep their full "Title: message" line.
+        """
         if title == "Kick to Code Checker":
             self.kicked_to_code_checker = True
-        self.pending_warnings.append((title, message))
+            reason = short or message
+            if reason not in self.kick_reasons:
+                self.kick_reasons.append(reason)
+        else:
+            line = f"{title}: {message}"
+            if line not in self.order_warnings:
+                self.order_warnings.append(line)
+        if self.results_shown:
+            # Raised after the codes are on screen - redraw the list so it stays one list.
+            render_warning_block()
+        else:
+            # display_results will clear the box and draw the list properly; until then show
+            # the full line so a run that fails before the codes arrive still says why.
+            self.append_to_result_text(f"{title}: {message}", 'warning')
+        kind = 'kick' if title == "Kick to Code Checker" else 'warning'
+        self.pending_warnings.append((title, message, kind))
 
     def show_pending_warnings(self):
-        """Show all queued warning popups after loading popup is closed."""
-        for title, message in self.pending_warnings:
-            messagebox.showwarning(title, message)
+        """Show everything raised for the order in ONE pop-up, once the loading pop-up is closed.
+
+        It used to be one pop-up per problem, so a form with three issues meant clicking
+        through three boxes. Kicks come first as a numbered list with their full details, then
+        anything else (prescriber not found, queries, ...).
+        """
+        if not self.pending_warnings:
+            return
+        kicks, others = [], []
+        for title, message, kind in self.pending_warnings:
+            # Every kick message ends by asking for a kick - the heading already says that.
+            text = re.sub(r'[,.]?\s*Please Kick to Code Checker\.?', '', message,
+                          flags=re.IGNORECASE).replace('\n', ' ').strip()
+            if kind == 'kick':
+                if text not in kicks:
+                    kicks.append(text)
+            else:
+                line = f"{title}: {text}"
+                if line not in others:
+                    others.append(line)
         self.pending_warnings.clear()
+
+        lines = []
+        if kicks:
+            lines.append("Kick to Code Checker:")
+            lines += [f"{number}. {text}" for number, text in enumerate(kicks, 1)]
+        if others:
+            if lines:
+                lines.append("")
+            lines += others
+        if kicks:
+            popup_title = "Kick to Code Checker"
+        elif len(others) == 1:
+            popup_title = others[0].split(':', 1)[0]
+        else:
+            popup_title = "Please check this order"
+        messagebox.showwarning(popup_title, "\n".join(lines))
 
     def append_to_result_text(self, message, tag='success'):
         self.result_text.config(state=tk.NORMAL)
@@ -1150,8 +1218,8 @@ class PdfButtonHandler:
         # leave stale codes on screen looking like the new order's results.
         self.root.after(0, clear_results_display)
         # Multi-form runs collect with collect_only=True, which deliberately does not
-        # reset this flag, so clear it here for every run.
-        self.kicked_to_code_checker = False
+        # reset these, so clear them here for every run.
+        self.reset_order_warnings()
 
         parts = split_multi_form_pdf(pdf_file_path)
         if not parts:
@@ -1216,7 +1284,13 @@ class PdfButtonHandler:
                         f"Please Kick to Code Checker.")
                 if skipped:
                     note += f" ({skipped} further form(s) could not be read and were skipped.)"
-            self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", note)
+            if len(collected) == 1:
+                short = f"PDF held {len(parts)} forms - only 1 could be read"
+            else:
+                short = f"PDF held {len(collected)} forms - combined into one order"
+                if skipped:
+                    short += f", {skipped} not readable"
+            self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", note, short)
 
             self.process_api_call(
                 combined_content, base['logic_content'], base['AutoDocRef'], base['clinic'],
@@ -1240,8 +1314,10 @@ class PdfButtonHandler:
     def process_pdf_and_call_api(self, pdf_file_path, attempt=1, collect_only=False):
         # Keep the code-checker flag when collecting the 2nd+ form of a multi-form PDF,
         # otherwise form 2 would clear the flag form 1 raised.
-        if not collect_only:
-            self.kicked_to_code_checker = False
+        # Only on the first read: a reader switch calls this again (attempt 2) and must not
+        # throw away what the first read raised.
+        if not collect_only and attempt == 1:
+            self.reset_order_warnings()
         def azure_api_call():
             with open(pdf_file_path, "rb") as pdf_file:
                 poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
@@ -1334,9 +1410,13 @@ class PdfButtonHandler:
             print(f"Extracted content:\n{content}")
             if model_id == MODEL_IDS['Insoles']:
                 if "insole type other" in fields_data:
-                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", "Insole Type Other has a value. Please Kick to Code Checker.")
+                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
+                                    "Insole Type Other has a value. Please Kick to Code Checker.",
+                                    "Insole type 'Other' filled in")
                 if self.is_carbon_selected(content):
-                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", "Warning Carbon Selected, Please Kick to Code Checker")
+                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
+                                    "Warning Carbon Selected, Please Kick to Code Checker",
+                                    "Carbon base")
                 # Check for additional info sections
                 additional_info_keys = [
                     'additional info modeling',
@@ -1359,7 +1439,13 @@ class PdfButtonHandler:
                         filled_sections.append(key)
                 if filled_sections:
                     sections_str = ', '.join(filled_sections)
-                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", f"Additional info has value in: {sections_str}. Please Kick to Code Checker.")
+                    # Short form drops the repeated "additional info" from each box name, e.g.
+                    # "Notes in additional info: modeling, additions".
+                    short_names = [key.replace('additional info', '').strip() or 'general'
+                                   for key in filled_sections]
+                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
+                                    f"Additional info has value in: {sections_str}. Please Kick to Code Checker.",
+                                    f"Notes in additional info: {', '.join(short_names)}")
             if model_id == MODEL_IDS['AFOs']:
                 # The codes have already been doubled as a pair (see detect_missed_pair in
                 # generate_code_logic). Tell the code checker, because these checks spot a
@@ -1369,7 +1455,8 @@ class PdfButtonHandler:
                     self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
                                     f"Treated as a PAIR even though the Pair box is not ticked: "
                                     f"{missed_pair_reason}. Quantities have been doubled. "
-                                    f"Please Kick to Code Checker.")
+                                    f"Please Kick to Code Checker.",
+                                    "Coded as a pair, but Pair box not ticked - codes doubled")
             AutoDocRef = fields_data.get('AutoDocRef', 'N/A')
             clinic = fields_data.get('Clinic', 'N/A')
             # Extract and clean patient name
@@ -1386,7 +1473,7 @@ class PdfButtonHandler:
                 patient_name = 'Unknown'
             print(f"Cleaned patient_name: '{patient_name}'")
             # Extract creation date
-            creation_date_str = fields_data.get('creation date', datetime.date.today().strftime('%d/%m/%Y'))
+            creation_date_str = fields_data.get('creation date', '')
             try:
                 day, month, year = creation_date_str.split('/')
                 day = int(day)
@@ -1405,12 +1492,24 @@ class PdfButtonHandler:
                             f"{format_date_display(checked_date)} has been used instead. "
                             f"Please Kick to Code Checker.")
                     print(f"WARNING - {note}")
-                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", note)
+                    self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", note,
+                                    f"Creation date read as '{creation_date_str}' - "
+                                    f"used {format_date_display(checked_date)}")
                 creation_date = checked_date.strftime('%Y-%m-%d')
                 print(f"Extracted creation_date: {creation_date}")
             except (ValueError, AttributeError):
+                # Missing, or not a date at all. Today's date is used so the order can still go
+                # through, but it sets the NAV order date, price and delivery date, so say so.
                 creation_date = datetime.date.today().strftime('%Y-%m-%d')
                 print(f"Failed to parse creation_date, using today's date: {creation_date}")
+                read_as = f"read as '{creation_date_str}'" if creation_date_str else "missing"
+                note = (f"The creation date could not be read ({read_as}), so today's date "
+                        f"{format_date_display(creation_date)} has been used instead. "
+                        f"Please Kick to Code Checker.")
+                print(f"WARNING - {note}")
+                short = (f"Creation date read as '{creation_date_str}'" if creation_date_str
+                         else "No creation date") + f" - used today, {format_date_display(creation_date)}"
+                self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", note, short)
             # Extract and convert gender
             gender = fields_data.get('gender', 'N/A').strip().upper()
             if gender in ['M', 'MALE']:
@@ -1517,7 +1616,8 @@ class PdfButtonHandler:
             if (passed_codes and re.search(r"TARIFF (SIMPLE INSOLE|TCI'S)", passed_codes)
                     and get_customer_no(clinic.strip()) == BASINGSTOKE):
                 self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
-                                "Basingstoke insole tariff. Please Kick to Code Checker.")
+                                "Basingstoke insole tariff. Please Kick to Code Checker.",
+                                "Basingstoke insole tariff")
             logic_file_path = os.path.join(os.getcwd(), 'logic_folder', logic_file_name)
             print(f"Logic file path: {logic_file_path}")
             logic_content = self.read_logic_file(logic_file_path)
@@ -1982,6 +2082,13 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         tuple: (success (bool), sales_order_no (str or None), messages (list of (text, tag)))
     """
     try:
+        # Worked out once here and used for both the upload and the log, so they always match.
+        # Printed and logged BEFORE the upload, so it can be checked even when NAV is unreachable.
+        external_doc_no = external_document_number(customer_no, auto_doc_ref)
+        print(f"External Document No: {external_doc_no}")
+        if log_file_path:
+            with open(log_file_path, 'a', encoding='utf-8') as f:
+                f.write(f"External Document No: {external_doc_no}\n")
         result = create_sales_order(
             sell_to_customer_no=customer_no,
             prescriber=prescriber,
@@ -1994,6 +2101,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             patient_name=patient_name if patient_name else "",
             gender=gender_full,
             pre_app_date=pre_app_date,
+            external_document_no=external_doc_no,
         )
       
         success = result.get('success', False)
@@ -2017,7 +2125,6 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             ui_messages.append((f"✅ Created Sales Order: {sales_order_no}", 'success'))
             log_messages.append(f"[SUCCESS] Created Sales Order: {sales_order_no}")
             today_str = datetime.date.today().strftime("%Y-%m-%d")
-            external_doc_no = f"DNI/{auto_doc_ref}"
             order_data_log = {
                 "No": sales_order_no,
                 "Sell_to_Customer_No": customer_no,
@@ -3412,12 +3519,47 @@ def display_results(formatted_datetime, AutoDocRef, clinic, price_codes, message
         result_text.insert(tk.END, "\n\n")
         result_text.insert(tk.END, messages, 'warning')
 
+    # The warnings for this order go below Final Codes, so Copy to Clipboard takes them with the
+    # codes and the code checker can see WHY the order was kicked. Marked so the block can be
+    # redrawn in place if another kick arrives after the codes are on screen.
+    result_text.mark_set('warnings_start', 'end-1c')
+    result_text.mark_gravity('warnings_start', 'left')
+    result_text.mark_set('warnings_end', 'end-1c')
+    result_text.mark_gravity('warnings_end', 'left')
+    pdf_handler.results_shown = True
+    render_warning_block()
+
     result_text.see(tk.END)
     result_text.config(state=tk.DISABLED)
 
         # Automatically copy the final codes if auto-watch is enabled
     if auto_watch_var.get():
         copy_final_codes()
+
+def warning_block_text():
+    """The kick reasons as one short numbered list, then any other warnings. Empty if none."""
+    lines = []
+    if pdf_handler.kick_reasons:
+        lines.append("Kicked to Code Checker:")
+        lines += [f"{number}. {reason}" for number, reason in enumerate(pdf_handler.kick_reasons, 1)]
+    lines += pdf_handler.order_warnings
+    return "\n" + "\n".join(lines) + "\n" if lines else ""
+
+
+def render_warning_block():
+    """Draw (or redraw) the warning block between the marks display_results set."""
+    if 'warnings_start' not in result_text.mark_names():
+        return
+    previous_state = result_text.cget('state')
+    result_text.config(state=tk.NORMAL)
+    result_text.delete('warnings_start', 'warnings_end')
+    block = warning_block_text()
+    result_text.insert('warnings_start', block, 'warning')
+    # Both marks have left gravity, so the end mark stayed put during the insert - move it to
+    # the end of the new block. Later lines (e.g. the NAV upload result) still go after it.
+    result_text.mark_set('warnings_end', f"warnings_start + {len(block)} chars")
+    result_text.config(state=previous_state)
+
 
 def copy_final_codes():
     """
@@ -3427,10 +3569,17 @@ def copy_final_codes():
     """
     full_text = result_text.get("1.0", tk.END)
     last_index = full_text.rfind("Final Codes")
-    if last_index == -1:
+    if last_index != -1:
+        final_codes_text = full_text[last_index:].rstrip()
+    elif pdf_handler.kick_reasons:
+        # No codes came back (e.g. the AI step failed), but the order was kicked - still copy
+        # the reasons, so they can be stamped on the paperwork.
+        final_codes_text = "Final Codes:\nNone\n" + warning_block_text().rstrip()
+    else:
         return
-    final_codes_text = full_text[last_index:].rstrip()
-    if pdf_handler.kicked_to_code_checker:
+    # The "Kicked to Code Checker:" list is already in the copied text when there are reasons;
+    # only add the plain line if, somehow, the order was kicked without one.
+    if pdf_handler.kicked_to_code_checker and not pdf_handler.kick_reasons:
         final_codes_text += "\nKicked to Code Checker"
     root.clipboard_clear()
     root.clipboard_append(final_codes_text)
