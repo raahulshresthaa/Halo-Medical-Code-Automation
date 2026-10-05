@@ -955,22 +955,13 @@ class PdfButtonHandler:
                     with open(log_file_path, 'a', encoding='utf-8') as f:
                         f.write(f"\n[ERROR] {no_codes_message}\n")
             if AutoDocRef == 'N/A':
-                message = "No AutoDocRef found in the extracted data. Please kick to query."
-                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                if log_file_path:
-                    with open(log_file_path, 'a', encoding='utf-8') as f:
-                        f.write(f"\n[ERROR] {message}\n")
-                self.root.after(0, self.append_and_show_info, "AutoDocRef Not Found", message)
+                self.stop_order("AutoDocRef Not Found",
+                                "No AutoDocRef found on the form. Please kick to query.", log_file_path)
                 return False, None, [], log_file_path, False  # Early return on failure
             clinician_line = next((line for line in content.split('\n') if line.startswith('clinician:')), None)
             clinician = clinician_line.split(':', 1)[1].strip() if clinician_line else None
             if not clinician:
-                message = "Clinician field not found in the extracted data."
-                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                if log_file_path:
-                    with open(log_file_path, 'a', encoding='utf-8') as f:
-                        f.write(f"\n[ERROR] {message}\n")
-                self.root.after(0, self.append_and_show_info, "Clinician Not Found", message)
+                self.stop_order("Clinician Not Found", "No clinician found on the form.", log_file_path)
                 return False, None, [], log_file_path, False  # Early return on failure
             db_path = customers_db_path
             if not os.path.exists(db_path):
@@ -985,12 +976,9 @@ class PdfButtonHandler:
             conn.close()
             customer_no = clinic_result[0] if clinic_result else None
             if not customer_no:
-                message = f"Customer not found for clinic: {clinic}"
-                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                if log_file_path:
-                    with open(log_file_path, 'a', encoding='utf-8') as f:
-                        f.write(f"\n[ERROR] {message}\n")
-                self.root.after(0, self.append_and_show_info, "Customer Not Found", f"No sell-to number for clinic '{clinic}'. Added to missing contacts for review.")
+                self.stop_order("Customer Not Found",
+                                f"No sell-to number for clinic '{clinic}'. Added to missing contacts for review.",
+                                log_file_path)
                 add_missing_contact('clinic', clinic)
                 return False, None, [], log_file_path, False  # Early return on failure
             # Check if Wales clinic and show popup
@@ -1008,12 +996,9 @@ class PdfButtonHandler:
             conn.close()
             prescriber = clinician_result[0] if clinician_result else None
             if not prescriber:
-                message = f"Prescriber not found for clinician: {clinician}"
-                self.root.after(0, lambda: self.append_to_result_text(message, 'error'))
-                if log_file_path:
-                    with open(log_file_path, 'a', encoding='utf-8') as f:
-                        f.write(f"\n[ERROR] {message}\n")
-                self.root.after(0, self.append_and_show_info, "Prescriber Not Found", f"No prescriber number for clinician '{clinician}'. Added to missing contacts for review.")
+                self.stop_order("Prescriber Not Found",
+                                f"No prescriber number for clinician '{clinician}'. Added to missing contacts for review.",
+                                log_file_path)
                 add_missing_contact('clinician', clinician)
                 return False, None, [], log_file_path, False  # Early return on failure
             # Calculate both possible delivery dates; roll past user-configured holidays
@@ -1062,10 +1047,21 @@ class PdfButtonHandler:
             self.root.after(0, self.close_loading_popup)
             self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
 
-    def append_and_show_info(self, title, message):
+    def append_and_show_info(self, title, message, tag='info'):
         """Append info message to result_text and queue it for the end-of-order pop-up."""
-        self.append_to_result_text(f"{title}: {message}", 'info')
+        self.append_to_result_text(f"{title}: {message}", tag)
         self.pending_warnings.append((title, message, 'info'))
+
+    def stop_order(self, title, message, log_file_path):
+        """The order can't go to NAV (missing AutoDocRef, clinic, clinician...). One red line in
+        the results box, one line in the log and one entry in the end-of-order pop-up - it used
+        to put two lines in the box saying the same thing."""
+        message = f"{message} Order not sent to NAV."
+        print(f"ERROR - {title}: {message}")
+        if log_file_path:
+            with open(log_file_path, 'a', encoding='utf-8') as f:
+                f.write(f"\n[ERROR] {title}: {message}\n")
+        self.root.after(0, self.append_and_show_info, title, message, 'error')
 
     def append_and_show_warning(self, title, message, short=None):
         """Record a warning for the order on screen and queue its pop-up.
