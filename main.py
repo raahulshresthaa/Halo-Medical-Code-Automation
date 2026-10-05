@@ -743,12 +743,48 @@ class PdfButtonHandler:
         # success/error/info fonts and colours, chosen to be readable on the current theme.
         configure_result_tags(self.result_text)
 
-    def reset_order_warnings(self):
+    def reset_order_warnings(self, pdf_file_path=None):
         """Start a new order with no kicks or warnings recorded."""
         self.kicked_to_code_checker = False
         self.kick_reasons = []
         self.order_warnings = []
         self.results_shown = False
+        # Where this order's problems get written: its own results log once it has one, and
+        # the PDF name for the daily error log if it fails before then.
+        self.current_log_path = None
+        self.current_pdf_path = pdf_file_path
+        self.current_auto_doc_ref = None
+
+    def log_problem(self, title, message, start_log=True):
+        """Write an error to the order's results log.
+
+        A form that fails before it is coded (title not read, Azure timeout...) has no results
+        log yet, so one is started for it in today's result_logs folder, named
+        results_log_<AutoDocRef>_error.txt - or the PDF's name if no AutoDocRef was read.
+        start_log=False is for one form of a multi-form PDF: that failure is already reported in
+        the combined order's log ("Form 2 of 2 could not be read"), so no extra file is started.
+        """
+        print(f"ERROR - {title}: {message}")
+        try:
+            if not (self.current_log_path and os.path.exists(self.current_log_path)):
+                if not start_log:
+                    return
+                now = datetime.datetime.now()
+                folder = os.path.join(os.getcwd(), 'result_logs', now.strftime('%Y-%m-%d'))
+                os.makedirs(folder, exist_ok=True)
+                pdf_name = os.path.basename(self.current_pdf_path) if self.current_pdf_path else ''
+                name = self.current_auto_doc_ref or os.path.splitext(pdf_name)[0] or 'unknown'
+                name = ''.join(c for c in name if c.isalnum() or c in ('_', '-'))[:60] or 'unknown'
+                self.current_log_path = os.path.join(folder, f"results_log_{name}_error.txt")
+                with open(self.current_log_path, 'a', encoding='utf-8') as f:
+                    f.write(f"Version: {VERSION}\n"
+                            f"Date and Time: {now.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                            f"PDF: {pdf_name}\n"
+                            f"This form failed before it could be coded.\n")
+            with open(self.current_log_path, 'a', encoding='utf-8') as f:
+                f.write(f"\n[ERROR] {title}: {message}\n")
+        except Exception as e:
+            print(f"Could not write the error to a log: {e}")
 
     def normalise(self, s):
         return " ".join(s.lower().strip().split())
@@ -951,9 +987,7 @@ class PdfButtonHandler:
                 print(f"ERROR - {no_codes_message}")
                 self.root.after(0, self.append_and_show_warning, "Kick to Code Checker", no_codes_message,
                                 "No codes from the AI - sent to NAV with no code lines")
-                if log_file_path:
-                    with open(log_file_path, 'a', encoding='utf-8') as f:
-                        f.write(f"\n[ERROR] {no_codes_message}\n")
+                # Written to the log with the other warnings at the end of the order.
             if AutoDocRef == 'N/A':
                 self.stop_order("AutoDocRef Not Found",
                                 "No AutoDocRef found on the form. Please kick to query.", log_file_path)
@@ -1040,6 +1074,7 @@ class PdfButtonHandler:
                 self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
             return success, sales_order_no, messages, log_file_path, already_exists  # NEW: Return these for caller to use
         except Exception as e:
+            self.log_problem("Error", f"Error processing the file: {str(e)}")
             self.root.after(0, messagebox.showerror, "Error", f"Error processing the file: {str(e)}")
             return False, None, [], None, False  # Return on error
         finally:
@@ -1058,9 +1093,7 @@ class PdfButtonHandler:
         to put two lines in the box saying the same thing."""
         message = f"{message} Order not sent to NAV."
         print(f"ERROR - {title}: {message}")
-        if log_file_path:
-            with open(log_file_path, 'a', encoding='utf-8') as f:
-                f.write(f"\n[ERROR] {title}: {message}\n")
+        # Written to the log with everything else at the end of the order (show_pending_warnings).
         self.root.after(0, self.append_and_show_info, title, message, 'error')
 
     def append_and_show_warning(self, title, message, short=None):
@@ -1127,7 +1160,21 @@ class PdfButtonHandler:
             popup_title = others[0].split(':', 1)[0]
         else:
             popup_title = "Please check this order"
+        self.write_warnings_to_log(lines)
         messagebox.showwarning(popup_title, "\n".join(lines))
+
+    def write_warnings_to_log(self, lines):
+        """Put the same text as the end-of-order pop-up into the order's results log, so every
+        kick and problem can be checked afterwards. An order that failed before it had a results
+        log gets one started for it (see log_problem)."""
+        try:
+            if self.current_log_path and os.path.exists(self.current_log_path):
+                with open(self.current_log_path, 'a', encoding='utf-8') as f:
+                    f.write("\nWARNINGS:\n" + "\n".join(lines) + "\n")
+            else:
+                self.log_problem("Warnings", "\n".join(lines))
+        except Exception as e:
+            print(f"Could not write the warnings to the log: {e}")
 
     def append_to_result_text(self, message, tag='success'):
         self.result_text.config(state=tk.NORMAL)
@@ -1169,6 +1216,7 @@ class PdfButtonHandler:
                 log_file.write(f"PRICE CODES:\n\n{price_codes}\n")
                 log_file.write("-" * 50 + "\n") # Separator between entries
             print(f"Successfully wrote to log file at {log_file_path}")
+            self.current_log_path = log_file_path  # where this order's warnings/errors go
             return log_file_path # Return the path for later appending
         except Exception as e:
             messagebox.showerror("Error", f"Error writing to log file: {str(e)}")
@@ -1215,7 +1263,7 @@ class PdfButtonHandler:
         self.root.after(0, clear_results_display)
         # Multi-form runs collect with collect_only=True, which deliberately does not
         # reset these, so clear them here for every run.
-        self.reset_order_warnings()
+        self.reset_order_warnings(pdf_file_path)
 
         parts = split_multi_form_pdf(pdf_file_path)
         if not parts:
@@ -1313,7 +1361,7 @@ class PdfButtonHandler:
         # Only on the first read: a reader switch calls this again (attempt 2) and must not
         # throw away what the first read raised.
         if not collect_only and attempt == 1:
-            self.reset_order_warnings()
+            self.reset_order_warnings(pdf_file_path)
         def azure_api_call():
             with open(pdf_file_path, "rb") as pdf_file:
                 poller = self.document_analysis_client.begin_analyze_document(model_id, document=pdf_file)
@@ -1345,6 +1393,8 @@ class PdfButtonHandler:
             self.root.after(0, self.update_loading_message, "Please wait, calculating the codes")
             fields_data = self.extract_fields_from_result(result)
             print(f"Azure read {len(fields_data)} field(s) from the PDF using {model_id}")
+            if fields_data.get('AutoDocRef') and not self.current_auto_doc_ref:
+                self.current_auto_doc_ref = fields_data['AutoDocRef']  # names an error log, if needed
             order_category_code = determine_order_category_code(model_id, fields_data)
             print(f"Order category: {order_category_code}")
             if not fields_data:
@@ -1358,6 +1408,7 @@ class PdfButtonHandler:
                 error_msg = "No form confirmation found in the extracted data."
                 print(f"ERROR - {error_msg}")
                 print_extracted_fields(fields_data)
+                self.log_problem("Error", f"{error_msg} (read with {model_id})", start_log=not collect_only)
                 self.root.after(0, messagebox.showerror, "Error", error_msg)
                 self.root.after(0, self.close_loading_popup)
                 self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
@@ -1382,6 +1433,7 @@ class PdfButtonHandler:
                 print("  None of the known form titles were found in it:")
                 for known_title in form_to_model:
                     print(f"    {known_title!r}")
+                self.log_problem("Error", f"{error_msg} (read with {model_id})", start_log=not collect_only)
                 self.root.after(0, messagebox.showerror, "Error", error_msg)
                 self.root.after(0, self.close_loading_popup)
                 self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
@@ -1390,6 +1442,7 @@ class PdfButtonHandler:
                 if attempt >= 2:
                     error_msg = f"Form confirmation '{form_confirmation}' does not match the selected model after switching."
                     print(f"ERROR - {error_msg} (read with {model_id}, title belongs to {correct_model_id})")
+                    self.log_problem("Error", f"{error_msg} (read with {model_id}, title belongs to {correct_model_id})", start_log=not collect_only)
                     self.root.after(0, messagebox.showerror, "Error", error_msg)
                     self.root.after(0, self.close_loading_popup)
                     self.root.after(0, lambda: self.upload_pdf_button.config(state='normal'))
@@ -1650,14 +1703,17 @@ class PdfButtonHandler:
                     self.process_and_post_medical_details(model_name, fields_data, sales_order_no, log_file_path)
         except TimeoutError as e:
             error_msg = f"Timeout error: {str(e)}"
+            self.log_problem("Timeout Error", error_msg, start_log=not collect_only)
             self.root.after(0, messagebox.showerror, "Timeout Error", error_msg)
             print(error_msg)
         except RuntimeError as e:
             error_msg = str(e)
+            self.log_problem("Network Error", error_msg, start_log=not collect_only)
             self.root.after(0, messagebox.showerror, "Network Error", error_msg)
             print(error_msg)
         except Exception as e:
             error_msg = f"Error processing the PDF file: {str(e)}"
+            self.log_problem("Error", error_msg, start_log=not collect_only)
             self.root.after(0, messagebox.showerror, "Error", error_msg)
             print(f"ERROR - {error_msg}")
             # The message alone (e.g. just "'clinic'" for a missing key) says nothing about
