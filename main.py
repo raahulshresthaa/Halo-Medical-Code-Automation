@@ -70,7 +70,7 @@ import requests.exceptions
 import urllib.parse
 
 # Version number
-VERSION = "7.2.1"
+VERSION = "7.2.2"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
