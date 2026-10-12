@@ -116,12 +116,13 @@ tariff_wales_customer_nos = {
 # "clinic processes 31-7-26 - order numbers.xlsx" (Tracy, Oct 2026). Most clinics want
 # DNI/<pad or ADR number>, which is the default. These want the pad/ADR number on its own.
 # Still to come: blanket order numbers (BT/SH/Comm paeds, Moulsham Grange, Polyclinic) and
-# numbers written on the form (Basingstoke, ENH - Lister, Ealing, Hackney Ark) - see errors.md.
+# numbers written on the form (ENH - Lister, Ealing, Hackney Ark) - see errors.md.
 external_doc_ref_only_customer_nos = {
     'GB-CUST01587',  # Wembley
     'GB-CUST01957',  # Oaktree
     'GB-CUST02063',  # Peacock
     'GB-CUST02554',  # Bury CDC
+    BASINGSTOKE,     # "never DNI - the auto doc number is the order number" (Oct 2026)
 }
 
 
