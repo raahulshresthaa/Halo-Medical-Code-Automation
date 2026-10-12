@@ -2223,7 +2223,11 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                     log_messages.append(f"[ERROR] {error}")
         else:
             for error in error_messages:
-                if "Internal_InvalidTableRelation" in error:
+                if result.get('duplicate_check_failed'):
+                    # NAV couldn't say whether the order already exists, so none was created.
+                    ui_msg = ("❌ Could not check NAV for an existing order, so no order was "
+                              "created (to avoid a duplicate). Please try again in a minute.")
+                elif "Internal_InvalidTableRelation" in error:
                     if "Prescriber" in error:
                         prescriber_no = prescriber
                         clinician_name = get_clinician_name(prescriber_no)

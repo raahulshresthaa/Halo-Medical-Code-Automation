@@ -135,9 +135,27 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
     filter_existing = f"$filter=Pad_No eq '{auto_doc_ref}' and Sell_to_Customer_No eq '{sell_to_customer_no}'"
     check_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_existing}"
     check_response = requests.get(check_url, headers=headers, auth=auth)
-    
-    if check_response.status_code == 200 and check_response.json()['value']:
-        existing_order = check_response.json()['value'][0]
+
+    # Duplicate safety net. This check used to treat ANY failed answer from NAV (an error
+    # status, or a reply it couldn't read) as "not in NAV yet" and go on to create the order -
+    # so a re-run during a NAV hiccup could create a second order for the same AutoDocRef.
+    # Now, if NAV can't tell us, nothing is created.
+    existing_orders = None
+    if check_response.status_code == 200:
+        try:
+            existing_orders = check_response.json()['value']
+        except (ValueError, KeyError, TypeError):
+            existing_orders = None
+    if existing_orders is None:
+        error_msg = (f"Could not check whether {auto_doc_ref} is already in NAV "
+                     f"(NAV replied {check_response.status_code}: {check_response.text[:300]}). "
+                     f"No order was created, to avoid a duplicate.")
+        print(f"❌ {error_msg}")
+        return {'success': False, 'sales_order_no': None, 'error_messages': [error_msg],
+                'duplicate_check_failed': True}
+
+    if existing_orders:
+        existing_order = existing_orders[0]
         sales_order_no = existing_order['No']
         message = f"Auto doc reference {auto_doc_ref} has already been uploaded to nav"
         messagebox.showinfo("Information", message)
