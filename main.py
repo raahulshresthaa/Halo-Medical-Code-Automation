@@ -63,6 +63,8 @@ from generate_code_logic import (
     get_customer_no,
     drop_codes_covered_by_tariff,
     external_document_number,
+    external_document,
+    HACKNEY_ARK,
     BASINGSTOKE,
 )
 from NavApi import create_sales_order, parse_pre_app_date
@@ -620,6 +622,19 @@ def print_extracted_fields(fields_data, limit=120):
 AFO_TITLE = re.compile(r'(?<![Kk])AFO\s+Prescription\s+Form', re.IGNORECASE)
 
 
+def pdf_first_page_text(pdf_file_path):
+    """The PDF's own text from page 1, or '' if it has none (a scan) or can't be read. A backup
+    for things printed on the form that the reader may not pick up as a field."""
+    if not pdf_file_path:
+        return ''
+    try:
+        import PyPDF2
+        return PyPDF2.PdfReader(pdf_file_path).pages[0].extract_text() or ''
+    except Exception as e:
+        print(f"Could not read the PDF's text ({e})")
+        return ''
+
+
 def split_multi_form_pdf(pdf_file_path, pages_per_form=PAGES_PER_FORM):
     """Split a PDF holding several stacked AFO prescriptions into one temp PDF per form.
 
@@ -1020,6 +1035,20 @@ class PdfButtonHandler:
             if customer_no in tariff_wales_customer_nos:
                 self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
                                 "Wales clinic.", "Wales clinic")
+            # The External Document No. for this clinic (DNI/<ref>, the ref alone, a blanket order
+            # number, or Hackney Ark's form number + blanket number). When the real number can't
+            # be filled in, it goes as DNI/<ref> and the code checker is told what to add.
+            # For Hackney Ark the PDF's own text is a backup place to find the HNKLLN10/ number,
+            # if the reader didn't pick it up - only read for that clinic.
+            texts = [content]
+            if customer_no == HACKNEY_ARK:
+                texts.append(pdf_first_page_text(self.current_pdf_path))
+            external_doc_no, reminder = external_document(customer_no, AutoDocRef, *texts)
+            if reminder:
+                self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
+                                f"{reminder}. The External Document No. was sent as "
+                                f"{external_doc_no} - change it in NAV.",
+                                reminder)
             if not os.path.exists(clinician_db_path):
                 error_msg = f"Error: Clinician database file not found at {clinician_db_path}"
                 print(error_msg)
@@ -1070,7 +1099,8 @@ class PdfButtonHandler:
             # Pass order_category_code and pre_app_date to attempt_nav_upload
             success, sales_order_no, messages, already_exists = attempt_nav_upload(
                 customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
-                form_type_for_filename, log_file_path, final_codes, patient_name, gender_full, pre_app_date
+                form_type_for_filename, log_file_path, final_codes, patient_name, gender_full, pre_app_date,
+                external_doc_no
             )
             for text, tag in messages:
                 self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
@@ -2113,7 +2143,8 @@ class PdfButtonHandler:
 
 def attempt_nav_upload(customer_no, prescriber, original_order_date, request_delivery_date,
                        auto_doc_ref, order_category_code, form_type, log_file_path=None,
-                       final_codes=None, patient_name=None, gender_full=None, pre_app_date=None):
+                       final_codes=None, patient_name=None, gender_full=None, pre_app_date=None,
+                       external_doc_no=None):
     """
     Attempts to create a sales order in NAV using the provided parameters with enhanced error handling.
   
@@ -2136,9 +2167,11 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         tuple: (success (bool), sales_order_no (str or None), messages (list of (text, tag)))
     """
     try:
-        # Worked out once here and used for both the upload and the log, so they always match.
-        # Printed and logged BEFORE the upload, so it can be checked even when NAV is unreachable.
-        external_doc_no = external_document_number(customer_no, auto_doc_ref)
+        # Worked out by process_api_call (external_document) and used for both the upload and
+        # the log, so they always match. Printed and logged BEFORE the upload, so it can be
+        # checked even when NAV is unreachable.
+        if not external_doc_no:
+            external_doc_no = external_document_number(customer_no, auto_doc_ref)
         print(f"External Document No: {external_doc_no}")
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:

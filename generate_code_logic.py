@@ -1,4 +1,5 @@
 # generate_code_logic.py
+import datetime
 import math
 from collections import defaultdict
 from tkinter import messagebox
@@ -131,6 +132,72 @@ def external_document_number(customer_no, auto_doc_ref):
     if customer_no in external_doc_ref_only_customer_nos:
         return auto_doc_ref
     return f"DNI/{auto_doc_ref}"
+
+
+# Blanket order numbers, copied from the "Customer Notes" on each NAV customer card
+# (Oct 2026). A blanket order is topped up or replaced when its money runs out or it expires,
+# so each has the end date from the note. After that date the app stops using it - the order
+# goes with DNI/<ref> and is kicked to have the current number added - so an expired number is
+# never sent. When a clinic gets a new blanket order, update its number and end date here.
+# If one runs out of money BEFORE its end date, the app can't know - update it here then.
+# BT/SH/Comm paeds is on hold until Tracy has asked Nadine.
+blanket_order_numbers = {
+    'GB-CUST01827': ('343024977', datetime.date(2027, 3, 31)),  # Moulsham Grange (£50K, 01.04.26 - 31.03.27)
+    'GB-CUST02484': ('CLC18565', datetime.date(2027, 3, 31)),   # Polyclinic (£25K, 01.04.26 - 31.03.27)
+}
+
+# Hackney Ark's order number is the HNKLLN10/ number printed in the form's Patient No. box,
+# a space, then its blanket order number - e.g. "HNKLLN10/2346 334135337" (Tracy, Oct 2026).
+HACKNEY_ARK = 'GB-CUST01884'
+HACKNEY_BLANKET_NUMBER = '334135337'  # no end date given
+HACKNEY_NUMBER_RE = re.compile(r'HNKLLN\s*\d+\s*/\s*\d+', re.IGNORECASE)
+
+# Clinics whose order number is a fixed name from their NAV customer notes, the same on every
+# order. Update it here if the note changes.
+external_doc_fixed = {
+    'GB-CUST02563': 'AMANDA REDGATE',  # Peterborough Paeds (Note 1 on the customer card, Oct 2026)
+}
+
+# Clinics whose order number the app can't fill in at all - still DNI/<ref>, plus a kick saying
+# what to add in NAV. (None at the moment.)
+external_doc_from_notes = {}
+
+
+def find_hackney_number(*texts):
+    """The HNKLLN10/xxxx number from the first text that has one, tidied, or None."""
+    for text in texts:
+        match = HACKNEY_NUMBER_RE.search(text or '')
+        if match:
+            return re.sub(r'\s+', '', match.group(0)).upper()
+    return None
+
+
+def external_document(customer_no, auto_doc_ref, *texts, today=None):
+    """Work out the External Document No. for this order.
+
+    Returns (number, reminder). reminder is None, or a short Kick to Code Checker reason when
+    the real number couldn't be filled in and has to be added in NAV by hand. texts are where
+    to look for Hackney Ark's HNKLLN10/ number (the extracted data, then the PDF's own text).
+    """
+    today = today or datetime.date.today()
+    dni = external_document_number(customer_no, auto_doc_ref)
+    if customer_no in external_doc_fixed:
+        return external_doc_fixed[customer_no], None
+    if customer_no in blanket_order_numbers:
+        number, end_date = blanket_order_numbers[customer_no]
+        if today <= end_date:
+            return number, None
+        return dni, (f"Blanket order number on file ended {end_date.strftime('%d/%m/%Y')} - add "
+                     f"the current one from the NAV customer notes")
+    if customer_no == HACKNEY_ARK:
+        hackney_number = find_hackney_number(*texts)
+        if hackney_number:
+            return f"{hackney_number} {HACKNEY_BLANKET_NUMBER}", None
+        return dni, (f"HNKLLN10/ number not found on the form - add it (Patient No. box) "
+                     f"followed by {HACKNEY_BLANKET_NUMBER}")
+    if customer_no in external_doc_from_notes:
+        return dni, external_doc_from_notes[customer_no]
+    return dni, None
 
 
 # Shared socket type lists (bespoke A37A/A37B and modular B30/B31)
