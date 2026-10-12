@@ -2773,6 +2773,66 @@ def create_missing_contacts_tab(notebook):
 
     return missing_tab, populate_tree
 
+def _squash(text):
+    """Lower case with everything but letters and digits removed, so 'Oak Tree', 'oaktree' and
+    'Oak-Tree' all compare equal, and 'GB-CUST01957' matches '01957'."""
+    return re.sub(r'[^a-z0-9]', '', str(text).lower())
+
+
+def search_rows(rows, query):
+    """Filter (name, number) rows by what was typed in a search box.
+
+    Every word typed must appear somewhere in the row - in the name or the number - so
+    "kingston diab" finds "Kingston DIABETIC" and "lister 2426" finds "Lister (GB-CUST02426)".
+    Spaces and punctuation are ignored when comparing, so "oaktree" finds "Oak Tree". Names that
+    START with what was typed are listed first, then the rest, each alphabetically.
+    Plain substring checks on a few hundred rows - instant on every keypress.
+    """
+    words = query.lower().split()
+    if not words:
+        return sorted(rows, key=lambda row: str(row[0]).lower())
+    matches = []
+    for row in rows:
+        plain = ' '.join(str(value) for value in row).lower()
+        squashed = _squash(plain)
+        if all(word in plain or (_squash(word) and _squash(word) in squashed) for word in words):
+            matches.append(row)
+    query_squashed = _squash(query)
+    return sorted(matches, key=lambda row: (not _squash(row[0]).startswith(query_squashed),
+                                            str(row[0]).lower()))
+
+
+def add_search_bar(tab, tree, load_rows, noun):
+    """Put a search box above a two-column list and return the function that fills the list.
+
+    load_rows() reads the rows fresh from the database each time, so an edit made in the list
+    is never hidden behind an out-of-date copy while searching. Esc clears the search.
+    """
+    bar = ttk.Frame(tab)
+    bar.pack(fill='x', padx=10, pady=(0, 6), before=tree)
+    ttk.Label(bar, text="Search", font=FONT_CAPTION).pack(side='left', padx=(0, 8))
+    search_var = tk.StringVar()
+    entry = ttk.Entry(bar, textvariable=search_var, width=36)
+    entry.pack(side='left')
+    count_label = ttk.Label(bar, text="", font=FONT_SMALL, bootstyle='secondary')
+    count_label.pack(side='left', padx=(10, 0))
+
+    def fill():
+        all_rows = load_rows()
+        shown = search_rows(all_rows, search_var.get())
+        tree.delete(*tree.get_children())
+        for row in shown:
+            tree.insert('', 'end', values=row)
+        if search_var.get().strip():
+            count_label.config(text=f"{len(shown)} of {len(all_rows)} {noun}")
+        else:
+            count_label.config(text=f"{len(all_rows)} {noun}")
+
+    search_var.trace_add('write', lambda *args: fill())
+    entry.bind('<Escape>', lambda event: search_var.set(''))
+    return fill
+
+
 def create_clinics_tab(notebook):
     clinics_tab = ttk.Frame(notebook)
     notebook.add(clinics_tab, text="Clinics")
@@ -2798,15 +2858,8 @@ def create_clinics_tab(notebook):
     scrollbar.pack(side='right', fill='y')
     tree.configure(yscrollcommand=scrollbar.set)
 
-    def populate_clinics_tree():
-        # Clear existing items
-        for item in tree.get_children():
-            tree.delete(item)
-        # Get data
-        clinics = get_all_clinics()
-        clinics.sort(key=lambda x: x[0])  # Sort by clinic name
-        for clinic in clinics:
-            tree.insert('', 'end', values=clinic)
+    # Fills the list, filtered by the search box above it (sorted by clinic name).
+    populate_clinics_tree = add_search_bar(clinics_tab, tree, get_all_clinics, "clinics")
 
     # Initial population
     populate_clinics_tree()
@@ -2915,15 +2968,8 @@ def create_clinicians_tab(notebook):
     scrollbar.pack(side='right', fill='y')
     tree.configure(yscrollcommand=scrollbar.set)
 
-    def populate_clinicians_tree():
-        # Clear existing items
-        for item in tree.get_children():
-            tree.delete(item)
-        # Get data
-        clinicians = get_all_clinicians()
-        clinicians.sort(key=lambda x: x[0])  # Sort by clinician name
-        for clinician in clinicians:
-            tree.insert('', 'end', values=clinician)
+    # Fills the list, filtered by the search box above it (sorted by clinician name).
+    populate_clinicians_tree = add_search_bar(clinicians_tab, tree, get_all_clinicians, "clinicians")
 
     # Initial population
     populate_clinicians_tree()
