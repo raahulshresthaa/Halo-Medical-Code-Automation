@@ -1014,6 +1014,7 @@ class PdfButtonHandler:
                                 f"No sell-to number for clinic '{clinic}'. Added to missing contacts for review.",
                                 log_file_path)
                 add_missing_contact('clinic', clinic)
+                self.root.after(0, update_missing_contacts_count)
                 return False, None, [], log_file_path, False  # Early return on failure
             # Check if Wales clinic and show popup
             if customer_no in tariff_wales_customer_nos:
@@ -1034,6 +1035,7 @@ class PdfButtonHandler:
                                 f"No prescriber number for clinician '{clinician}'. Added to missing contacts for review.",
                                 log_file_path)
                 add_missing_contact('clinician', clinician)
+                self.root.after(0, update_missing_contacts_count)
                 return False, None, [], log_file_path, False  # Early return on failure
             # Calculate both possible delivery dates; roll past user-configured holidays
             creation_dt = datetime.datetime.strptime(creation_date, '%Y-%m-%d').date()
@@ -2729,6 +2731,7 @@ def create_missing_contacts_tab(notebook):
             removed = write_to_database(missing_db_path, "DELETE FROM missing_entries WHERE id = ?", (id,),
                                         f"remove '{name}' from the Missing Contacts list")
             populate_tree()
+            update_missing_contacts_count()
             if removed is None:
                 return  # the number WAS saved; the error pop-up explains the list didn't update
             messagebox.showinfo("Success", f"Updated {type} '{name}' with code '{code}'.")
@@ -2749,6 +2752,7 @@ def create_missing_contacts_tab(notebook):
                 conn.commit()
                 conn.close()
                 populate_tree()
+                update_missing_contacts_count()
                 messagebox.showinfo("Success", "Deleted selected contacts.")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to delete contacts: {str(e)}")
@@ -3965,6 +3969,11 @@ version_label = ttk.Label(
 )
 version_label.pack(side='right')
 
+# How many people have the app open on this machine, in small muted text beside the version -
+# meant for the developer, so it stays out of the way. Filled in by refresh_status_indicators.
+users_online_label = ttk.Label(bottom_frame, text="", font=FONT_SMALL, bootstyle='secondary')
+users_online_label.pack(side='right', padx=(0, 10))
+
 theme_combobox.bind('<<ComboboxSelected>>', change_theme)
 
 # ---------------------------
@@ -4011,6 +4020,7 @@ def on_tab_selected(event):
             analysis_handles["refresh_chart"]()
     elif selected_tab_text == "Missing Contacts":
         populate_tree()
+        update_missing_contacts_count()
     elif selected_tab_text == "Clinics":
         populate_clinics_tree()
     elif selected_tab_text == "Clinicians":
@@ -4039,6 +4049,131 @@ notebook.add(analysis_placeholder, text="Results Analysis")
 
 # Start watching the Downloads folder in the background
 watch_downloads_folder()
+
+
+# The name of the running program, used to count how many copies are open. When run from
+# Python rather than the built exe, look for the deployed exe's name instead (normally none).
+APP_EXE_NAME = (os.path.basename(sys.executable) if getattr(sys, 'frozen', False)
+                else 'Code Automation Program.exe').lower()
+
+
+def count_running_copies():
+    """How many copies of the app are running on this machine, across every logged-in user.
+
+    Everyone uses the app on the same shared VM, so this is the number of people with it open.
+    Uses the Windows process list (the same one Task Manager reads): no files, no extra
+    permissions, and it takes a few milliseconds. Returns None if Windows can't say.
+    """
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class PROCESSENTRY32W(ctypes.Structure):
+            _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+                        ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.c_void_p),
+                        ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+                        ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", ctypes.c_long),
+                        ("dwFlags", wintypes.DWORD), ("szExeFile", ctypes.c_wchar * 260)]
+
+        kernel32 = ctypes.windll.kernel32
+        kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+        snapshot = kernel32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
+        if snapshot in (None, wintypes.HANDLE(-1).value):
+            return None
+        try:
+            entry = PROCESSENTRY32W()
+            entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+            count = 0
+            more = kernel32.Process32FirstW(snapshot, ctypes.byref(entry))
+            while more:
+                if entry.szExeFile.lower() == APP_EXE_NAME:
+                    count += 1
+                more = kernel32.Process32NextW(snapshot, ctypes.byref(entry))
+            return count
+        finally:
+            kernel32.CloseHandle(snapshot)
+    except Exception as e:
+        print(f"Could not count running copies of the app: {e}")
+        return None
+
+
+def count_missing_contacts():
+    try:
+        ensure_missing_contacts_table()
+        conn = sqlite3.connect(missing_db_path)
+        try:
+            return conn.execute("SELECT COUNT(*) FROM missing_entries").fetchone()[0]
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"Could not count missing contacts: {e}")
+        return None
+
+
+BADGE_RED = (220, 53, 69)
+_badge_images = {}  # count -> PhotoImage, kept so tkinter doesn't garbage-collect them
+
+
+def make_count_badge(count):
+    """A red circle with the count in white, like a phone's notification badge. Two or more
+    digits make it a rounded pill instead. Drawn at 4x and shrunk, so the edges are smooth,
+    and sized from the tab font so it matches the text on any display scaling."""
+    if count in _badge_images:
+        return _badge_images[count]
+    from PIL import ImageDraw, ImageFont
+    height = tkfont.Font(font=FONT_BODY).metrics('linespace')
+    scale = 4
+    text = str(count) if count < 100 else '99+'
+    big_h = height * scale
+    font = None
+    for font_file in ('seguisb.ttf', 'segoeuib.ttf', 'arialbd.ttf'):
+        try:
+            font = ImageFont.truetype(font_file, int(big_h * 0.62))
+            break
+        except OSError:
+            continue
+    if font is None:
+        font = ImageFont.load_default()
+    left, top, right, bottom = font.getbbox(text)
+    big_w = max(big_h, (right - left) + int(big_h * 0.55))
+    image = Image.new('RGBA', (big_w, big_h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle((0, 0, big_w - 1, big_h - 1), radius=big_h // 2, fill=BADGE_RED + (255,))
+    draw.text(((big_w - (right - left)) / 2 - left, (big_h - (bottom - top)) / 2 - top),
+              text, font=font, fill=(255, 255, 255, 255))
+    image = image.resize((max(1, big_w // scale), height), Image.LANCZOS)
+    _badge_images[count] = ImageTk.PhotoImage(image)
+    return _badge_images[count]
+
+
+def update_missing_contacts_count():
+    """Show how many entries are waiting as a red badge on the Missing Contacts tab. No badge
+    when there are none."""
+    count = count_missing_contacts()
+    if count:
+        notebook.tab(missing_tab, image=make_count_badge(count), compound='right')
+    else:
+        notebook.tab(missing_tab, image='')
+
+
+def refresh_status_indicators():
+    """Update the users-online text and the Missing Contacts count. Runs every 30 seconds, so
+    other people's orders and edits show up too."""
+    copies = count_running_copies()
+    # 0 means this isn't the deployed app (e.g. run from Python on a dev PC); None means
+    # Windows couldn't say. Either way it isn't counting the VM's users.
+    users_online_label.config(text=f"{copies} online  ·" if copies else "offline  ·")
+    update_missing_contacts_count()
+
+
+def refresh_status_indicators_every_30s():
+    try:
+        refresh_status_indicators()
+    finally:
+        root.after(30000, refresh_status_indicators_every_30s)
+
+
+refresh_status_indicators_every_30s()
 
 # Match the title bar to the saved theme once the window exists on screen - before that there
 # is no window frame for Windows to recolour.
