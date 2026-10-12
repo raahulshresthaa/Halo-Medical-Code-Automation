@@ -71,7 +71,7 @@ import requests.exceptions
 import urllib.parse
 
 # Version number
-VERSION = "7.2.2"
+VERSION = "7.2.3"
 
 # Centralized dictionary for model IDs
 MODEL_IDS = {
@@ -2706,27 +2706,31 @@ def create_missing_contacts_tab(notebook):
         type, name = item['values']
         code = simpledialog.askstring("Input Code", f"Enter the code for {type} '{name}':")
         if code:
+            code = code.strip()
+            # Save the number first. Only if that worked is the entry taken off this list -
+            # otherwise it would vanish from here without ever being saved.
             if type == 'clinic':
-                conn = sqlite3.connect(customers_db_path)
-                cursor = conn.cursor()
-                cursor.execute("INSERT OR REPLACE INTO customers (Docuware_Clinic_Name, Sell_to_Customer_No) VALUES (?, ?)", (name, code))
-                conn.commit()
-                conn.close()
+                saved = write_to_database(
+                    customers_db_path,
+                    "INSERT OR REPLACE INTO customers (Docuware_Clinic_Name, Sell_to_Customer_No) VALUES (?, ?)",
+                    (name, code), f"save the Sell To Number for clinic '{name}'")
             elif type == 'clinician':
-                conn = sqlite3.connect(clinician_db_path)
-                cursor = conn.cursor()
-                cursor.execute("INSERT OR REPLACE INTO clinician_contacts (\"Docuware Clinician Name\", \"NAV Contact No\") VALUES (?, ?)", (name, code))
-                conn.commit()
-                conn.close()
+                saved = write_to_database(
+                    clinician_db_path,
+                    "INSERT OR REPLACE INTO clinician_contacts (\"Docuware Clinician Name\", \"NAV Contact No\") VALUES (?, ?)",
+                    (name, code), f"save the Prescriber Number for clinician '{name}'")
+            else:
+                messagebox.showerror("Could not save", f"Unknown entry type '{type}' for '{name}'.")
+                return
+            if saved is None:
+                return  # error already shown; the entry stays on the list
 
             # Remove from missing_entries using id
-            conn = sqlite3.connect(missing_db_path)
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM missing_entries WHERE id = ?", (id,))
-            conn.commit()
-            conn.close()
-
+            removed = write_to_database(missing_db_path, "DELETE FROM missing_entries WHERE id = ?", (id,),
+                                        f"remove '{name}' from the Missing Contacts list")
             populate_tree()
+            if removed is None:
+                return  # the number WAS saved; the error pop-up explains the list didn't update
             messagebox.showinfo("Success", f"Updated {type} '{name}' with code '{code}'.")
 
     def delete_contact():
@@ -2808,6 +2812,43 @@ def create_clinics_tab(notebook):
 
     return clinics_tab, populate_clinics_tree
 
+def write_to_database(db_path, sql, params, what):
+    """Run one write (INSERT/UPDATE/DELETE) and say plainly if it failed.
+
+    Returns the number of rows changed, or None if it failed. The deployed app has no terminal
+    (it is built --windowed), so a database error used to vanish without a trace and the edit
+    simply didn't happen. Now the error, and the file it was writing to, are shown in a pop-up.
+    """
+    try:
+        conn = sqlite3.connect(db_path, timeout=10)  # wait up to 10s if another user is writing
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            conn.commit()
+            return cursor.rowcount
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"ERROR - could not {what} in {db_path}: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        messagebox.showerror(
+            "Could not save",
+            f"Could not {what}.\n\n"
+            f"Error: {type(e).__name__}: {e}\n\n"
+            f"Database: {db_path}")
+        return None
+
+
+def warn_nothing_changed(what, name):
+    """The save ran without an error but matched no row - say so rather than look like it worked."""
+    print(f"WARNING - {what}: no row matched '{name}', nothing was changed.")
+    messagebox.showwarning(
+        "Nothing changed",
+        f"Could not {what}: no entry called '{name}' was found in the database, "
+        f"so nothing was changed. Press Refresh and try again.")
+
+
 def edit_clinic_sell_to(tree):
     selected_item = tree.selection()
     if not selected_item:
@@ -2816,12 +2857,16 @@ def edit_clinic_sell_to(tree):
     clinic_name, current_sell_to = item['values']
     new_sell_to = simpledialog.askstring("Edit Sell To Number", f"Enter new Sell To Number for {clinic_name}:", initialvalue=current_sell_to)
     if new_sell_to:
-        # Update database
-        conn = sqlite3.connect(customers_db_path)
-        cursor = conn.cursor()
-        cursor.execute("UPDATE customers SET Sell_to_Customer_No = ? WHERE Docuware_Clinic_Name = ?", (new_sell_to, clinic_name))
-        conn.commit()
-        conn.close()
+        what = f"update the Sell To Number for clinic '{clinic_name}'"
+        changed = write_to_database(
+            customers_db_path,
+            "UPDATE customers SET Sell_to_Customer_No = ? WHERE Docuware_Clinic_Name = ?",
+            (new_sell_to, clinic_name), what)
+        if changed is None:
+            return  # error already shown
+        if changed == 0:
+            warn_nothing_changed(what, clinic_name)
+            return
         # Update Treeview
         tree.item(selected_item, values=(clinic_name, new_sell_to))
 
@@ -2880,16 +2925,20 @@ def edit_clinician_prescriber(tree):
     clinician_name, current_prescriber = item['values']
     new_prescriber = simpledialog.askstring("Edit Prescriber Number", f"Enter new Prescriber Number for {clinician_name}:", initialvalue=current_prescriber)
     if new_prescriber:
-        # Update database
-        conn = sqlite3.connect(clinician_db_path)
-        cursor = conn.cursor()
-        cursor.execute("UPDATE clinician_contacts SET \"NAV Contact No\" = ? WHERE \"Docuware Clinician Name\" = ?", (new_prescriber, clinician_name))
-        conn.commit()
-        conn.close()
+        what = f"update the Prescriber Number for clinician '{clinician_name}'"
+        changed = write_to_database(
+            clinician_db_path,
+            "UPDATE clinician_contacts SET \"NAV Contact No\" = ? WHERE \"Docuware Clinician Name\" = ?",
+            (new_prescriber, clinician_name), what)
+        if changed is None:
+            return  # error already shown
+        if changed == 0:
+            warn_nothing_changed(what, clinician_name)
+            return
         # Update Treeview
         tree.item(selected_item, values=(clinician_name, new_prescriber))
-        
-    return missing_tab, populate_tree  # Return both the tab and the populate function
+    # (A leftover "return missing_tab, populate_tree" used to sit here. Those names don't exist
+    # in this function, so every clinician edit ended in a hidden NameError.)
 
 
 # The colours offered in the Theme box, and the ttkbootstrap theme each one actually uses.
@@ -3008,6 +3057,26 @@ def load_icon_image(icon_path, size=(32, 32)):
 
 # Initialize TkinterDnD root window
 root = TkinterDnD.Tk()
+
+
+def show_unexpected_error(exc_type, exc_value, exc_traceback):
+    """Safety net for any error inside a button, tab or other window event.
+
+    tkinter's default prints these to the terminal and carries on - but the deployed app is
+    built --windowed and has no terminal, so on the VM they vanished and the click just seemed
+    to do nothing. Now they still print here, and also pop up with the error.
+    """
+    import traceback
+    traceback.print_exception(exc_type, exc_value, exc_traceback)
+    try:
+        messagebox.showerror("Something went wrong",
+                             f"{exc_type.__name__}: {exc_value}\n\n"
+                             f"Please report this, and what you were doing when it appeared.")
+    except Exception:
+        pass
+
+
+root.report_callback_exception = show_unexpected_error
 
 # Apply ttkbootstrap style to the root window
 style = ttk.Style('simplex')  # Replaced on the next line by the saved theme
