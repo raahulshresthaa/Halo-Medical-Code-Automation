@@ -2832,11 +2832,23 @@ def write_to_database(db_path, sql, params, what):
         print(f"ERROR - could not {what} in {db_path}: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
+        error_text = str(e).lower()
+        if isinstance(e, PermissionError) or 'readonly' in error_text or 'unable to open' in error_text:
+            # The usual cause on the shared VM: the Windows account only has "Read & execute" on
+            # the databases folder, so it can read the lists but not save to them.
+            reason = ("Your Windows account is not allowed to change this file. Ask an admin to "
+                      "give you 'Modify' access to the databases folder.")
+        elif 'locked' in error_text:
+            reason = ("Someone else is saving to this file at the moment. Wait a minute and "
+                      "try again.")
+        else:
+            reason = "Something went wrong while saving."
         messagebox.showerror(
             "Could not save",
             f"Could not {what}.\n\n"
-            f"Error: {type(e).__name__}: {e}\n\n"
-            f"Database: {db_path}")
+            f"{reason}\n\n"
+            f"Details: {type(e).__name__}: {e}\n"
+            f"File: {db_path}")
         return None
 
 
