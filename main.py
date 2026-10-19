@@ -67,7 +67,7 @@ from generate_code_logic import (
     HACKNEY_ARK,
     BASINGSTOKE,
 )
-from NavApi import create_sales_order, parse_pre_app_date
+from NavApi import create_sales_order, parse_pre_app_date, find_existing_order
 import concurrent.futures
 import requests.exceptions
 import urllib.parse
@@ -622,6 +622,18 @@ def print_extracted_fields(fields_data, limit=120):
 AFO_TITLE = re.compile(r'(?<![Kk])AFO\s+Prescription\s+Form', re.IGNORECASE)
 
 
+def read_previous_runs(log_file_path):
+    """How many runs today's log for this order already holds, and the time of the latest one
+    (HH:MM), or (0, None) if there is no log yet."""
+    try:
+        with open(log_file_path, encoding='utf-8', errors='replace') as f:
+            text = f.read()
+    except OSError:
+        return 0, None
+    times = re.findall(r'^Date and Time: \d{4}-\d{2}-\d{2} (\d{2}:\d{2})', text, re.MULTILINE)
+    return max(len(times), 1 if text.strip() else 0), (times[-1] if times else None)
+
+
 def pdf_first_page_text(pdf_file_path):
     """The PDF's own text from page 1, or '' if it has none (a scan) or can't be read. A backup
     for things printed on the form that the reader may not pick up as a field."""
@@ -948,8 +960,49 @@ class PdfButtonHandler:
         # Never let the subtraction drive the lead time to zero or negative.
         return max(days - 1, 1)
 
+    def check_already_in_nav(self, content, AutoDocRef, clinic):
+        """Before the AI step: if this order is already in NAV, stop here.
+
+        It saves the AI cost and time of coding it again, and tells the user plainly that
+        nothing is uploaded twice, so nobody wastes time hunting for a duplicate. Returns the
+        same tuple process_api_call returns, or None to carry on as normal - including when NAV
+        can't be asked (e.g. offline), because the upload step checks NAV again anyway.
+        """
+        if not AutoDocRef or AutoDocRef == 'N/A':
+            return None
+        customer_no = get_customer_no((clinic or '').strip())
+        if not customer_no:
+            return None  # the clinic isn't known - the normal path reports that
+        status, detail = find_existing_order(AutoDocRef, customer_no)
+        print(f"NAV check before coding: {status}{' - ' + str(detail) if detail else ''}")
+        if status != 'exists':
+            return None
+        message = (f"{AutoDocRef} is already in NAV as {detail}, so it has not been coded or "
+                   f"uploaded again. There is no duplicate - nothing to check.")
+        form_type = get_form_type_from_model_id(self.model_id_var.get())
+        log_file_path = self.write_to_log_file(f"NOT CODED - {message}", AutoDocRef, clinic, content, form_type)
+        if getattr(self, 'log_run_number', 1) > 1 and self.previous_run_time:
+            message = (f"{AutoDocRef} was already run today at {self.previous_run_time}, and is "
+                       f"already in NAV as {detail}. It has not been coded or uploaded again. "
+                       f"There is no duplicate - nothing to check.")
+        formatted_datetime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # Any kicks raised while reading the form don't apply - it isn't being coded or uploaded
+        # again. Cleared on the main thread, AFTER those kicks (queued the same way) have landed.
+        self.root.after(0, self.clear_kicks)
+        self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, "", None)
+        self.root.after(0, self.append_and_show_info, "Already in NAV", message)
+        return True, detail, [], log_file_path, True
+
+    def clear_kicks(self):
+        self.kicked_to_code_checker = False
+        self.kick_reasons = []
+        self.pending_warnings = [w for w in self.pending_warnings if w[2] != 'kick']
+
     def process_api_call(self, content, logic_content, AutoDocRef, clinic, creation_date, patient_name, gender_full, order_category_code, pre_app_date, header_fields=None):
         try:
+            already = self.check_already_in_nav(content, AutoDocRef, clinic)
+            if already:
+                return already
             price_codes, ai_input = self.get_price_codes_from_content(content, logic_content)
             print(f"Price codes received: {price_codes}")
             # Extract codes from the last occurrence of "**Final Codes:**"
@@ -992,6 +1045,14 @@ class PdfButtonHandler:
             combined_messages = '\n'.join(messages) if messages else None
             self.root.after(0, self.display_results, formatted_datetime, AutoDocRef, clinic, price_codes, combined_messages)
             log_file_path = self.write_to_log_file(price_codes, AutoDocRef, clinic, content, form_type_for_filename, combined_messages, ai_input)
+            # A re-run of a form already processed today (NAV couldn't be asked earlier, or it
+            # isn't in NAV yet). Say so, and that it can't create a second order.
+            if getattr(self, 'log_run_number', 1) > 1 and AutoDocRef != 'N/A':
+                when = f" at {self.previous_run_time}" if self.previous_run_time else ""
+                self.root.after(0, self.append_and_show_info, "Run again",
+                                f"{AutoDocRef} was already run today{when} - this is run "
+                                f"{self.log_run_number}. The app checks NAV before uploading, so "
+                                f"it will never be uploaded twice.")
             # No codes back from the AI step (an OpenAI error or timeout, or a reply with no
             # Final Codes). The order still goes to NAV, but with no code lines, so it must be
             # obvious. Scheduled AFTER display_results - that clears the results box, and used to
@@ -1232,8 +1293,18 @@ class PdfButtonHandler:
             # Use the auto_doc_ref as the filename
             log_file_name = f"results_log_{sanitized_auto_doc_ref}_{form_type}.txt"
             log_file_path = os.path.join(date_folder_path, log_file_name)
-            with open(log_file_path, 'w', encoding='utf-8') as log_file:
+            # Running the same form again on the same day used to OVERWRITE this file - wiping the
+            # record of the run that actually went to NAV. Each run is now added underneath,
+            # with a divider, so the file keeps the whole history. Still one file per order per
+            # day, so the Results Analysis chart doesn't count re-runs as extra orders.
+            previous_runs, previous_time = read_previous_runs(log_file_path)
+            self.log_run_number = previous_runs + 1
+            self.previous_run_time = previous_time
+            with open(log_file_path, 'a', encoding='utf-8') as log_file:
                 formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+                if previous_runs:
+                    log_file.write(f"\n\n===== RUN {self.log_run_number} - "
+                                   f"{current_datetime.strftime('%H:%M:%S')} =====\n\n")
                 log_file.write(f"Version: {VERSION}\n")
                 log_file.write(f"Date and Time: {formatted_datetime}\n")
                 log_file.write(f"Auto Doc Reference: {auto_doc_ref}\n")
@@ -2199,7 +2270,8 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         # If the order was already in NAV, don't re-post anything (no duplicate
         # work ticket / lines). Surface a single clear message and bail out.
         if already_exists:
-            info_msg = f"ℹ️ Order already exists in NAV ({sales_order_no}); nothing re-uploaded."
+            info_msg = (f"ℹ️ Already in NAV as {sales_order_no} - nothing was uploaded again, so "
+                        f"there is no duplicate.")
             if log_file_path:
                 with open(log_file_path, 'a', encoding='utf-8') as f:
                     f.write(f"[INFO] Order already exists in NAV: {sales_order_no}. Work ticket not re-uploaded.\n")

@@ -125,6 +125,28 @@ def work_order_adapts_and_modifications(auto_doc_ref):
     target_text = "Refer to Prescription form " + auto_doc_ref
     return target_operation, target_text
 
+def find_existing_order(auto_doc_ref, sell_to_customer_no, timeout=10):
+    """Ask NAV whether this order is already there - the same check create_sales_order makes.
+
+    Returns ('exists', order_no), ('new', None), or ('unknown', reason) if NAV couldn't be asked
+    or gave an answer that couldn't be read. Used BEFORE the AI step, so a re-run of an order
+    that is already uploaded stops straight away instead of being coded again for nothing.
+    'unknown' must never be treated as 'new' for uploading - create_sales_order checks again.
+    """
+    filter_existing = f"$filter=Pad_No eq '{auto_doc_ref}' and Sell_to_Customer_No eq '{sell_to_customer_no}'"
+    check_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_existing}"
+    try:
+        response = requests.get(check_url, headers=headers, auth=auth, timeout=timeout)
+        if response.status_code != 200:
+            return 'unknown', f"NAV replied {response.status_code}"
+        orders = response.json()['value']
+    except Exception as e:
+        return 'unknown', f"{type(e).__name__}"
+    if orders:
+        return 'exists', orders[0].get('No')
+    return 'new', None
+
+
 def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None, external_document_no=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
     
@@ -158,7 +180,9 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
         existing_order = existing_orders[0]
         sales_order_no = existing_order['No']
         message = f"Auto doc reference {auto_doc_ref} has already been uploaded to nav"
-        messagebox.showinfo("Information", message)
+        # No pop-up here any more: this ran on the worker thread and was a second, separate
+        # pop-up. main.py shows it in the single end-of-order pop-up instead.
+        print(message)
         return {'success': True, 'sales_order_no': sales_order_no, 'error_messages': [message], 'already_exists': True}
     else:
         filter_soa = "$filter=startswith(No,'GB-SOA')&$orderby=No desc&$top=2"
