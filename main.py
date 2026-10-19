@@ -4258,6 +4258,88 @@ def refresh_status_indicators_every_30s():
 
 refresh_status_indicators_every_30s()
 
+
+# ---------------------------------------------------------------------------------------
+# Closing itself so updates can go on.
+# Windows won't let the program's files be replaced while ANY copy is open on the VM, and
+# ending other people's copies needs admin rights. So the app closes itself when it is safe to:
+#   - after AFTER_HOURS_CLOSE, once nobody has touched it for IDLE_CLOSE_MINUTES (forgotten PCs);
+#   - when an update is waiting (UPDATE_FLAG_FILE next to the exe): a banner asks people to close
+#     it, and it closes itself once it has been left alone for UPDATE_IDLE_MINUTES.
+# Never while an order is being processed.
+# To update: create update_waiting.txt next to the exe, wait for "offline" in the corner,
+# copy the new files over, then delete update_waiting.txt.
+# ---------------------------------------------------------------------------------------
+AFTER_HOURS_CLOSE = datetime.time(17, 0)
+IDLE_CLOSE_MINUTES = 15
+UPDATE_IDLE_MINUTES = 2
+UPDATE_FLAG_FILE = os.path.join(base_path, 'update_waiting.txt')
+
+last_activity = time.time()
+
+
+def note_activity(event=None):
+    global last_activity
+    last_activity = time.time()
+
+
+for activity_event in ('<Any-KeyPress>', '<Any-ButtonPress>', '<MouseWheel>', '<Motion>'):
+    root.bind_all(activity_event, note_activity, add='+')
+
+update_banner = ttk.Label(
+    main_tab, font=FONT_BODY, bootstyle='inverse-warning', anchor='center', padding=(10, 6),
+    text="A new version of the app is ready - please close it when you have finished this order.")
+
+
+def order_in_progress():
+    return str(upload_pdf_button.cget('state')) == 'disabled'
+
+
+def close_app_now(reason):
+    """Close straight away. Only called when no order is being processed and nobody has used
+    the app for a while, so there is nothing to lose. os._exit rather than a normal quit,
+    because a normal quit waits for any open pop-up to be dismissed - and on a forgotten PC
+    nobody will ever dismiss it, so the files would stay locked."""
+    print(f"Closing the app automatically: {reason}")
+    os._exit(0)
+
+
+_was_processing = False
+
+
+def check_auto_close():
+    global _was_processing
+    try:
+        update_waiting = os.path.exists(UPDATE_FLAG_FILE)
+        banner_shown = update_banner.winfo_manager() == 'pack'
+        if update_waiting and not banner_shown:
+            update_banner.pack(fill='x', before=main_tab.winfo_children()[0])
+        elif not update_waiting and banner_shown:
+            update_banner.pack_forget()
+
+        processing = order_in_progress()
+        if _was_processing and not processing:
+            # An order has just finished - count from now, so nobody loses results they are
+            # still reading or copying.
+            note_activity()
+        _was_processing = processing
+
+        if not processing:
+            idle_minutes = (time.time() - last_activity) / 60
+            if update_waiting and idle_minutes >= UPDATE_IDLE_MINUTES:
+                close_app_now("an update is waiting")
+            elif (datetime.datetime.now().time() >= AFTER_HOURS_CLOSE
+                  and idle_minutes >= IDLE_CLOSE_MINUTES):
+                close_app_now(f"after {AFTER_HOURS_CLOSE.strftime('%H:%M')} and unused for "
+                              f"{IDLE_CLOSE_MINUTES} minutes")
+    except Exception as e:
+        print(f"Auto-close check failed (not fatal): {e}")
+    finally:
+        root.after(20000, check_auto_close)
+
+
+root.after(20000, check_auto_close)
+
 # Match the title bar to the saved theme once the window exists on screen - before that there
 # is no window frame for Windows to recolour.
 root.after(50, apply_title_bar_theme)
