@@ -736,11 +736,8 @@ def generate_insole_codes(self, content, return_dict=False):
             if 'greyporon' in normalized_base:
                 passed_codes['B40B'] += 1
             elif normalized_base == 'poly':
-                # B54B is moulded to a cast - a simple poly insole is B40A (code checker, Oct 2026).
-                if insole_type == 'simple':
-                    passed_codes['B40A'] += 1
-                else:
-                    passed_codes['B54B'] += 1
+                # Always moulded - there is no such thing as a simple poly insole (Oct 2026).
+                passed_codes['B54B'] += 1
             elif normalized_base in ['a65high', 'a50med', 'a40low']:
                 if insole_type == 'simple':
                     passed_codes['B40B'] += 1
@@ -923,7 +920,7 @@ def generate_insole_codes(self, content, return_dict=False):
         else:
             # Normal pair handling if not CLCH simple
             if is_pair:
-                codes_to_double_insole = ['B54C', 'B40A', 'B40B', 'B40C', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B']
+                codes_to_double_insole = ['B54C', 'B40B', 'B40C', 'B54A', 'B55A', 'B55B', 'B55C', 'B54B']
                 for code in codes_to_double_insole:
                     if code in passed_codes:
                         passed_codes[code] *= 2
@@ -931,13 +928,13 @@ def generate_insole_codes(self, content, return_dict=False):
     # Basingstoke insole tariff: a simple or TCI insole gets its tariff (1 each, x2 for a pair)
     # plus the extras the sheet charges on top (BNS45). Poly, carbon, hand mould and cradle
     # insoles are charged on normal codes with no tariff (confirmed Sep 2026), so they are left
-    # as worked out above - except a SIMPLE insole, which keeps its tariff whatever the base
-    # (Oct 2026: the tariff covers a simple carbon insole). The TCI box is read directly, because
-    # insole_type also counts a cradle as 'tci'.
+    # as worked out above - except a SIMPLE carbon insole, which keeps its tariff (Oct 2026: the
+    # tariff covers it). A poly insole is always moulded, even with Simple ticked. The TCI box is
+    # read directly, because insole_type also counts a cradle as 'tci'.
     if customer_no == BASINGSTOKE:
         moulded_base = bool(selected_base) and (selected_base == 'poly' or 'carbon' in selected_base)
         basingstoke_tariff = None
-        if insole_type == 'simple':
+        if insole_type == 'simple' and selected_base != 'poly':
             basingstoke_tariff = 'TARIFF SIMPLE INSOLE'
         elif not moulded_base and content_dict.get('insole type tci', '') == 'selected':
             basingstoke_tariff = "TARIFF TCI'S"
