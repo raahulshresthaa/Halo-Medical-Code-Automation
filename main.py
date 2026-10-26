@@ -317,14 +317,16 @@ def determine_order_category_code(model_id, fields_data):
         # tick-box fields ('base poly', 'base carbon 1.5mm', 'base carbon 3mm'): this used to look
         # for a single 'base' field, which the reader never produces, so until Sep 2026 every one
         # of these went to NAV as MILLED INSOLES.
+        # A simple insole stays SIMPLE INSOLE whatever its base: 4S833762 (simple, carbon plates)
+        # went as MOULDED INSOLE and the code checker said it's a simple (Oct 2026).
         moulded_base = (fields_data.get('base poly', '').lower() == 'selected'
                         or any(value.lower() == 'selected'
                                for key, value in fields_data.items()
                                if key.lower().startswith('base carbon')))
-        if insole_type == 'handmould' or moulded_base:
-            return 'MOULDED INSOLE'
-        elif insole_type == 'simple':
+        if insole_type == 'simple':
             return 'SIMPLE INSOLE'
+        elif insole_type == 'handmould' or moulded_base:
+            return 'MOULDED INSOLE'
         else:
             # tci, cradle, handmould, or unset — milled catch-all
             return 'MILLED INSOLES'
