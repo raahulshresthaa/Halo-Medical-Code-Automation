@@ -508,6 +508,28 @@ def correct_creation_date_year(read_date, today=None):
     return read_date
 
 
+def move_number_after_name(patient_name):
+    """Move a hospital number written between the names to the end ("Jane 1234567 Smith" ->
+    "Jane Smith 1234567"), which the team used to do by hand in NAV.
+
+    Mostly PCH, W. Suffolk and Doddington, but the pattern is the trigger, so there is no clinic
+    list to keep up to date. Only a single plain number of 5+ digits with a name either side is
+    moved. Anything else is returned unchanged: a number already first or last (Kingston puts it
+    first on purpose), a short stray digit, two numbers, or letters mixed with digits.
+    """
+    words = patient_name.split()
+    with_digits = [i for i, word in enumerate(words) if any(c.isdigit() for c in word)]
+    if len(with_digits) != 1:
+        return patient_name
+    position = with_digits[0]
+    if not 0 < position < len(words) - 1:
+        return patient_name
+    if not (words[position].isdecimal() and len(words[position]) >= 5):
+        return patient_name
+    number = words.pop(position)
+    return ' '.join(words + [number])
+
+
 def format_date_display(iso_or_date):
     """Format YYYY-MM-DD or date as DD/MM/YYYY for the UI."""
     if isinstance(iso_or_date, datetime.date):
@@ -1628,6 +1650,7 @@ class PdfButtonHandler:
                 patient_name = patient_raw
             if not patient_name:
                 patient_name = 'Unknown'
+            patient_name = move_number_after_name(patient_name)
             print(f"Cleaned patient_name: '{patient_name}'")
             # Extract creation date
             creation_date_str = fields_data.get('creation date', '')
