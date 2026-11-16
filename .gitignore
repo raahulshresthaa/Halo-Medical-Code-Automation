@@ -32,3 +32,8 @@ testnewDatabase.py
 CLAUDE.md
 base_encoder.py
 errors.md
+sp_tenant_id.txt
+sp_client_id.txt
+sp_client_secret.txt
+sp_site_id.txt
+sp_list_id.txt

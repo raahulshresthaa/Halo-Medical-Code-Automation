@@ -68,6 +68,7 @@ from generate_code_logic import (
     BASINGSTOKE,
 )
 from NavApi import create_sales_order, parse_pre_app_date, find_existing_order
+from sharepoint_production import create_production_order, quantity_and_extremity
 import concurrent.futures
 import requests.exceptions
 import urllib.parse
@@ -1192,6 +1193,24 @@ class PdfButtonHandler:
             )
             for text, tag in messages:
                 self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
+            # Insole orders also get a production order on the SharePoint list. Only for a SO
+            # created just now, and a failure here never undoes or hides the NAV upload.
+            if success and sales_order_no and not already_exists and model_id == MODEL_IDS['Insoles']:
+                sp_quantity, sp_extremity = quantity_and_extremity(content)
+                sp_ok, sp_message = create_production_order(
+                    sales_order_no, AutoDocRef, clinic.strip(), order_category_code, request_delivery_date,
+                    sp_quantity, sp_extremity)
+                print(sp_message)
+                try:
+                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"[SHAREPOINT] {sp_message}\n")
+                except Exception:
+                    pass
+                if sp_ok:
+                    self.root.after(0, self.append_to_result_text, f"✅ {sp_message}", 'success')
+                else:
+                    self.root.after(0, self.append_and_show_warning, "SharePoint",
+                                    sp_message + " Please add it to the list by hand.")
             return success, sales_order_no, messages, log_file_path, already_exists  # NEW: Return these for caller to use
         except Exception as e:
             self.log_problem("Error", f"Error processing the file: {str(e)}")
