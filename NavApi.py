@@ -11,6 +11,17 @@ import tkinter as tk
 from tkinter import simpledialog, messagebox
 import sys
 
+# TEST MODE: set the environment variable HALO_NAV_TEST=1 before starting the app and NOTHING is
+# sent to NAV - no login is read or asked for. Every NAV call is answered with a made-up reply
+# (a TEST-SO-<time> sales order, a TEST clinic name and patient number), so a form can be run end
+# to end and what reaches SharePoint checked. Off unless that variable is set.
+NAV_TEST_MODE = os.environ.get('HALO_NAV_TEST') == '1'
+if NAV_TEST_MODE:
+    print("=" * 70)
+    print("NAV TEST MODE: nothing is sent to NAV. Sales orders are made up (TEST-SO-...).")
+    print("=" * 70)
+
+
 def parse_code_string(code_str):
     """Parse a code string like 'B55A x2' into (item_no, quantity)."""
     print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🔍 Parsing code string: '{code_str}'")
@@ -57,10 +68,13 @@ def write_nav_config_file(filename, value):
         f.write(encoded_data)
     print(f"{filename} saved to {file_path}")
 
-nav_url = read_nav_config_file('nav_url.txt', 'NAV URL')
-company = read_nav_config_file('nav_company.txt', 'NAV Company')
-username = read_nav_config_file('nav_username.txt', 'NAV Username')
-password = read_nav_config_file('nav_password.txt', 'NAV Password')
+if NAV_TEST_MODE:
+    nav_url, company, username, password = 'http://nav-test-mode.invalid', 'TEST', 'test', 'test'
+else:
+    nav_url = read_nav_config_file('nav_url.txt', 'NAV URL')
+    company = read_nav_config_file('nav_company.txt', 'NAV Company')
+    username = read_nav_config_file('nav_username.txt', 'NAV Username')
+    password = read_nav_config_file('nav_password.txt', 'NAV Password')
 
 encoded_company = urllib.parse.quote(company)
 headers = {
@@ -133,6 +147,8 @@ def find_existing_order(auto_doc_ref, sell_to_customer_no, timeout=10):
     that is already uploaded stops straight away instead of being coded again for nothing.
     'unknown' must never be treated as 'new' for uploading - create_sales_order checks again.
     """
+    if NAV_TEST_MODE:
+        return 'new', None
     filter_existing = f"$filter=Pad_No eq '{auto_doc_ref}' and Sell_to_Customer_No eq '{sell_to_customer_no}'"
     check_url = f"{nav_url}/Company('{encoded_company}')/SalesOrderService?{filter_existing}"
     try:
@@ -149,9 +165,20 @@ def find_existing_order(auto_doc_ref, sell_to_customer_no, timeout=10):
 
 def create_sales_order(sell_to_customer_no, prescriber, original_order_date, request_delivery_date, auto_doc_ref, order_category_code, form_type, final_codes=None, patient_name=None, gender=None, pre_app_date=None, external_document_no=None):
     print(f"Starting create_sales_order for customer {sell_to_customer_no} with auto_doc_ref {auto_doc_ref}")
+    if NAV_TEST_MODE:
+        # What NAV would send back for the created order. Obviously fake, so it can't be mistaken
+        # for a real one on the SharePoint list.
+        so_no = 'TEST-SO-' + datetime.datetime.now().strftime('%m%d-%H%M%S')
+        print(f"NAV TEST MODE - not sent to NAV. Pretending {so_no} was created.")
+        return {'success': True, 'sales_order_no': so_no, 'error_messages': [],
+                'nav_order': {'No': so_no, 'Sell_to_Customer_No': sell_to_customer_no,
+                              'Sell_to_Customer_Name': f'TEST NAV CLINIC ({sell_to_customer_no})',
+                              'Patient_No': 'TEST-PT-' + datetime.datetime.now().strftime('%H%M%S'),
+                              'Patient_Name': patient_name, 'Pad_No': auto_doc_ref}}
     
     error_messages = []
     sales_order_no = None
+    nav_order = None  # NAV's own copy of the created order (clinic name, patient number...)
 
     # Check if the sales order already exists
     filter_existing = f"$filter=Pad_No eq '{auto_doc_ref}' and Sell_to_Customer_No eq '{sell_to_customer_no}'"
@@ -262,6 +289,10 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
             create_response = requests.post(post_url, headers=headers, data=json.dumps(order_data), auth=auth)
             if create_response.status_code == 201:
                 sales_order_no = next_no
+                try:
+                    nav_order = create_response.json()
+                except ValueError:
+                    nav_order = None
                 break
             elif create_response.status_code == 400:
                 try:
@@ -368,7 +399,8 @@ def create_sales_order(sell_to_customer_no, prescriber, original_order_date, req
                 error_messages.append(error_msg)
 
     success = len(error_messages) == 0
-    return {'success': success, 'sales_order_no': sales_order_no, 'error_messages': error_messages}
+    return {'success': success, 'sales_order_no': sales_order_no, 'error_messages': error_messages,
+            'nav_order': nav_order}
 
 def increment_order_no(order_no):
     match = re.match(r"(GB-SOA)(\d+)", order_no)
@@ -387,6 +419,8 @@ def get_next_medical_detail_line_no(document_no, step=10000):
     detail lines already written during create_sales_order (e.g. the
     'Special Instructions' line placed at Line_No 100000).
     """
+    if NAV_TEST_MODE:
+        return step
     filter_medical = f"$filter=Document_No eq '{document_no}'"
     get_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails?{filter_medical}"
     response = requests.get(get_url, headers=headers, auth=auth)
@@ -397,6 +431,9 @@ def get_next_medical_detail_line_no(document_no, step=10000):
     return step
 
 def post_to_nav_medical_detail(document_no, operation, detail_text, line_no=10000):
+    if NAV_TEST_MODE:
+        print(f"NAV TEST MODE - not sent: {document_no} | {operation}")
+        return True
     cons_medical_url = f"{nav_url}/Company('{encoded_company}')/MedicalDetails"
 
     payload = {

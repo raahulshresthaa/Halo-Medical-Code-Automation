@@ -68,7 +68,8 @@ from generate_code_logic import (
     BASINGSTOKE,
 )
 from NavApi import create_sales_order, parse_pre_app_date, find_existing_order
-from sharepoint_production import create_production_order, quantity_and_extremity
+from sharepoint_production import (create_production_order, quantity_and_extremity,
+                                   nav_clinic_name, nav_patient_number)
 import concurrent.futures
 import requests.exceptions
 import urllib.parse
@@ -1186,7 +1187,7 @@ class PdfButtonHandler:
                 return False, None, [], log_file_path, False
             nav_upload_locked.set()
             # Pass order_category_code and pre_app_date to attempt_nav_upload
-            success, sales_order_no, messages, already_exists = attempt_nav_upload(
+            success, sales_order_no, messages, already_exists, nav_order = attempt_nav_upload(
                 customer_no, prescriber, creation_date, request_delivery_date, AutoDocRef, order_category_code,
                 form_type_for_filename, log_file_path, final_codes, patient_name, gender_full, pre_app_date,
                 external_doc_no
@@ -1197,9 +1198,19 @@ class PdfButtonHandler:
             # created just now, and a failure here never undoes or hides the NAV upload.
             if success and sales_order_no and not already_exists and model_id == MODEL_IDS['Insoles']:
                 sp_quantity, sp_extremity = quantity_and_extremity(content)
+                # Clinic and patient number go on the list as NAV shows them on the created
+                # order. The form's clinic name is the fallback; the patient number is left blank
+                # if NAV doesn't send one. NAV's field names are logged to confirm them.
+                sp_clinic = (nav_clinic_name(nav_order) or clinic).strip()
+                sp_patient_no = nav_patient_number(nav_order)
+                try:
+                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"[NAV ORDER] {nav_order}\n")
+                except Exception:
+                    pass
                 sp_ok, sp_message = create_production_order(
-                    sales_order_no, AutoDocRef, clinic.strip(), order_category_code, request_delivery_date,
-                    sp_quantity, sp_extremity)
+                    sales_order_no, AutoDocRef, sp_clinic, order_category_code, request_delivery_date,
+                    sp_quantity, sp_extremity, sp_patient_no)
                 print(sp_message)
                 try:
                     with open(log_file_path, 'a', encoding='utf-8') as f:
@@ -2282,7 +2293,8 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         header_fields (dict, optional): Additional header fields like Style, Colour, etc.
   
     Returns:
-        tuple: (success (bool), sales_order_no (str or None), messages (list of (text, tag)))
+        tuple: (success, sales_order_no, messages as (text, tag) pairs, already_exists, NAV's
+        copy of the created order as a dict or None)
     """
     try:
         # Worked out by process_api_call (external_document) and used for both the upload and
@@ -2322,7 +2334,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
             if log_file_path:
                 with open(log_file_path, 'a', encoding='utf-8') as f:
                     f.write(f"[INFO] Order already exists in NAV: {sales_order_no}. Work ticket not re-uploaded.\n")
-            return success, sales_order_no, [(info_msg, 'info')], already_exists
+            return success, sales_order_no, [(info_msg, 'info')], already_exists, None
 
         ui_messages = []
         log_messages = []
@@ -2407,7 +2419,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
                 for log_msg in log_messages:
                     f.write(f"{log_msg}\n")
       
-        return success, sales_order_no, ui_messages, already_exists
+        return success, sales_order_no, ui_messages, already_exists, result.get('nav_order')
 
     except Exception as e:
         ui_error_message = "❌ Error uploading to NAV. Please check order details."
@@ -2415,7 +2427,7 @@ def attempt_nav_upload(customer_no, prescriber, original_order_date, request_del
         if log_file_path:
             with open(log_file_path, 'a', encoding='utf-8') as f:
                 f.write(f"{log_error_message}\n")
-        return False, None, [(ui_error_message, 'error')], False
+        return False, None, [(ui_error_message, 'error')], False, None
     
 # --- Main Application Setup ---
 class EntryDialog(Toplevel):

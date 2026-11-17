@@ -30,6 +30,7 @@ COLUMNS = {
     'prod_no': 'Title',
     'sales_order': 'SONo',
     'auto_doc': 'PADNo',
+    'patient_number': 'PatientNumber',
     'clinic': 'ClinicName',
     'quantity': 'Quantity',
     'orthosis_type': 'OrthosisType',
@@ -44,6 +45,13 @@ COLUMNS = {
     'current_stage_no': 'CurrentStageNo',
     'site_location': 'SiteLocation',
     'prod_dates_added': 'ProdDatesAdded',
+    'data_version': 'DataVersion',
+    'vers': 'Vers',
+    'delivery_method': 'DeliveryMethod',
+    'delivery_location': 'DeliveryLocation',
+    'awaiting_go_ahead': 'AwaitingGoAhead',
+    'priority': 'Priority',
+    'gallery_filter': 'GalleryFilter',
 }
 
 # Values that never change for a new insole order (matches the Pre-Production row on the list).
@@ -57,6 +65,12 @@ FIXED_VALUES = {
     'current_stage_no': '1',
     'site_location': 'Wellingborough (Halo)',
     'prod_dates_added': 'No',
+    'data_version': 'Version 3',
+    'vers': '3.0',
+    'delivery_method': 'Post',
+    'awaiting_go_ahead': 'No',
+    'priority': '1',
+    'gallery_filter': 'All',
 }
 
 GRAPH = 'https://graph.microsoft.com/v1.0'
@@ -107,58 +121,129 @@ def _all_fields(s, headers, fields):
         url = data.get('@odata.nextLink')
 
 
-def _split(prod_no):
-    """'PO-00123' -> ('PO-', 123, 5). None if there is no trailing number."""
-    m = re.match(r'^(.*?)(\d+)$', str(prod_no or '').strip())
-    return (m.group(1), int(m.group(2)), len(m.group(2))) if m else None
+# Production number = 'PROD' + site letter + 2-digit year + '-' + the list item's own ID, 6 digits.
+# e.g. the 10th line on the list, from Wellingborough, in 2026 -> PRODW26-000010
+SITE_LETTERS = {'wellingborough': 'W', 'aldershot': 'A', 'lewes': 'F'}
 
 
-def _next_prod_no(s, headers):
-    """Highest production number on the list plus one, keeping its prefix and zero padding."""
-    col = COLUMNS['prod_no']
-    best = None
-    for item in _all_fields(s, headers, [col]):
-        parts = _split(item.get('fields', {}).get(col))
-        if parts and (best is None or parts[1] > best[1]):
-            best = parts
-    if best is None:
-        raise ValueError("No existing production number on the list to count on from. "
-                         "Create the first one by hand so the format is known.")
-    prefix, number, width = best
-    return f"{prefix}{number + 1:0{width}d}"
+def site_letter(site_location):
+    """'Wellingborough (Halo)' -> 'W'. Raises if the site isn't one we know."""
+    name = str(site_location or '').lower()
+    for site, letter in SITE_LETTERS.items():
+        if site in name:
+            return letter
+    raise ValueError(f"Unknown site '{site_location}' - add it to SITE_LETTERS.")
 
 
-def quantity_and_extremity(content):
-    """Read quantity and side from the form text ('key: value' lines).
+def prod_no_for(item_id, site_location=None, today=None):
+    """PRODW26-000010 for item ID 10 at Wellingborough in 2026."""
+    today = today or datetime.date.today()
+    letter = site_letter(site_location or FIXED_VALUES['site_location'])
+    return f"PROD{letter}{today.year % 100:02d}-{int(item_id):06d}"
 
-    A pair is quantity 2 and 'Bilateral' (as on the list); a single is 1 and 'Right' or 'Left'.
-    'order quantity' on the form multiplies it. If the form doesn't say which side, extremity
-    comes back '' and is left blank on the list rather than guessed.
-    """
+
+def _likely_next_id(s, headers):
+    """Only for the dry run: the highest ID on the list plus one."""
+    ids = [int(i['id']) for i in _all_fields(s, headers, [COLUMNS['sales_order']])]
+    return max(ids, default=0) + 1
+
+
+def _form_fields(content):
     d = {}
     for line in (content or '').split(chr(10)):
         if ':' in line:
             k, v = line.split(':', 1)
             d[k.strip().lower()] = v.strip().lower()
+    return d
+
+
+def quantity_and_extremity(content):
+    """Read quantity and side from the form text ('key: value' lines).
+
+    Quantity is the form's 'order quantity' as written (a pair is NOT doubled - the side says
+    Bilateral). Side is 'Bilateral' (insole pair), 'Right' (uni-lat R) or 'Left' (uni-lat L). If
+    the form doesn't say which side, it comes back '' and is left blank on the list.
+    """
+    d = _form_fields(content)
     on = lambda *keys: any(d.get(k) == 'selected' for k in keys)
     if on('insole pair', 'pair'):
-        count, side = 2, 'Bilateral'
+        side = 'Bilateral'
     elif on('insole type uni lat r', 'insole rt', 'rt', 'right'):
-        count, side = 1, 'Right'
+        side = 'Right'
     elif on('insole type uni lat l', 'insole lt', 'lt', 'left'):
-        count, side = 1, 'Left'
+        side = 'Left'
     else:
-        count, side = 1, ''
+        side = ''
     try:
-        multiple = max(1, int(float(d.get('order quantity', '1').replace('x', '').strip() or 1)))
+        quantity = max(1, int(float(d.get('order quantity', '1').replace('x', '').strip() or 1)))
     except ValueError:
-        multiple = 1
-    return count * multiple, side
+        quantity = 1
+    return quantity, side
+
+
+def nav_clinic_name(nav_order):
+    """The clinic's name as NAV shows it on the created order ('' if NAV didn't send one)."""
+    return str((nav_order or {}).get('Sell_to_Customer_Name') or '').strip()
+
+
+def nav_patient_number(nav_order):
+    """The patient number NAV shows back on the created order, '' if it didn't send one.
+
+    NAV's field name for it isn't known here, so this takes the first filled-in field whose name
+    has 'patient' and 'no'/'number' in it (not the name or gender). Once the real name is seen in
+    the log, set NAV_PATIENT_NUMBER_FIELD to it and the guess is skipped.
+    """
+    order = nav_order or {}
+    if NAV_PATIENT_NUMBER_FIELD:
+        return str(order.get(NAV_PATIENT_NUMBER_FIELD) or '').strip()
+    for key, value in order.items():
+        k = key.lower()
+        if 'patient' in k and ('no' in k or 'number' in k) and 'name' not in k and value:
+            return str(value).strip()
+    return ''
+
+
+NAV_PATIENT_NUMBER_FIELD = None   # e.g. 'Patient_No' once confirmed from the log
+
+
+# What the NAV order category means for the Orthosis Type column.
+ORTHOSIS_TYPES = {
+    'SIMPLE INSOLE': 'Insole Simple',    # simple insole
+    'MOULDED INSOLE': 'Insole Hand Moulded',   # hand mould (and poly / carbon bases)
+    'MILLED INSOLES': 'Insole CAD',     # cradle / TCI
+}
+
+
+def build_values(sales_order_no, auto_doc_ref, clinic, order_category_code,
+                 request_delivery_date, quantity=1, extremity='', patient_no=''):
+    """The columns to write for one new insole order (blank ones left out)."""
+    orthosis_type = ORTHOSIS_TYPES.get((order_category_code or '').upper(), 'Insole CAD')
+    delivery = f"{request_delivery_date}T00:00:00Z"
+    values = {
+        'sales_order': sales_order_no,
+        'auto_doc': auto_doc_ref,
+        'patient_number': patient_no,
+        'clinic': clinic,
+        'quantity': str(quantity),
+        'orthosis_type': orthosis_type,
+        'extremity': extremity,
+        'delivery_date': delivery,
+        'delivery_date_original': delivery,
+        **FIXED_VALUES,
+    }
+    values['delivery_location'] = clinic   # same as ClinicName
+    if orthosis_type == 'Insole CAD':
+        values['orthosis_category'] = 'CAD Insoles'
+    return {k: v for k, v in values.items() if v not in (None, '')}
 
 
 def create_production_order(sales_order_no, auto_doc_ref, clinic, order_category_code,
-                            request_delivery_date, quantity=1, extremity=''):
-    """Add the production order. Returns (ok, message). Never raises."""
+                            request_delivery_date, quantity=1, extremity='', patient_no='',
+                            dry_run=False):
+    """Add the production order. Returns (ok, message). Never raises.
+
+    dry_run=True works out the production number and every column but writes nothing.
+    """
     try:
         s, missing = _settings()
         if missing:
@@ -174,41 +259,32 @@ def create_production_order(sales_order_no, auto_doc_ref, clinic, order_category
                 return True, (f"Production order {fields.get(COLUMNS['prod_no'])} already exists "
                               f"on SharePoint for {sales_order_no} - not created again.")
 
-        simple = (order_category_code or '').upper() == 'SIMPLE INSOLE'
-        delivery = f"{request_delivery_date}T00:00:00Z"
-        values = {
-            'sales_order': sales_order_no,
-            'auto_doc': auto_doc_ref,
-            'clinic': clinic,
-            'quantity': str(quantity),
-            'orthosis_type': 'Insole Simple' if simple else 'CAD',
-            'extremity': extremity,
-            'delivery_date': delivery,
-            'delivery_date_original': delivery,
-            **FIXED_VALUES,
-        }
-        if not simple:
-            values['orthosis_category'] = 'CAD Insoles'
-        values = {k: v for k, v in values.items() if v not in (None, '')}
+        values = build_values(sales_order_no, auto_doc_ref, clinic, order_category_code,
+                              request_delivery_date, quantity, extremity, patient_no)
 
-        for attempt in range(3):
-            prod_no = _next_prod_no(s, headers)
-            body = {'fields': {COLUMNS[k]: v for k, v in values.items()}}
-            body['fields'][COLUMNS['prod_no']] = prod_no
-            r = requests.post(_items_url(s), headers=headers, json=body, timeout=TIMEOUT)
-            if r.status_code not in (200, 201):
-                return False, (f"SharePoint production order not created for {sales_order_no}: "
-                               f"{r.status_code} {r.text[:300]}")
-            my_id = int(r.json()['id'])
-            # Two people uploading at the same moment can be handed the same number. If anyone
-            # got it before this item, take ours off and try the next number.
-            pc = COLUMNS['prod_no']
-            clash = [int(i['id']) for i in _all_fields(s, headers, [pc])
-                     if str(i.get('fields', {}).get(pc, '')).strip() == prod_no]
-            if len(clash) > 1 and my_id != min(clash):
-                requests.delete(f"{_items_url(s)}/{my_id}", headers=headers, timeout=TIMEOUT)
-                continue
-            return True, f"Created SharePoint production order {prod_no} for {sales_order_no}."
-        return False, f"SharePoint production order not created for {sales_order_no}: production number kept clashing."
+        if dry_run:
+            prod_no = prod_no_for(_likely_next_id(s, headers)) + "   (the ID is only known once created)"
+            shown = {COLUMNS['prod_no']: prod_no, **{COLUMNS[k]: v for k, v in values.items()}}
+            return True, "DRY RUN - nothing written. Would create:\n" + "\n".join(
+                f"    {k:28} {v}" for k, v in shown.items())
+
+        # The production number is built from the item's own ID, which SharePoint hands out
+        # when the item is created - so create it first, then put the number in the Title.
+        # Two people at once can't clash: every item has its own ID.
+        body = {'fields': {COLUMNS[k]: v for k, v in values.items()}}
+        body['fields'][COLUMNS['prod_no']] = 'PENDING'
+        r = requests.post(_items_url(s), headers=headers, json=body, timeout=TIMEOUT)
+        if r.status_code not in (200, 201):
+            return False, (f"SharePoint production order not created for {sales_order_no}: "
+                           f"{r.status_code} {r.text[:300]}")
+        item_id = int(r.json()['id'])
+        prod_no = prod_no_for(item_id)
+        r = requests.patch(f"{_items_url(s)}/{item_id}/fields", headers=headers,
+                           json={COLUMNS['prod_no']: prod_no}, timeout=TIMEOUT)
+        if r.status_code not in (200, 201):
+            requests.delete(f"{_items_url(s)}/{item_id}", headers=headers, timeout=TIMEOUT)
+            return False, (f"SharePoint production order not created for {sales_order_no}: "
+                           f"could not set the production number ({r.status_code} {r.text[:200]}).")
+        return True, f"Created SharePoint production order {prod_no} for {sales_order_no}."
     except Exception as e:
         return False, f"SharePoint production order not created for {sales_order_no}: {type(e).__name__}: {e}"
