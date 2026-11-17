@@ -1,22 +1,29 @@
 # simulate_order.py
-"""Test the NAV -> SharePoint hand-off without NAV.
+"""Create the SharePoint production order for an order the app has already run - no NAV needed.
 
-Feeds a form through the app's own mapping (the real functions, taken from main.py) with a
-made-up Sales Order number, and shows what would go on the SharePoint Production Orders list.
+Give it a results log from the app. It reads the real sales order number, auto doc ref, order
+category, delivery date and patient from the log (the "Uploaded Order Data" block the app
+writes), then makes the same row the app would make.
 
-    python simulate_order.py                       built-in sample forms, DRY RUN (writes nothing)
-    python simulate_order.py path\\to\\results_log_XXXX_insoles.txt   a real day's log, DRY RUN
-    python simulate_order.py <log> --live          really create the row on the list (a test row,
-                                                   SO 'TEST-SO-...'; delete it by hand afterwards)
+    python simulate_order.py --pick                a file box opens to choose the log, DRY RUN
+    python simulate_order.py --pick --live         ... and really creates the row
+    python simulate_order.py <log> [<log> ...]     the same, naming the log(s) here
+    python simulate_order.py                       built-in sample forms with made-up SOs (DRY RUN)
 
-Options:  --nav-clinic "Name as NAV shows it"   (stands in for what NAV sends back on a real run)
-          --nav-patient-no 1234567              the patient number NAV shows back (blank if NAV sends none)
-          --so TEST-SO-0001                     the made-up sales order number
+DRY RUN is the default: it shows the row and writes nothing. --live writes it. If the sales order
+is already on the list it says so and does not make a second row.
+
+NAV isn't asked, so what only NAV knows is filled in from the log if there (logs from this branch
+keep NAV's reply on a [NAV ORDER] line), else:
+          --nav-clinic "Name as NAV shows it"   (otherwise the form's clinic name is used)
+          --nav-patient-no 1234567              (otherwise PatientNumber is left blank)
+          --so TEST-SO-0001                     made-up SO, only for forms with none in the log
 """
 import argparse
 import ast
 import collections
 import datetime
+import json
 import os
 import re
 import sys
@@ -88,26 +95,50 @@ def fields_of(text):
     return d
 
 
+def from_log(text):
+    """What the app wrote to a results log after it uploaded the order (all optional)."""
+    out = {}
+    m = re.search(r'Created Sales Order:\s*(\S+)', text)
+    if m:
+        out['so'] = m.group(1)
+    for key, name in (('Requested_Delivery_Date', 'delivery'), ('Order_Category_Code', 'category'),
+                      ('Pad_No', 'auto_doc'), ('Patient_Name', 'patient')):
+        m = re.search(r'"%s":\s*"([^"]*)"' % key, text)
+        if m:
+            out[name] = m.group(1)
+    m = re.search(r'^\[NAV ORDER\]\s*(\{.*\})\s*$', text, re.M)
+    if m:
+        try:
+            out['nav_order'] = ast.literal_eval(m.group(1))
+        except (ValueError, SyntaxError):
+            pass
+    return out
+
+
 def run(label, text, args):
     f = fields_of(text)
-    patient = f.get('patient', '')
+    log = from_log(text)
+    patient = log.get('patient') or f.get('patient', '')
     if patient.lower().startswith('name'):
         patient = patient[4:].lstrip(': ').strip()
     patient = move_number_after_name(patient or 'Unknown')
-    category = determine_order_category_code('Insoles', f)
+    category = log.get('category') or determine_order_category_code('Insoles', f)
     qty, side = quantity_and_extremity(text)
-    # Stands in for NAV's reply to creating the order.
-    nav_order = {'Sell_to_Customer_Name': args.nav_clinic, 'Patient_No': args.nav_patient_no}
+    # NAV's reply: the log's [NAV ORDER] line if it has one, else what was given on the command line.
+    nav_order = log.get('nav_order') or {'Sell_to_Customer_Name': args.nav_clinic,
+                                         'Patient_No': args.nav_patient_no}
     clinic = nav_clinic_name(nav_order) or f.get('clinic', '')
-    delivery = (datetime.date.today() + datetime.timedelta(days=7)).strftime('%Y-%m-%d')
-    auto_doc = f.get('autodocref', 'N/A')
+    so = log.get('so') or args.so
+    delivery = log.get('delivery') or (datetime.date.today() + datetime.timedelta(days=7)).strftime('%Y-%m-%d')
+    auto_doc = log.get('auto_doc') or f.get('autodocref', 'N/A')
 
     print('=' * 78)
     print(label)
-    print(f"  form says : patient='{patient}'  order quantity={f.get('order quantity', '-')}  "
-          f"-> NAV category {category}")
+    print(f"  from log  : SO {so} ({'real, from the log' if log.get('so') else 'made up'}), "
+          f"delivery {delivery}, category {category}")
+    print(f"  form says : patient='{patient}'  order quantity={f.get('order quantity', '-')}")
     ok, msg = create_production_order(
-        args.so, auto_doc, clinic, category, delivery, qty, side, nav_patient_number(nav_order),
+        so, auto_doc, clinic, category, delivery, qty, side, nav_patient_number(nav_order),
         dry_run=not args.live)
     print(('  OK  ' if ok else '  FAILED  ') + msg)
     return ok
@@ -116,11 +147,18 @@ def run(label, text, args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument('logs', nargs='*', help='results_log files to replay (default: built-in samples)')
+    ap.add_argument('--pick', action='store_true', help='choose the log file(s) in a file box')
     ap.add_argument('--live', action='store_true', help='really write to the SharePoint list')
     ap.add_argument('--nav-clinic', default='', help='clinic name as NAV shows it')
     ap.add_argument('--nav-patient-no', default='', help='patient number as NAV shows it')
     ap.add_argument('--so', default='TEST-SO-0001', help='made-up sales order number')
     args = ap.parse_args()
+    if args.pick:
+        from tkinter import Tk, filedialog
+        Tk().withdraw()
+        args.logs = list(filedialog.askopenfilenames(
+            title='Choose the results log(s) to send to SharePoint',
+            filetypes=[('Results logs', '*.txt'), ('All files', '*.*')])) or sys.exit('No file chosen.')
 
     jobs = ([(os.path.basename(p), open(p, encoding='utf-8', errors='replace').read())
              for p in args.logs] or list(SAMPLES.items()))
