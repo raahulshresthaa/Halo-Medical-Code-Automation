@@ -1210,7 +1210,7 @@ class PdfButtonHandler:
                     pass
                 sp_ok, sp_message = create_production_order(
                     sales_order_no, AutoDocRef, sp_clinic, order_category_code, request_delivery_date,
-                    sp_quantity, sp_extremity, sp_patient_no)
+                    sp_quantity, sp_extremity, sp_patient_no, form_content=content)
                 print(sp_message)
                 try:
                     with open(log_file_path, 'a', encoding='utf-8') as f:

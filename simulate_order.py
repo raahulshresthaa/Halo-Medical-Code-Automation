@@ -139,7 +139,7 @@ def run(label, text, args):
     print(f"  form says : patient='{patient}'  order quantity={f.get('order quantity', '-')}")
     ok, msg = create_production_order(
         so, auto_doc, clinic, category, delivery, qty, side, nav_patient_number(nav_order),
-        dry_run=not args.live)
+        dry_run=not args.live, form_content=text)
     print(('  OK  ' if ok else '  FAILED  ') + msg)
     return ok
 

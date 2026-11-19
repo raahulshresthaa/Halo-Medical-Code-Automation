@@ -52,6 +52,31 @@ COLUMNS = {
     'awaiting_go_ahead': 'AwaitingGoAhead',
     'priority': 'Priority',
     'gallery_filter': 'GalleryFilter',
+    'path': 'ProductionPath',
+    'cadcam': 'Cadcam',
+    'cadcam_date': 'CadcamDate',
+    'cadcam_date_original': 'CadcamDateOriginal',
+    'insoles': 'Insoles',
+    'insole_date': 'InsoleDate',
+    'insole_date_original': 'InsoleDateOriginal',
+    'plaster': 'Plaster',
+    'metal': 'Metal',
+    'footwear': 'Footwear',
+    'cadcam_status': 'CadcamStatus',
+    'insoles_status': 'InsoleStatus',
+    'lined': 'Lined',
+    'insole_si': 'InsoleSi',
+    'cadcam_si': 'CadcamSi',
+    'bluebox': 'BlueBox',
+    'moulding': 'Moulding',
+    'machining': 'Machining',
+    'finishing': 'Finishing',
+    'plaster_si': 'PlasterSi',
+    'metal_si': 'MetalSi',
+    'footwear_si': 'FootwearSi',
+    'moulding_si': 'MouldingSi',
+    'machining_si': 'MachiningSi',
+    'finishing_si': 'FinishingSi',
 }
 
 # Values that never change for a new insole order (matches the Pre-Production row on the list).
@@ -214,11 +239,76 @@ ORTHOSIS_TYPES = {
 }
 
 
+# Parts of the form that count as "Additions" (cut outs + additions boxes) or "Covering"
+# (lining + top cover). Matched against the form's lower-case field names.
+_ADDITION_KEYS = ('met head', 'all mets', 'met ray', 'custom hole and plug', 'navicular sweet spot',
+                  'additional info cut outs', 'valgus pad', 'heel pad', 'mortons extension',
+                  'met bar', 'met dome', 'additional info additions')
+_COVERING_KEYS = ('soft poron', 'medium poron', 'firm memory foam poron', 'vinyl black', 'on steam',
+                  'microfibre brown', 'multi ld eva', 'black ld eva', 'spenco',
+                  'additional info top cover')
+_EMPTY_VALUES = ('', 'unselected', 'not selected', 'none', 'n/a', '0', 'false', 'no')
+
+
+def form_orthosis(content):
+    """(OrthosisType, OrthosisCategory) read from the form, or (None, None) if the form isn't
+    a TCI or Simple insole (Hand Moulded and Cradle are not handled yet).
+
+    TCI -> 'Insole CAD' / 'CAD Insoles'; Simple -> 'Insole Simple' / 'Simple Insoles'.
+    Anything ticked or filled in under Cut Outs / Additions adds ' - Additions'; anything under
+    Lining / Top Cover adds ' - Covering'; both gives ' - Additions - Covering'.
+    """
+    d = _form_fields(content)
+    if d.get('insole type tci') == 'selected':
+        orthosis_type, category = 'Insole CAD', 'CAD Insoles'
+    elif d.get('insole type simple') == 'selected':
+        orthosis_type, category = 'Insole Simple', 'Simple Insoles'
+    else:
+        return None, None
+
+    def used(keys):
+        return any(v not in _EMPTY_VALUES and any(k in name for k in keys)
+                   for name, v in d.items())
+
+    if used(_ADDITION_KEYS):
+        category += ' - Additions'
+    if used(_COVERING_KEYS):
+        category += ' - Covering'
+    return orthosis_type, category
+
+
+# Category -> (path, first location, first process, CAD/CAM offset, Insoles offset), copied from
+# the Production Paths list. Offsets are days from the required delivery date (negative = before).
+# A CAD/CAM offset of None means the order doesn't go through CAD/CAM.
+PATHS = {
+    'CAD Insoles':                          ('PATHINS1', 'CAD/CAM', 'Digital input', -7, -2),
+    'CAD Insoles - Additions':              ('PATHINS2', 'CAD/CAM', 'Digital input', -8, -3),
+    'CAD Insoles - Covering':               ('PATHINS3', 'CAD/CAM', 'Digital input', -7, -2),
+    'CAD Insoles - Additions - Covering':   ('PATHINS4', 'CAD/CAM', 'Digital input', -8, -3),
+    'Simple Insoles':                       ('PATHINS5', 'Insoles', 'Insole Shaping', None, -2),
+    'Simple Insoles - Additions':           ('PATHINS6', 'Insoles', 'Insole Shaping', None, -3),
+    'Simple Insoles - Covering':            ('PATHINS7', 'Insoles', 'Insole Shaping', None, -2),
+    'Simple Insoles - Additions - Covering': ('PATHINS8', 'Insoles', 'Insole Shaping', None, -3),
+}
+
+
+def _offset_date(delivery_date, days):
+    """The delivery date (YYYY-MM-DD) moved by `days`, as the list's date text."""
+    d = datetime.date.fromisoformat(str(delivery_date)[:10]) + datetime.timedelta(days=days)
+    return f"{d.isoformat()}T00:00:00Z"
+
+
 def build_values(sales_order_no, auto_doc_ref, clinic, order_category_code,
-                 request_delivery_date, quantity=1, extremity='', patient_no=''):
+                 request_delivery_date, quantity=1, extremity='', patient_no='', form_content=''):
     """The columns to write for one new insole order (blank ones left out)."""
     orthosis_type = ORTHOSIS_TYPES.get((order_category_code or '').upper(), 'Insole CAD')
+    form_type, form_category = form_orthosis(form_content)
+    if form_type:
+        orthosis_type = form_type
     delivery = f"{request_delivery_date}T00:00:00Z"
+    # A bilateral order is a pair, so each one counts as 2 insoles: 1 pair = 2, 2 pairs = 4.
+    if extremity == 'Bilateral':
+        quantity = int(quantity) * 2
     values = {
         'sales_order': sales_order_no,
         'auto_doc': auto_doc_ref,
@@ -232,14 +322,35 @@ def build_values(sales_order_no, auto_doc_ref, clinic, order_category_code,
         **FIXED_VALUES,
     }
     values['delivery_location'] = clinic   # same as ClinicName
-    if orthosis_type == 'Insole CAD':
+    if form_category:
+        values['orthosis_category'] = form_category
+    elif orthosis_type == 'Insole CAD':
         values['orthosis_category'] = 'CAD Insoles'
+    route = PATHS.get(values.get('orthosis_category'))
+    if route:
+        path, location, process, cadcam_offset, insole_offset = route
+        values.update(path=path, location=location, current_process=process, insoles='Yes',
+                      prod_dates_added='Yes', cadcam='No', plaster='No', metal='No',
+                      footwear='No', insoles_status='Not Completed', lined='No',
+                      insole_si='No', cadcam_si='No')
+        # Departments this order doesn't use, and every department's "Si" flag, are all No.
+        for name in ('bluebox', 'moulding', 'machining', 'finishing'):
+            values[name] = 'No'
+        for name in ('plaster', 'metal', 'footwear', 'moulding', 'machining', 'finishing'):
+            values[name + '_si'] = 'No'
+        values['insole_date'] = values['insole_date_original'] = _offset_date(
+            request_delivery_date, insole_offset)
+        if cadcam_offset is not None:
+            values['cadcam'] = 'Yes'
+            values['cadcam_status'] = 'Not Completed'
+            values['cadcam_date'] = values['cadcam_date_original'] = _offset_date(
+                request_delivery_date, cadcam_offset)
     return {k: v for k, v in values.items() if v not in (None, '')}
 
 
 def create_production_order(sales_order_no, auto_doc_ref, clinic, order_category_code,
                             request_delivery_date, quantity=1, extremity='', patient_no='',
-                            dry_run=False):
+                            dry_run=False, form_content=''):
     """Add the production order. Returns (ok, message). Never raises.
 
     dry_run=True works out the production number and every column but writes nothing.
@@ -260,7 +371,7 @@ def create_production_order(sales_order_no, auto_doc_ref, clinic, order_category
                               f"on SharePoint for {sales_order_no} - not created again.")
 
         values = build_values(sales_order_no, auto_doc_ref, clinic, order_category_code,
-                              request_delivery_date, quantity, extremity, patient_no)
+                              request_delivery_date, quantity, extremity, patient_no, form_content)
 
         if dry_run:
             prod_no = prod_no_for(_likely_next_id(s, headers)) + "   (the ID is only known once created)"
