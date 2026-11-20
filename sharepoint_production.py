@@ -22,6 +22,8 @@ import base64
 import datetime
 import os
 import re
+import sqlite3
+import sys
 
 import requests
 
@@ -33,8 +35,10 @@ COLUMNS = {
     'patient_number': 'PatientNumber',
     'clinic': 'ClinicName',
     'quantity': 'Quantity',
-    'orthosis_type': 'OrthosisType',
-    'orthosis_category': 'OrthosisCategory',
+    # Swapped on purpose: our "type" values (CAD Insoles...) belong in the list's OrthosisCategory
+    # column and our "category" values (CAD Insoles - Additions...) in its OrthosisType column.
+    'orthosis_type': 'OrthosisCategory',
+    'orthosis_category': 'OrthosisType',
     'extremity': 'Extremity',
     'classification': 'ProductionClassification',
     'delivery_date': 'DeliveryDate',
@@ -86,7 +90,7 @@ FIXED_VALUES = {
     'classification': 'New',
     'quality_checked': 'No',
     'location': 'Pre-Production',
-    'current_process': 'Pre-Production',
+    'current_process': 'Not Started',
     'current_stage_no': '1',
     'site_location': 'Wellingborough (Halo)',
     'prod_dates_added': 'No',
@@ -231,11 +235,25 @@ def nav_patient_number(nav_order):
 NAV_PATIENT_NUMBER_FIELD = None   # e.g. 'Patient_No' once confirmed from the log
 
 
-# What the NAV order category means for the Orthosis Type column.
+# Our category key (also the PATHS key) -> the name on the OrthosisTypes list (OrthosisType column).
+ORTHOSIS_TYPE_NAMES = {
+    'CAD Insoles':                           'Insoles CAD - ALD',
+    'CAD Insoles - Additions':               'Insoles CAD - Additions',
+    'CAD Insoles - Covering':                'Insoles CAD - Covering',
+    'CAD Insoles - Additions - Covering':    'Insoles CAD - Additions - Covering',
+    'Simple Insoles':                        'Simple Insoles',
+    'Simple Insoles - Additions':            'Simple Insoles - Additions',
+    'Simple Insoles - Covering':             'Simple Insoles - Covering',
+    'Simple Insoles - Additions - Covering': 'Simple Insoles - Additions - Covering',
+}
+
+# NAV order categories that don't go on the SharePoint list (not a category there yet).
+IGNORED_CATEGORY_CODES = ('MOULDED INSOLE',)
+
+# What the NAV order category means for the Orthosis Category column.
 ORTHOSIS_TYPES = {
-    'SIMPLE INSOLE': 'Insole Simple',    # simple insole
-    'MOULDED INSOLE': 'Insole Hand Moulded',   # hand mould (and poly / carbon bases)
-    'MILLED INSOLES': 'Insole CAD',     # cradle / TCI
+    'SIMPLE INSOLE': 'Simple Insoles',    # simple insole
+    'MILLED INSOLES': 'CAD Insoles',     # cradle / TCI
 }
 
 
@@ -254,15 +272,16 @@ def form_orthosis(content):
     """(OrthosisType, OrthosisCategory) read from the form, or (None, None) if the form isn't
     a TCI or Simple insole (Hand Moulded and Cradle are not handled yet).
 
-    TCI -> 'Insole CAD' / 'CAD Insoles'; Simple -> 'Insole Simple' / 'Simple Insoles'.
+    TCI -> 'CAD Insoles'; Simple -> 'Simple Insoles' (the OrthosisCategory column). The second
+    value returned is the full name with any suffix, e.g. 'CAD Insoles - Additions' (OrthosisType).
     Anything ticked or filled in under Cut Outs / Additions adds ' - Additions'; anything under
     Lining / Top Cover adds ' - Covering'; both gives ' - Additions - Covering'.
     """
     d = _form_fields(content)
     if d.get('insole type tci') == 'selected':
-        orthosis_type, category = 'Insole CAD', 'CAD Insoles'
+        orthosis_type, category = 'CAD Insoles', 'CAD Insoles'
     elif d.get('insole type simple') == 'selected':
-        orthosis_type, category = 'Insole Simple', 'Simple Insoles'
+        orthosis_type, category = 'Simple Insoles', 'Simple Insoles'
     else:
         return None, None
 
@@ -281,27 +300,76 @@ def form_orthosis(content):
 # the Production Paths list. Offsets are days from the required delivery date (negative = before).
 # A CAD/CAM offset of None means the order doesn't go through CAD/CAM.
 PATHS = {
-    'CAD Insoles':                          ('PATHINS1', 'CAD/CAM', 'Digital input', -7, -2),
-    'CAD Insoles - Additions':              ('PATHINS2', 'CAD/CAM', 'Digital input', -8, -3),
-    'CAD Insoles - Covering':               ('PATHINS3', 'CAD/CAM', 'Digital input', -7, -2),
-    'CAD Insoles - Additions - Covering':   ('PATHINS4', 'CAD/CAM', 'Digital input', -8, -3),
-    'Simple Insoles':                       ('PATHINS5', 'Insoles', 'Insole Shaping', None, -2),
-    'Simple Insoles - Additions':           ('PATHINS6', 'Insoles', 'Insole Shaping', None, -3),
-    'Simple Insoles - Covering':            ('PATHINS7', 'Insoles', 'Insole Shaping', None, -2),
-    'Simple Insoles - Additions - Covering': ('PATHINS8', 'Insoles', 'Insole Shaping', None, -3),
+    'CAD Insoles':                          ('PATHINS1', 'CAD/CAM', 'Digital input', -8, -3),
+    'CAD Insoles - Additions':              ('PATHINS2', 'CAD/CAM', 'Digital input', -7, -2),
+    'CAD Insoles - Covering':               ('PATHINS3', 'CAD/CAM', 'Digital input', -8, -3),
+    'CAD Insoles - Additions - Covering':   ('PATHINS4', 'CAD/CAM', 'Digital input', -7, -2),
+    'Simple Insoles':                       ('PATHINS5', 'Insoles', 'Insole Shaping', None, -3),
+    'Simple Insoles - Additions':           ('PATHINS6', 'Insoles', 'Insole Shaping', None, -2),
+    'Simple Insoles - Covering':            ('PATHINS7', 'Insoles', 'Insole Shaping', None, -3),
+    'Simple Insoles - Additions - Covering': ('PATHINS8', 'Insoles', 'Insole Shaping', None, -2),
 }
 
 
-def _offset_date(delivery_date, days):
-    """The delivery date (YYYY-MM-DD) moved by `days`, as the list's date text."""
+def _holidays_db_path():
+    base = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) \
+        else os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, 'databases', 'holidays.db')
+
+
+def holiday_ranges():
+    """The (start, end) holiday blackout ranges the app keeps in holidays.db, as dates.
+
+    Same table the Holidays tab edits. Returns [] if the file or table isn't there, so a missing
+    holiday list never stops a production order being created.
+    """
+    path = _holidays_db_path()
+    if not os.path.exists(path):
+        return []
+    ranges = []
+    try:
+        conn = sqlite3.connect(path)
+        try:
+            for start_s, end_s in conn.execute("SELECT start_date, end_date FROM holidays"):
+                try:
+                    ranges.append((datetime.date.fromisoformat(start_s),
+                                   datetime.date.fromisoformat(end_s)))
+                except (TypeError, ValueError):
+                    continue
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return []
+    return ranges
+
+
+def next_working_day(d, ranges=()):
+    """`d` itself if it is a weekday outside every holiday range, else the next day that is."""
+    for _ in range(3660):   # safety cap so a bad open-ended range can't loop forever
+        if d.weekday() < 5 and not any(start <= d <= end for start, end in ranges):
+            return d
+        d += datetime.timedelta(days=1)
+    return d
+
+
+def _offset_date(delivery_date, days, ranges=()):
+    """The delivery date (YYYY-MM-DD) moved by `days`, then rolled forward past weekends and
+    holiday blackouts to the next working day, as the list's date text."""
     d = datetime.date.fromisoformat(str(delivery_date)[:10]) + datetime.timedelta(days=days)
-    return f"{d.isoformat()}T00:00:00Z"
+    return f"{next_working_day(d, ranges).isoformat()}T00:00:00Z"
 
 
 def build_values(sales_order_no, auto_doc_ref, clinic, order_category_code,
-                 request_delivery_date, quantity=1, extremity='', patient_no='', form_content=''):
-    """The columns to write for one new insole order (blank ones left out)."""
-    orthosis_type = ORTHOSIS_TYPES.get((order_category_code or '').upper(), 'Insole CAD')
+                 request_delivery_date, quantity=1, extremity='', patient_no='', form_content='',
+                 holidays=None):
+    """The columns to write for one new insole order (blank ones left out).
+
+    The CAD/CAM and Insole dates skip weekends and the app's holiday blackouts (moved to the next
+    working day). `holidays` is a list of (start, end) dates; None reads holidays.db.
+    """
+    if holidays is None:
+        holidays = holiday_ranges()
+    orthosis_type = ORTHOSIS_TYPES.get((order_category_code or '').upper(), 'CAD Insoles')
     form_type, form_category = form_orthosis(form_content)
     if form_type:
         orthosis_type = form_type
@@ -322,14 +390,15 @@ def build_values(sales_order_no, auto_doc_ref, clinic, order_category_code,
         **FIXED_VALUES,
     }
     values['delivery_location'] = clinic   # same as ClinicName
-    if form_category:
-        values['orthosis_category'] = form_category
-    elif orthosis_type == 'Insole CAD':
-        values['orthosis_category'] = 'CAD Insoles'
-    route = PATHS.get(values.get('orthosis_category'))
+    path_key = form_category or ('CAD Insoles' if orthosis_type == 'CAD Insoles' else None)
+    if path_key:
+        # The OrthosisType column holds the OrthosisTypes list's own names, not our path keys.
+        values['orthosis_category'] = ORTHOSIS_TYPE_NAMES.get(path_key, path_key)
+    route = PATHS.get(path_key)
     if route:
         path, location, process, cadcam_offset, insole_offset = route
-        values.update(path=path, location=location, current_process=process, insoles='Yes',
+        # CurrentProcess stays 'Not Started' (from FIXED_VALUES); `process` is the first step.
+        values.update(path=path, location=location, insoles='Yes',
                       prod_dates_added='Yes', cadcam='No', plaster='No', metal='No',
                       footwear='No', insoles_status='Not Completed', lined='No',
                       insole_si='No', cadcam_si='No')
@@ -339,12 +408,12 @@ def build_values(sales_order_no, auto_doc_ref, clinic, order_category_code,
         for name in ('plaster', 'metal', 'footwear', 'moulding', 'machining', 'finishing'):
             values[name + '_si'] = 'No'
         values['insole_date'] = values['insole_date_original'] = _offset_date(
-            request_delivery_date, insole_offset)
+            request_delivery_date, insole_offset, holidays)
         if cadcam_offset is not None:
             values['cadcam'] = 'Yes'
             values['cadcam_status'] = 'Not Completed'
             values['cadcam_date'] = values['cadcam_date_original'] = _offset_date(
-                request_delivery_date, cadcam_offset)
+                request_delivery_date, cadcam_offset, holidays)
     return {k: v for k, v in values.items() if v not in (None, '')}
 
 
@@ -356,6 +425,10 @@ def create_production_order(sales_order_no, auto_doc_ref, clinic, order_category
     dry_run=True works out the production number and every column but writes nothing.
     """
     try:
+        # Hand moulded (and poly / carbon base) insoles aren't a SharePoint category yet - ignore.
+        if (order_category_code or '').upper() in IGNORED_CATEGORY_CODES:
+            return True, (f"Hand moulded insole - no SharePoint production order is made for "
+                          f"{sales_order_no} yet.")
         s, missing = _settings()
         if missing:
             return False, "SharePoint production order not created - missing " + ", ".join(missing)
