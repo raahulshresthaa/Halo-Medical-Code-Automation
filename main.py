@@ -69,7 +69,8 @@ from generate_code_logic import (
 )
 from NavApi import create_sales_order, parse_pre_app_date, find_existing_order
 from sharepoint_production import (create_production_order, quantity_and_extremity,
-                                   nav_clinic_name, nav_patient_number)
+                                   nav_patient_number, build_values as build_production_values,
+                                   COLUMNS as SP_COLUMNS)
 import concurrent.futures
 import requests.exceptions
 import urllib.parse
@@ -942,7 +943,7 @@ class PdfButtonHandler:
             # gpt-5.6-terra is a reasoning model: it does NOT accept 'temperature', it uses
             # 'max_completion_tokens' (which must also cover the reasoning tokens it spends),
             # and 'reasoning_effort' controls how hard it thinks.
-            response = openai.ChatCompletion.create(
+            response = openai.OpenAI(api_key=openai.api_key).chat.completions.create(
                 model="gpt-5.6-terra",
                 reasoning_effort="high",
                 messages=[
@@ -951,8 +952,7 @@ class PdfButtonHandler:
                 ],
                 max_completion_tokens=8000, # headroom for reasoning tokens + the short code output
             )
-            # Extract the assistant's response (price codes)
-            assistant_response = response['choices'][0]['message']['content']
+            assistant_response = response.choices[0].message.content
             return assistant_response, ai_input
         except Exception as e:
             return f"Error: {str(e)}", ai_input
@@ -1196,12 +1196,39 @@ class PdfButtonHandler:
                 self.root.after(0, lambda t=text, tg=tag: self.append_to_result_text(t, tg))
             # Insole orders also get a production order on the SharePoint list. Only for a SO
             # created just now, and a failure here never undoes or hides the NAV upload.
-            if success and sales_order_no and not already_exists and model_id == MODEL_IDS['Insoles']:
+            # The list uses the short clinic name from the form ("Kingston"), not NAV's full
+            # customer name ("Kingston Hospital NHS Foundation Trust - DELIV SBS"), and the
+            # pre-app date as its delivery date when the form has one. NAV keeps its own
+            # Requested Delivery Date (the earlier of lead time and pre-app - 3 days).
+            sp_clinic = (clinic or '').strip()
+            sp_delivery_date = pre_app_date or request_delivery_date
+            if (success and sales_order_no and not already_exists and model_id == MODEL_IDS['Insoles']
+                    and not manufacturing_enabled):
+                # Show what WOULD have been posted, built locally (no SharePoint call), so the
+                # details can be checked without creating anything.
+                try:
+                    sp_quantity, sp_extremity = quantity_and_extremity(content)
+                    preview = build_production_values(
+                        sales_order_no, AutoDocRef, sp_clinic, order_category_code,
+                        sp_delivery_date, sp_quantity, sp_extremity,
+                        nav_patient_number(nav_order), form_content=content)
+                    details = "\n".join(f"    {SP_COLUMNS[k]:28} {v}" for k, v in preview.items())
+                except Exception as e:
+                    details = f"    (could not work out the details: {type(e).__name__}: {e})"
+                skip_message = (f"Manufacturing is off - {sales_order_no} was NOT posted to the "
+                                f"SharePoint production list. It would have been created with:\n"
+                                f"{details}")
+                print(skip_message)
+                try:
+                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"[SHAREPOINT] {skip_message}\n")
+                except Exception:
+                    pass
+                self.root.after(0, self.append_to_result_text, skip_message, 'info')
+            elif success and sales_order_no and not already_exists and model_id == MODEL_IDS['Insoles']:
                 sp_quantity, sp_extremity = quantity_and_extremity(content)
-                # Clinic and patient number go on the list as NAV shows them on the created
-                # order. The form's clinic name is the fallback; the patient number is left blank
-                # if NAV doesn't send one. NAV's field names are logged to confirm them.
-                sp_clinic = (nav_clinic_name(nav_order) or clinic).strip()
+                # The patient number goes on the list as NAV shows it on the created order
+                # (blank if NAV doesn't send one). NAV's reply is logged to confirm it.
                 sp_patient_no = nav_patient_number(nav_order)
                 try:
                     with open(log_file_path, 'a', encoding='utf-8') as f:
@@ -1209,7 +1236,7 @@ class PdfButtonHandler:
                 except Exception:
                     pass
                 sp_ok, sp_message = create_production_order(
-                    sales_order_no, AutoDocRef, sp_clinic, order_category_code, request_delivery_date,
+                    sales_order_no, AutoDocRef, sp_clinic, order_category_code, sp_delivery_date,
                     sp_quantity, sp_extremity, sp_patient_no, form_content=content)
                 print(sp_message)
                 try:
@@ -1734,6 +1761,21 @@ class PdfButtonHandler:
                 pre_app_date = parse_pre_app_date(pre_app_date_str)
                 if pre_app_date is None:
                     print(f"Failed to parse pre_app_date: '{pre_app_date_str}'")
+                else:
+                    # A misread year (e.g. '08/01/0207' for 2027) gave a delivery date NAV
+                    # refuses, so the whole order failed. Only trust a pre-app date within a
+                    # year either side of today; otherwise ignore it and let the checker fix it.
+                    today = datetime.date.today()
+                    pre_app_dt = datetime.date.fromisoformat(pre_app_date)
+                    if not (today - datetime.timedelta(days=366) <= pre_app_dt
+                            <= today + datetime.timedelta(days=366)):
+                        print(f"Ignoring implausible pre_app_date: '{pre_app_date_str}' -> {pre_app_date}")
+                        self.root.after(0, self.append_and_show_warning, "Kick to Code Checker",
+                                        f"The pre-app date was read as '{pre_app_date_str}', which "
+                                        f"can't be right, so it was ignored and the normal delivery "
+                                        f"date used. Check the pre-app date in NAV.",
+                                        f"Pre-app date unreadable ({pre_app_date_str})")
+                        pre_app_date = None
             else:
                 pre_app_date = None
             print(f"Parsed pre_app_date: {pre_app_date}")
@@ -3984,6 +4026,17 @@ pdf_handler = PdfButtonHandler(
 )
 auto_watch_var = tk.BooleanVar(value=False)
 
+# Manufacturing on/off. On (the default): an insole order that reaches NAV is also posted to the
+# SharePoint production list. Off: NAV only. The upload runs on a worker thread, which must not
+# touch tk variables, so the tick box keeps this plain flag up to date for it to read.
+manufacturing_var = tk.BooleanVar(value=True)
+manufacturing_enabled = True
+
+
+def on_manufacturing_toggled():
+    global manufacturing_enabled
+    manufacturing_enabled = bool(manufacturing_var.get())
+
 # We'll track which files we've seen so we don't re-process them
 known_downloads = set()
 # The Downloads folder being watched, once one has been found and checked. None while off.
@@ -4174,6 +4227,15 @@ auto_watch_check = ttk.Checkbutton(
     bootstyle='success-round-toggle'
 )
 auto_watch_check.pack(side='left', padx=(22, 0))
+
+manufacturing_check = ttk.Checkbutton(
+    bottom_frame,
+    text="Manufacturing (post to SharePoint)",
+    variable=manufacturing_var,
+    command=on_manufacturing_toggled,
+    bootstyle='success-round-toggle'
+)
+manufacturing_check.pack(side='left', padx=(22, 0))
 
 spacer = ttk.Frame(bottom_frame)
 spacer.pack(side='left', expand=True, fill='x')

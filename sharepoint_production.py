@@ -171,12 +171,6 @@ def prod_no_for(item_id, site_location=None, today=None):
     return f"PROD{letter}{today.year % 100:02d}-{int(item_id):06d}"
 
 
-def _likely_next_id(s, headers):
-    """Only for the dry run: the highest ID on the list plus one."""
-    ids = [int(i['id']) for i in _all_fields(s, headers, [COLUMNS['sales_order']])]
-    return max(ids, default=0) + 1
-
-
 def _form_fields(content):
     d = {}
     for line in (content or '').split(chr(10)):
@@ -210,29 +204,9 @@ def quantity_and_extremity(content):
     return quantity, side
 
 
-def nav_clinic_name(nav_order):
-    """The clinic's name as NAV shows it on the created order ('' if NAV didn't send one)."""
-    return str((nav_order or {}).get('Sell_to_Customer_Name') or '').strip()
-
-
 def nav_patient_number(nav_order):
-    """The patient number NAV shows back on the created order, '' if it didn't send one.
-
-    NAV's field name for it isn't known here, so this takes the first filled-in field whose name
-    has 'patient' and 'no'/'number' in it (not the name or gender). Once the real name is seen in
-    the log, set NAV_PATIENT_NUMBER_FIELD to it and the guess is skipped.
-    """
-    order = nav_order or {}
-    if NAV_PATIENT_NUMBER_FIELD:
-        return str(order.get(NAV_PATIENT_NUMBER_FIELD) or '').strip()
-    for key, value in order.items():
-        k = key.lower()
-        if 'patient' in k and ('no' in k or 'number' in k) and 'name' not in k and value:
-            return str(value).strip()
-    return ''
-
-
-NAV_PATIENT_NUMBER_FIELD = None   # e.g. 'Patient_No' once confirmed from the log
+    """The patient number NAV gives the created order (its Patient_No field), '' if none."""
+    return str((nav_order or {}).get('Patient_No') or '').strip()
 
 
 # Our category key (also the PATHS key) -> the name on the OrthosisTypes list (OrthosisType column).
@@ -419,11 +393,8 @@ def build_values(sales_order_no, auto_doc_ref, clinic, order_category_code,
 
 def create_production_order(sales_order_no, auto_doc_ref, clinic, order_category_code,
                             request_delivery_date, quantity=1, extremity='', patient_no='',
-                            dry_run=False, form_content=''):
-    """Add the production order. Returns (ok, message). Never raises.
-
-    dry_run=True works out the production number and every column but writes nothing.
-    """
+                            form_content=''):
+    """Add the production order. Returns (ok, message). Never raises."""
     try:
         # Hand moulded (and poly / carbon base) insoles aren't a SharePoint category yet - ignore.
         if (order_category_code or '').upper() in IGNORED_CATEGORY_CODES:
@@ -445,12 +416,6 @@ def create_production_order(sales_order_no, auto_doc_ref, clinic, order_category
 
         values = build_values(sales_order_no, auto_doc_ref, clinic, order_category_code,
                               request_delivery_date, quantity, extremity, patient_no, form_content)
-
-        if dry_run:
-            prod_no = prod_no_for(_likely_next_id(s, headers)) + "   (the ID is only known once created)"
-            shown = {COLUMNS['prod_no']: prod_no, **{COLUMNS[k]: v for k, v in values.items()}}
-            return True, "DRY RUN - nothing written. Would create:\n" + "\n".join(
-                f"    {k:28} {v}" for k, v in shown.items())
 
         # The production number is built from the item's own ID, which SharePoint hands out
         # when the item is created - so create it first, then put the number in the Title.
