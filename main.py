@@ -69,8 +69,7 @@ from generate_code_logic import (
 )
 from NavApi import create_sales_order, parse_pre_app_date, find_existing_order
 from sharepoint_production import (create_production_order, quantity_and_extremity,
-                                   nav_patient_number, build_values as build_production_values,
-                                   COLUMNS as SP_COLUMNS)
+                                   nav_patient_number)
 import concurrent.futures
 import requests.exceptions
 import urllib.parse
@@ -1203,29 +1202,7 @@ class PdfButtonHandler:
             sp_clinic = (clinic or '').strip()
             sp_delivery_date = pre_app_date or request_delivery_date
             if (success and sales_order_no and not already_exists and model_id == MODEL_IDS['Insoles']
-                    and not manufacturing_enabled):
-                # Show what WOULD have been posted, built locally (no SharePoint call), so the
-                # details can be checked without creating anything.
-                try:
-                    sp_quantity, sp_extremity = quantity_and_extremity(content)
-                    preview = build_production_values(
-                        sales_order_no, AutoDocRef, sp_clinic, order_category_code,
-                        sp_delivery_date, sp_quantity, sp_extremity,
-                        nav_patient_number(nav_order), form_content=content)
-                    details = "\n".join(f"    {SP_COLUMNS[k]:28} {v}" for k, v in preview.items())
-                except Exception as e:
-                    details = f"    (could not work out the details: {type(e).__name__}: {e})"
-                skip_message = (f"Manufacturing is off - {sales_order_no} was NOT posted to the "
-                                f"SharePoint production list. It would have been created with:\n"
-                                f"{details}")
-                print(skip_message)
-                try:
-                    with open(log_file_path, 'a', encoding='utf-8') as f:
-                        f.write(f"[SHAREPOINT] {skip_message}\n")
-                except Exception:
-                    pass
-                self.root.after(0, self.append_to_result_text, skip_message, 'info')
-            elif success and sales_order_no and not already_exists and model_id == MODEL_IDS['Insoles']:
+                    and manufacturing_enabled):
                 sp_quantity, sp_extremity = quantity_and_extremity(content)
                 # The patient number goes on the list as NAV shows it on the created order
                 # (blank if NAV doesn't send one). NAV's reply is logged to confirm it.
