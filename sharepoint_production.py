@@ -90,7 +90,7 @@ FIXED_VALUES = {
     'classification': 'New',
     'quality_checked': 'No',
     'location': 'Pre-Production',
-    'current_process': 'Not Started',
+    'current_process': 'Not started',s
     'current_stage_no': '1',
     'site_location': 'Wellingborough (Halo)',
     'prod_dates_added': 'No',
