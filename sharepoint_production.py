@@ -10,6 +10,11 @@ git-ignored:
     sp_client_secret.txt  Azure app client secret
     sp_site_id.txt        Graph site ID, e.g.  contoso.sharepoint.com,<siteGuid>,<webGuid>
     sp_list_id.txt        The Production Orders list ID (GUID) or its display name
+    sp_list_id_ald.txt    The Aldershot list ID (same site as sp_site_id.txt)
+    sp_site_id_fp.txt     The Florence Paediatrics site ID
+    sp_list_id_fp.txt     The Florence Paediatrics list ID
+
+Which list an order goes to is decided by destination_for(). All the lists have the same columns.
 
 If any file is missing, nothing is created and the NAV upload is NOT affected - the caller gets
 a (False, message) back and shows it as a warning. This module never raises into the upload.
@@ -90,7 +95,7 @@ FIXED_VALUES = {
     'classification': 'New',
     'quality_checked': 'No',
     'location': 'Pre-Production',
-    'current_process': 'Not started',s
+    'current_process': 'Not started',
     'current_stage_no': '1',
     'site_location': 'Wellingborough (Halo)',
     'prod_dates_added': 'No',
@@ -105,6 +110,26 @@ FIXED_VALUES = {
 GRAPH = 'https://graph.microsoft.com/v1.0'
 TIMEOUT = 20
 
+# Each production list: the files holding its site and list IDs, and the SiteLocation its rows
+# carry (which also picks the production number letter, see SITE_LETTERS).
+DESTINATIONS = {
+    'halo': {'name': 'Halo', 'site_file': 'sp_site_id', 'list_file': 'sp_list_id',
+             'site_location': 'Wellingborough (Halo)'},
+    'ald': {'name': 'Aldershot', 'site_file': 'sp_site_id', 'list_file': 'sp_list_id_ald',
+            'site_location': 'Aldershot (MedFac)'},
+    # Set up for future use - destination_for() doesn't send any jobs here yet.
+    'fp': {'name': 'Florence Paediatrics', 'site_file': 'sp_site_id_fp',
+           'list_file': 'sp_list_id_fp', 'site_location': 'Lewes (Florence Paediatrics)'},
+}
+
+
+def destination_for(orthosis_type):
+    """The DESTINATIONS key for a job type ('Simple Insoles' or 'CAD Insoles').
+
+    All simple insoles (with or without additions / covering) go to Aldershot, the rest to Halo.
+    """
+    return 'ald' if orthosis_type == 'Simple Insoles' else 'halo'
+
 
 def _read(filename):
     path = os.path.join(os.getcwd(), filename)
@@ -117,10 +142,14 @@ def _read(filename):
         return None
 
 
-def _settings():
-    names = ['sp_tenant_id', 'sp_client_id', 'sp_client_secret', 'sp_site_id', 'sp_list_id']
-    values = {n: _read(n + '.txt') for n in names}
-    missing = [n + '.txt' for n, v in values.items() if not v]
+def _settings(destination='halo'):
+    """The login settings plus the destination's site and list ID, and any files missing."""
+    dest = DESTINATIONS[destination]
+    files = {'sp_tenant_id': 'sp_tenant_id', 'sp_client_id': 'sp_client_id',
+             'sp_client_secret': 'sp_client_secret',
+             'sp_site_id': dest['site_file'], 'sp_list_id': dest['list_file']}
+    values = {key: _read(name + '.txt') for key, name in files.items()}
+    missing = [files[key] + '.txt' for key, v in values.items() if not v]
     return values, missing
 
 
@@ -400,7 +429,13 @@ def create_production_order(sales_order_no, auto_doc_ref, clinic, order_category
         if (order_category_code or '').upper() in IGNORED_CATEGORY_CODES:
             return True, (f"Hand moulded insole - no SharePoint production order is made for "
                           f"{sales_order_no} yet.")
-        s, missing = _settings()
+        values = build_values(sales_order_no, auto_doc_ref, clinic, order_category_code,
+                              request_delivery_date, quantity, extremity, patient_no, form_content)
+        destination = destination_for(values['orthosis_type'])
+        list_name = DESTINATIONS[destination]['name']
+        values['site_location'] = DESTINATIONS[destination]['site_location']
+
+        s, missing = _settings(destination)
         if missing:
             return False, "SharePoint production order not created - missing " + ", ".join(missing)
         token = _token(s)
@@ -412,10 +447,8 @@ def create_production_order(sales_order_no, auto_doc_ref, clinic, order_category
             fields = item.get('fields', {})
             if str(fields.get(so_col, '')).strip() == sales_order_no:
                 return True, (f"Production order {fields.get(COLUMNS['prod_no'])} already exists "
-                              f"on SharePoint for {sales_order_no} - not created again.")
-
-        values = build_values(sales_order_no, auto_doc_ref, clinic, order_category_code,
-                              request_delivery_date, quantity, extremity, patient_no, form_content)
+                              f"on the {list_name} SharePoint list for {sales_order_no} - "
+                              f"not created again.")
 
         # The production number is built from the item's own ID, which SharePoint hands out
         # when the item is created - so create it first, then put the number in the Title.
@@ -427,13 +460,14 @@ def create_production_order(sales_order_no, auto_doc_ref, clinic, order_category
             return False, (f"SharePoint production order not created for {sales_order_no}: "
                            f"{r.status_code} {r.text[:300]}")
         item_id = int(r.json()['id'])
-        prod_no = prod_no_for(item_id)
+        prod_no = prod_no_for(item_id, values['site_location'])
         r = requests.patch(f"{_items_url(s)}/{item_id}/fields", headers=headers,
                            json={COLUMNS['prod_no']: prod_no}, timeout=TIMEOUT)
         if r.status_code not in (200, 201):
             requests.delete(f"{_items_url(s)}/{item_id}", headers=headers, timeout=TIMEOUT)
             return False, (f"SharePoint production order not created for {sales_order_no}: "
                            f"could not set the production number ({r.status_code} {r.text[:200]}).")
-        return True, f"Created SharePoint production order {prod_no} for {sales_order_no}."
+        return True, (f"Created SharePoint production order {prod_no} for {sales_order_no} "
+                      f"on the {list_name} list.")
     except Exception as e:
         return False, f"SharePoint production order not created for {sales_order_no}: {type(e).__name__}: {e}"

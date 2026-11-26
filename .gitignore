@@ -37,3 +37,7 @@ sp_client_id.txt
 sp_client_secret.txt
 sp_site_id.txt
 sp_list_id.txt
+
+sp_list_id_ald.txt
+sp_site_id_fp.txt
+sp_list_id_fp.txt
